@@ -1,0 +1,27 @@
+# Node/Nuxt artifacts
+node_modules/
+.nuxt/
+.nitro/
+.output/
+dist/
+build/
+.cache/
+.temp/
+
+# Logs and environment
+*.log
+logs/
+.env
+.env.*
+
+# Test and coverage output
+coverage/
+reports/
+
+# Tooling configs
+.vscode/
+.idea/
+
+# Misc
+Thumbs.db
+.DS_Store

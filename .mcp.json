@@ -1,0 +1,45 @@
+{
+  "mcpServers": {
+    "sequential-thinking": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "narsil-mcp": {
+      "type": "stdio",
+      "command": "narsil-mcp.exe",
+      "args": [
+        "--repos",
+        "C:\\code\\battleline\\Courier",
+        "--git",
+        "--call-graph",
+        "--persist",
+        "--index-path",
+        ".claude\\cache",
+        "--watch",
+        "--lsp",
+        "--streaming",
+        "--remote",
+        "--neural",
+        "--neural-backend",
+        "api",
+        "--neural-model",
+        "text-embedding-3-small"
+      ]
+    },
+    "athena": {
+      "type": "stdio",
+      "command": "C:\\Python313\\python.exe",
+      "args": [
+        "-X",
+        "utf8",
+        "-m",
+        "athena.mcp_server"
+      ],
+      "cwd": "C:\\code\\battleline\\Courier"
+    }
+  }
+}

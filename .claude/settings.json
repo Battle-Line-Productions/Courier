@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '## Athena Session\n\nRun `athena` to boot the session system. This loads your context, creates a session log, and initializes the Committee of Seats.\n\nUse `/start`, `/end`, `/save` for session management.'"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(athena)",
+      "Bash(athena save *)",
+      "Bash(athena --end)",
+      "Bash(athena check)",
+      "Bash(athena doctor*)",
+      "Bash(athena --version)",
+      "Bash(athena identity*)"
+    ]
+  }
+}

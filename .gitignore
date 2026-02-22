@@ -1,0 +1,78 @@
+# General
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Node.js
+node_modules/
+.next/
+out/
+.nuxt/
+.output/
+.nitro/
+.cache/
+dist/
+
+# Package managers
+pnpm-lock.yaml
+yarn.lock
+
+# Build artifacts
+*.tsbuildinfo
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# .NET
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+TestResults/
+*.user
+*.userosscache
+*.suo
+*.cache
+*.pdb
+*.opendb
+*.ide
+*.nupkg
+*.snupkg
+*.trx
+coverage*/
+lcov.info
+
+# Rider / JetBrains
+.idea/
+
+# Visual Studio
+.vs/
+*.sln.docstates
+
+# ASP.NET
+ScaffoldingReadMe.txt
+
+# Aspire
+.aspire/
+
+# Misc tooling
+.sonarlint/
+.sonarqube/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+/.dotnet-tools/
+.codex/
+secrets.json
