@@ -14,7 +14,7 @@ var api = builder.AddProject<Projects.Courier_Api>("courier-api")
     .WithReference(postgres)
     .WaitFor(postgres)
     .WithReference(seq)
-    .WithEnvironment("Serilog__WriteTo__0__Args__serverUrl", seq.GetEndpoint("http"));
+    .WithEnvironment("Seq__ServerUrl", seq.GetEndpoint("http"));
 
 // Worker Host
 builder.AddProject<Projects.Courier_Worker>("courier-worker")
@@ -22,13 +22,14 @@ builder.AddProject<Projects.Courier_Worker>("courier-worker")
     .WaitFor(postgres)
     .WaitFor(api)
     .WithReference(seq)
-    .WithEnvironment("Serilog__WriteTo__0__Args__serverUrl", seq.GetEndpoint("http"));
+    .WithEnvironment("Seq__ServerUrl", seq.GetEndpoint("http"));
 
 // Frontend (npm dev server)
 builder.AddJavaScriptApp("courier-frontend", "../Courier.Frontend", "dev")
     .WithReference(api)
     .WaitFor(api)
-    .WithHttpEndpoint(port: 3000, env: "PORT")
+    .WithHttpEndpoint(env: "PORT")
+    .WithExternalHttpEndpoints()
     .WithEnvironment("NEXT_PUBLIC_API_URL", api.GetEndpoint("http"));
 
 builder.Build().Run();

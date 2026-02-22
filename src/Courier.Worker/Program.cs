@@ -18,7 +18,7 @@ builder.Services.AddSerilog((_, config) =>
         .Enrich.FromLogContext()
         .WriteTo.Console();
 
-    var seqUrl = builder.Configuration["Serilog:WriteTo:0:Args:serverUrl"];
+    var seqUrl = builder.Configuration["Seq:ServerUrl"];
     if (!string.IsNullOrWhiteSpace(seqUrl))
         config.WriteTo.Seq(seqUrl);
 });

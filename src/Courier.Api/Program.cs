@@ -16,7 +16,7 @@ builder.Host.UseSerilog((context, config) =>
         .Enrich.FromLogContext()
         .WriteTo.Console();
 
-    var seqUrl = context.Configuration["Serilog:WriteTo:0:Args:serverUrl"];
+    var seqUrl = context.Configuration["Seq:ServerUrl"];
     if (!string.IsNullOrWhiteSpace(seqUrl))
         config.WriteTo.Seq(seqUrl);
 });
@@ -29,6 +29,17 @@ builder.Services.AddHostedService<MigrationRunner>();
 
 // Features (Jobs, validators, etc.)
 builder.Services.AddCourierFeatures();
+
+// CORS — allow frontend origin in development
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 // Controllers — discover from Features assembly
 builder.Services.AddControllers()
@@ -45,6 +56,7 @@ var app = builder.Build();
 
 // Middleware pipeline
 app.UseMiddleware<ApiExceptionMiddleware>();
+app.UseCors();
 
 if (app.Environment.IsDevelopment())
 {
