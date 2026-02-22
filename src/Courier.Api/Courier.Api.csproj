@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Courier.Domain\Courier.Domain.csproj" />
+    <ProjectReference Include="..\Courier.Infrastructure\Courier.Infrastructure.csproj" />
+    <ProjectReference Include="..\Courier.Features\Courier.Features.csproj" />
+    <ProjectReference Include="..\Courier.Migrations\Courier.Migrations.csproj" />
+    <ProjectReference Include="..\Courier.ServiceDefaults\Courier.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.Seq" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+  </ItemGroup>
+
+</Project>
