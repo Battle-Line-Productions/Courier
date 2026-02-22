@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Courier.Domain\Courier.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Courier.Infrastructure\Courier.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Courier.Features\Courier.Features.csproj" />
+    <ProjectReference Include="..\..\src\Courier.Api\Courier.Api.csproj" />
+    <ProjectReference Include="..\..\src\Courier.Worker\Courier.Worker.csproj" />
+    <ProjectReference Include="..\..\src\Courier.Migrations\Courier.Migrations.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="NetArchTest.Rules" />
+  </ItemGroup>
+
+</Project>
