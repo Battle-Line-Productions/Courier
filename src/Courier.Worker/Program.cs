@@ -1,0 +1,54 @@
+using Courier.Features;
+using Courier.Infrastructure.Data;
+using Courier.Migrations;
+using Courier.Worker;
+using Courier.Worker.Services;
+using Quartz;
+using Serilog;
+
+var builder = Host.CreateApplicationBuilder(args);
+
+// Aspire ServiceDefaults (OpenTelemetry, health checks, service discovery)
+builder.AddServiceDefaults();
+
+// Serilog
+builder.Services.AddSerilog((_, config) =>
+{
+    config.ReadFrom.Configuration(builder.Configuration)
+        .Enrich.FromLogContext()
+        .WriteTo.Console();
+
+    var seqUrl = builder.Configuration["Serilog:WriteTo:0:Args:serverUrl"];
+    if (!string.IsNullOrWhiteSpace(seqUrl))
+        config.WriteTo.Seq(seqUrl);
+});
+
+// EF Core via Aspire integration
+builder.AddNpgsqlDbContext<CourierDbContext>("CourierDb");
+
+// Worker does NOT run migrations — it validates schema version
+builder.Services.AddHostedService<SchemaVersionValidator>();
+
+// Worker heartbeat
+builder.Services.AddHostedService<WorkerHeartbeat>();
+
+// Features (engine, step registry, step handlers, services)
+builder.Services.AddCourierFeatures();
+
+// Job queue processor
+builder.Services.AddHostedService<JobQueueProcessor>();
+
+// Quartz.NET persistent store
+builder.Services.AddQuartz(q =>
+{
+    q.SchedulerId = "CourierScheduler";
+    q.UsePersistentStore(store =>
+    {
+        store.UsePostgres(builder.Configuration.GetConnectionString("CourierDb")!);
+        store.UseNewtonsoftJsonSerializer();
+    });
+});
+builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
+
+var host = builder.Build();
+host.Run();
