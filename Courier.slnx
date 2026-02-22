@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Courier.Api/Courier.Api.csproj" />
+    <Project Path="src/Courier.AppHost/Courier.AppHost.csproj" />
+    <Project Path="src/Courier.Domain/Courier.Domain.csproj" />
+    <Project Path="src/Courier.Features/Courier.Features.csproj" />
+    <Project Path="src/Courier.Infrastructure/Courier.Infrastructure.csproj" />
+    <Project Path="src/Courier.Migrations/Courier.Migrations.csproj" />
+    <Project Path="src/Courier.ServiceDefaults/Courier.ServiceDefaults.csproj" />
+    <Project Path="src/Courier.Worker/Courier.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Courier.Tests.Architecture/Courier.Tests.Architecture.csproj" />
+    <Project Path="tests/Courier.Tests.Integration/Courier.Tests.Integration.csproj" />
+    <Project Path="tests/Courier.Tests.Unit/Courier.Tests.Unit.csproj" />
+  </Folder>
+</Solution>
