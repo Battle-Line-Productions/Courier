@@ -88,4 +88,63 @@ public class JobServiceTests
         result.Error.ShouldNotBeNull();
         result.Error!.Code.ShouldBe(1030);
     }
+
+    [Fact]
+    public async Task UpdateAsync_ExistingJob_ReturnsUpdatedDto()
+    {
+        using var db = CreateInMemoryContext();
+        var service = new JobService(db);
+        var created = await service.CreateAsync(new CreateJobRequest { Name = "Old Name", Description = "Old Desc" });
+
+        var result = await service.UpdateAsync(created.Data!.Id, "New Name", "New Desc");
+
+        result.Success.ShouldBeTrue();
+        result.Data.ShouldNotBeNull();
+        result.Data!.Name.ShouldBe("New Name");
+        result.Data.Description.ShouldBe("New Desc");
+        result.Data.CurrentVersion.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_NonExistentJob_ReturnsNotFoundError()
+    {
+        using var db = CreateInMemoryContext();
+        var service = new JobService(db);
+
+        var result = await service.UpdateAsync(Guid.NewGuid(), "Name", null);
+
+        result.Success.ShouldBeFalse();
+        result.Error!.Code.ShouldBe(1030);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_ExistingJob_SoftDeletes()
+    {
+        using var db = CreateInMemoryContext();
+        var service = new JobService(db);
+        var created = await service.CreateAsync(new CreateJobRequest { Name = "To Delete" });
+
+        var result = await service.DeleteAsync(created.Data!.Id);
+
+        result.Success.ShouldBeTrue();
+
+        // Verify soft delete — bypass query filter
+        var deleted = await db.Jobs.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(j => j.Id == created.Data.Id);
+        deleted.ShouldNotBeNull();
+        deleted!.IsDeleted.ShouldBeTrue();
+        deleted.DeletedAt.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task DeleteAsync_NonExistentJob_ReturnsNotFound()
+    {
+        using var db = CreateInMemoryContext();
+        var service = new JobService(db);
+
+        var result = await service.DeleteAsync(Guid.NewGuid());
+
+        result.Success.ShouldBeFalse();
+        result.Error!.Code.ShouldBe(1030);
+    }
 }
