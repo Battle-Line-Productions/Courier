@@ -1,0 +1,143 @@
+using Courier.Domain.Common;
+using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Courier.Features.Jobs;
+
+[ApiController]
+[Route("api/v1/jobs")]
+public class JobsController : ControllerBase
+{
+    private readonly JobService _jobService;
+    private readonly JobStepService _stepService;
+    private readonly ExecutionService _executionService;
+    private readonly IValidator<CreateJobRequest> _validator;
+
+    public JobsController(
+        JobService jobService,
+        JobStepService stepService,
+        ExecutionService executionService,
+        IValidator<CreateJobRequest> validator)
+    {
+        _jobService = jobService;
+        _stepService = stepService;
+        _executionService = executionService;
+        _validator = validator;
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<ApiResponse<JobDto>>> Create(
+        [FromBody] CreateJobRequest request,
+        CancellationToken ct)
+    {
+        var validation = await _validator.ValidateAsync(request, ct);
+        if (!validation.IsValid)
+        {
+            var details = validation.Errors
+                .Select(e => new FieldError(e.PropertyName, e.ErrorMessage))
+                .ToList();
+
+            return BadRequest(new ApiResponse<JobDto>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.ValidationFailed, "Validation failed.", details)
+            });
+        }
+
+        var result = await _jobService.CreateAsync(request, ct);
+        return Created($"/api/v1/jobs/{result.Data!.Id}", result);
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<ApiResponse<JobDto>>> GetById(Guid id, CancellationToken ct)
+    {
+        var result = await _jobService.GetByIdAsync(id, ct);
+
+        if (!result.Success)
+            return NotFound(result);
+
+        return Ok(result);
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<PagedApiResponse<JobDto>>> List(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        CancellationToken ct = default)
+    {
+        var result = await _jobService.ListAsync(page, pageSize, ct);
+        return Ok(result);
+    }
+
+    [HttpPost("{jobId:guid}/steps")]
+    public async Task<ActionResult<ApiResponse<JobStepDto>>> AddStep(
+        Guid jobId,
+        [FromBody] AddJobStepRequest request,
+        CancellationToken ct)
+    {
+        var result = await _stepService.AddStepAsync(jobId, request, ct);
+
+        if (!result.Success)
+            return NotFound(result);
+
+        return Created($"/api/v1/jobs/{jobId}/steps", result);
+    }
+
+    [HttpGet("{jobId:guid}/steps")]
+    public async Task<ActionResult<ApiResponse<List<JobStepDto>>>> ListSteps(
+        Guid jobId,
+        CancellationToken ct)
+    {
+        var result = await _stepService.ListStepsAsync(jobId, ct);
+
+        if (!result.Success)
+            return NotFound(result);
+
+        return Ok(result);
+    }
+
+    [HttpPost("{jobId:guid}/trigger")]
+    public async Task<ActionResult<ApiResponse<JobExecutionDto>>> Trigger(
+        Guid jobId,
+        [FromBody] TriggerJobRequest request,
+        CancellationToken ct)
+    {
+        var result = await _executionService.TriggerAsync(jobId, request.TriggeredBy, ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ResourceNotFound => NotFound(result),
+                ErrorCodes.JobNotEnabled => Conflict(result),
+                ErrorCodes.JobHasNoSteps => BadRequest(result),
+                _ => StatusCode(500, result),
+            };
+        }
+
+        return Accepted(result);
+    }
+
+    [HttpGet("{jobId:guid}/executions")]
+    public async Task<ActionResult<PagedApiResponse<JobExecutionDto>>> ListExecutions(
+        Guid jobId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        CancellationToken ct = default)
+    {
+        var result = await _executionService.ListExecutionsAsync(jobId, page, pageSize, ct);
+        return Ok(result);
+    }
+
+    [HttpGet("executions/{executionId:guid}")]
+    public async Task<ActionResult<ApiResponse<JobExecutionDto>>> GetExecution(
+        Guid executionId,
+        CancellationToken ct)
+    {
+        var result = await _executionService.GetExecutionAsync(executionId, ct);
+
+        if (!result.Success)
+            return NotFound(result);
+
+        return Ok(result);
+    }
+}
