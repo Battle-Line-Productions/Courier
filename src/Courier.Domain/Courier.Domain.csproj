@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Domain: BCL-only. No NuGet dependencies. -->
+</Project>
