@@ -171,4 +171,61 @@ public class JobsApiTests : IClassFixture<CourierApiFactory>
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
+
+    [Fact]
+    public async Task UpdateJob_ValidRequest_ReturnsUpdated()
+    {
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/jobs",
+            new { name = "Original", description = "Original desc" });
+        var created = await createResponse.Content.ReadFromJsonAsync<ApiResponse<JobDto>>();
+
+        var updateResponse = await _client.PutAsJsonAsync($"/api/v1/jobs/{created!.Data!.Id}",
+            new { name = "Updated", description = "Updated desc" });
+
+        updateResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var updated = await updateResponse.Content.ReadFromJsonAsync<ApiResponse<JobDto>>();
+        updated!.Data!.Name.ShouldBe("Updated");
+        updated.Data.CurrentVersion.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task DeleteJob_ExistingJob_SoftDeletes()
+    {
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/jobs",
+            new { name = "To Delete" });
+        var created = await createResponse.Content.ReadFromJsonAsync<ApiResponse<JobDto>>();
+
+        var deleteResponse = await _client.DeleteAsync($"/api/v1/jobs/{created!.Data!.Id}");
+
+        deleteResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var listResponse = await _client.GetAsync("/api/v1/jobs");
+        var list = await listResponse.Content.ReadFromJsonAsync<PagedApiResponse<JobDto>>();
+        list!.Data.ShouldNotContain(j => j.Id == created.Data.Id);
+    }
+
+    [Fact]
+    public async Task ReplaceSteps_ValidRequest_ReplacesAllSteps()
+    {
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/jobs",
+            new { name = "Step Test Job" });
+        var job = (await createResponse.Content.ReadFromJsonAsync<ApiResponse<JobDto>>())!.Data!;
+
+        await _client.PostAsJsonAsync($"/api/v1/jobs/{job.Id}/steps",
+            new { name = "Old Step", typeKey = "file.copy", stepOrder = 1 });
+
+        var replaceResponse = await _client.PutAsJsonAsync($"/api/v1/jobs/{job.Id}/steps",
+            new { steps = new[]
+            {
+                new { name = "New Step 1", typeKey = "file.copy", stepOrder = 1,
+                      configuration = "{\"sourcePath\":\"/in\",\"destinationPath\":\"/out\"}" },
+                new { name = "New Step 2", typeKey = "file.move", stepOrder = 2,
+                      configuration = "{\"sourcePath\":\"/in\",\"destinationPath\":\"/archive\"}" }
+            }});
+
+        replaceResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var result = await replaceResponse.Content.ReadFromJsonAsync<ApiResponse<List<JobStepDto>>>();
+        result!.Data!.Count.ShouldBe(2);
+        result.Data[0].Name.ShouldBe("New Step 1");
+    }
 }
