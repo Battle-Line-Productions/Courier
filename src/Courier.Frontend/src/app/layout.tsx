@@ -1,4 +1,8 @@
 import type { Metadata } from "next";
+import { Providers } from "@/components/providers";
+import { Shell } from "@/components/layout/shell";
+import { Toaster } from "@/components/ui/sonner";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Courier",
@@ -12,8 +16,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body style={{ fontFamily: "system-ui, sans-serif", margin: 0, padding: "2rem" }}>
-        {children}
+      <body className="antialiased">
+        <Providers>
+          <Shell>{children}</Shell>
+          <Toaster />
+        </Providers>
       </body>
     </html>
   );
