@@ -17,6 +17,7 @@ Build the first functional frontend for Courier — a job management UI that all
 - Job create/edit page with inline step builder
 - Job detail page with overview, steps, execution timeline (auto-refresh)
 - 3 new backend endpoints (update job, delete job, replace steps)
+- Server-side file browser dialog for step config path selection
 
 **Out of scope:**
 - Authentication (MSAL)
@@ -63,13 +64,14 @@ src/Courier.Frontend/src/
 │   │   ├── job-table.tsx       ← Data table for jobs list
 │   │   ├── job-form.tsx        ← Create/edit form with step builder
 │   │   ├── step-builder.tsx    ← Add/remove/reorder steps inline
-│   │   ├── step-config-form.tsx ← Config fields per step type
+│   │   ├── step-config-form.tsx ← Config fields per step type (with browse buttons)
 │   │   ├── execution-timeline.tsx ← Step-by-step progress view
 │   │   └── run-button.tsx      ← Trigger job with confirmation
 │   └── shared/
 │       ├── status-badge.tsx    ← Colored badge for job/step states
 │       ├── confirm-dialog.tsx  ← Reusable confirmation modal
-│       └── empty-state.tsx     ← "No jobs yet" placeholder
+│       ├── empty-state.tsx     ← "No jobs yet" placeholder
+│       └── file-browser-dialog.tsx ← Server filesystem browser modal
 ├── lib/
 │   ├── api.ts                  ← Typed fetch wrapper, envelope unwrapping
 │   ├── types.ts                ← API response types
@@ -79,7 +81,8 @@ src/Courier.Frontend/src/
 │       ├── use-jobs.ts
 │       ├── use-job-steps.ts
 │       ├── use-job-executions.ts
-│       └── use-job-mutations.ts
+│       ├── use-job-mutations.ts
+│       └── use-filesystem.ts
 └── styles/
     └── globals.css             ← Tailwind base + shadcn theme tokens
 ```
@@ -135,7 +138,7 @@ Same `job-form.tsx` component. Edit mode pre-populates from `useJob(id)` + `useJ
 **Step builder:**
 - `[+ Add Step]` adds inline card at bottom
 - Step type dropdown: `file.copy`, `file.move`
-- Config fields per type: Source Path, Destination Path, Overwrite (checkbox)
+- Config fields per type: Source Path, Destination Path, Overwrite (checkbox) — each path field has a browse button that opens the server-side file browser dialog
 - Each step: summary view by default, `[✎]` to expand, `[✕]` to remove
 - Step order: auto-renumbered on add/remove
 
@@ -175,7 +178,7 @@ Same `job-form.tsx` component. Edit mode pre-populates from `useJob(id)` + `useJ
 
 ## Backend Additions
 
-3 new endpoints in existing `JobsController`:
+3 new endpoints in existing `JobsController` + 1 new vertical slice (`Filesystem`):
 
 **1. `PUT /api/v1/jobs/{id}`**
 - Request: `UpdateJobRequest { Name, Description }`
@@ -190,6 +193,13 @@ Same `job-form.tsx` component. Edit mode pre-populates from `useJob(id)` + `useJ
 - Request: `ReplaceJobStepsRequest { Steps: List<StepInput> }`
 - Atomic: delete all existing, insert new, single transaction
 - Returns `ApiResponse<List<JobStepDto>>`
+
+**4. `GET /api/v1/filesystem/browse?path=`** *(new vertical slice: `Courier.Features.Filesystem`)*
+- Query param `path`: directory to browse (empty/null returns filesystem roots)
+- Returns `ApiResponse<BrowseResult>` with `currentPath`, `parentPath`, `entries[]`
+- Each entry: `name`, `type` ("file"|"directory"), `size`, `lastModified`
+- Directories sorted first, then files, both alphabetical
+- Error codes: `DirectoryNotFound` (3000), `FilesystemAccessDenied` (3001)
 
 ---
 
