@@ -16,6 +16,10 @@ public static class ErrorCodes
     public const int StepTypeNotRegistered = 2002;
     public const int InvalidStepOrder = 2003;
     public const int ExecutionNotFound = 2010;
+
+    // Filesystem (3000-3999)
+    public const int DirectoryNotFound = 3000;
+    public const int FilesystemAccessDenied = 3001;
 }
 
 public static class ErrorMessages
@@ -33,6 +37,8 @@ public static class ErrorMessages
         [ErrorCodes.StepTypeNotRegistered] = "Step type not registered",
         [ErrorCodes.InvalidStepOrder] = "Invalid step order",
         [ErrorCodes.ExecutionNotFound] = "Execution not found",
+        [ErrorCodes.DirectoryNotFound] = "Directory not found",
+        [ErrorCodes.FilesystemAccessDenied] = "Filesystem access denied",
     };
 
     public static ApiError Create(int code, string message, IReadOnlyList<FieldError>? details = null)
