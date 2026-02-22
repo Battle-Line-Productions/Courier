@@ -68,6 +68,77 @@ public class JobsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<ApiResponse<JobDto>>> Update(
+        Guid id,
+        [FromBody] UpdateJobRequest request,
+        [FromServices] IValidator<UpdateJobRequest> validator,
+        CancellationToken ct)
+    {
+        var validation = await validator.ValidateAsync(request, ct);
+        if (!validation.IsValid)
+        {
+            var details = validation.Errors
+                .Select(e => new FieldError(e.PropertyName, e.ErrorMessage))
+                .ToList();
+
+            return BadRequest(new ApiResponse<JobDto>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.ValidationFailed, "Validation failed.", details)
+            });
+        }
+
+        var result = await _jobService.UpdateAsync(id, request.Name, request.Description, ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ResourceNotFound => NotFound(result),
+                _ => StatusCode(500, result)
+            };
+        }
+
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<ActionResult<ApiResponse>> Delete(Guid id, CancellationToken ct)
+    {
+        var result = await _jobService.DeleteAsync(id, ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ResourceNotFound => NotFound(result),
+                _ => StatusCode(500, result)
+            };
+        }
+
+        return Ok(result);
+    }
+
+    [HttpPut("{jobId:guid}/steps")]
+    public async Task<ActionResult<ApiResponse<List<JobStepDto>>>> ReplaceSteps(
+        Guid jobId,
+        [FromBody] ReplaceJobStepsRequest request,
+        CancellationToken ct)
+    {
+        var result = await _stepService.ReplaceStepsAsync(jobId, request.Steps, ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ResourceNotFound => NotFound(result),
+                _ => StatusCode(500, result)
+            };
+        }
+
+        return Ok(result);
+    }
+
     [HttpPost("{jobId:guid}/steps")]
     public async Task<ActionResult<ApiResponse<JobStepDto>>> AddStep(
         Guid jobId,

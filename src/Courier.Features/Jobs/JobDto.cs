@@ -6,6 +6,12 @@ public record CreateJobRequest
     public string? Description { get; init; }
 }
 
+public record UpdateJobRequest
+{
+    public required string Name { get; init; }
+    public string? Description { get; init; }
+}
+
 public record JobDto
 {
     public Guid Id { get; init; }

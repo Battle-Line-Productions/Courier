@@ -49,6 +49,41 @@ public class JobStepService
         return new ApiResponse<List<JobStepDto>> { Data = steps };
     }
 
+    public async Task<ApiResponse<List<JobStepDto>>> ReplaceStepsAsync(Guid jobId, List<StepInput> steps, CancellationToken ct = default)
+    {
+        var job = await _db.Jobs.FindAsync([jobId], ct);
+
+        if (job is null)
+            return new ApiResponse<List<JobStepDto>>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.ResourceNotFound, $"Job '{jobId}' not found.")
+            };
+
+        var existingSteps = await _db.JobSteps
+            .Where(s => s.JobId == jobId)
+            .ToListAsync(ct);
+        _db.JobSteps.RemoveRange(existingSteps);
+
+        var newSteps = steps.Select(s => new JobStep
+        {
+            Id = Guid.NewGuid(),
+            JobId = jobId,
+            Name = s.Name,
+            TypeKey = s.TypeKey,
+            StepOrder = s.StepOrder,
+            Configuration = s.Configuration,
+            TimeoutSeconds = s.TimeoutSeconds,
+        }).ToList();
+
+        _db.JobSteps.AddRange(newSteps);
+        await _db.SaveChangesAsync(ct);
+
+        return new ApiResponse<List<JobStepDto>>
+        {
+            Data = newSteps.OrderBy(s => s.StepOrder).Select(MapToDto).ToList()
+        };
+    }
+
     private static JobStepDto MapToDto(JobStep s) => new()
     {
         Id = s.Id,

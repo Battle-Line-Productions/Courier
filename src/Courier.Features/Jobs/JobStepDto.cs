@@ -9,6 +9,20 @@ public record AddJobStepRequest
     public int TimeoutSeconds { get; init; } = 300;
 }
 
+public record ReplaceJobStepsRequest
+{
+    public required List<StepInput> Steps { get; init; }
+}
+
+public record StepInput
+{
+    public required string Name { get; init; }
+    public required string TypeKey { get; init; }
+    public int StepOrder { get; init; }
+    public string Configuration { get; init; } = "{}";
+    public int TimeoutSeconds { get; init; } = 300;
+}
+
 public record JobStepDto
 {
     public Guid Id { get; init; }

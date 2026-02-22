@@ -1,6 +1,7 @@
 using Courier.Domain.Engine;
 using Courier.Features.Engine;
 using Courier.Features.Engine.Steps;
+using Courier.Features.Filesystem;
 using Courier.Features.Jobs;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,7 @@ public static class FeaturesServiceExtensions
         services.AddScoped<JobService>();
         services.AddScoped<JobStepService>();
         services.AddScoped<ExecutionService>();
+        services.AddScoped<FilesystemService>();
         services.AddScoped<JobEngine>();
         services.AddSingleton<IJobStep, FileCopyStep>();
         services.AddSingleton<IJobStep, FileMoveStep>();

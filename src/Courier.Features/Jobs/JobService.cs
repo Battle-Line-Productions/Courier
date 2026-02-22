@@ -69,6 +69,44 @@ public class JobService
         };
     }
 
+    public async Task<ApiResponse<JobDto>> UpdateAsync(Guid id, string name, string? description, CancellationToken ct = default)
+    {
+        var job = await _db.Jobs.FindAsync([id], ct);
+
+        if (job is null)
+            return new ApiResponse<JobDto>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.ResourceNotFound, $"Job with id '{id}' not found.")
+            };
+
+        job.Name = name;
+        job.Description = description;
+        job.CurrentVersion++;
+        job.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+
+        return new ApiResponse<JobDto> { Data = MapToDto(job) };
+    }
+
+    public async Task<ApiResponse> DeleteAsync(Guid id, CancellationToken ct = default)
+    {
+        var job = await _db.Jobs.FindAsync([id], ct);
+
+        if (job is null)
+            return new ApiResponse
+            {
+                Error = ErrorMessages.Create(ErrorCodes.ResourceNotFound, $"Job with id '{id}' not found.")
+            };
+
+        job.IsDeleted = true;
+        job.DeletedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+
+        return new ApiResponse();
+    }
+
     private static JobDto MapToDto(Job job) => new()
     {
         Id = job.Id,

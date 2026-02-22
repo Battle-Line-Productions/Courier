@@ -14,3 +14,16 @@ public class CreateJobValidator : AbstractValidator<CreateJobRequest>
             .MaximumLength(2000).WithMessage("Description must not exceed 2000 characters.");
     }
 }
+
+public class UpdateJobValidator : AbstractValidator<UpdateJobRequest>
+{
+    public UpdateJobValidator()
+    {
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Job name is required.")
+            .MaximumLength(200).WithMessage("Job name must not exceed 200 characters.");
+
+        RuleFor(x => x.Description)
+            .MaximumLength(2000).WithMessage("Description must not exceed 2000 characters.");
+    }
+}
