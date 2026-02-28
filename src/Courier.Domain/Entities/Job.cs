@@ -15,4 +15,5 @@ public class Job
 
     public List<JobStep> Steps { get; set; } = [];
     public List<JobExecution> Executions { get; set; } = [];
+    public List<JobSchedule> Schedules { get; set; } = [];
 }

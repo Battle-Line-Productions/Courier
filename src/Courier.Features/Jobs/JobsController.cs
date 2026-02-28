@@ -11,17 +11,20 @@ public class JobsController : ControllerBase
     private readonly JobService _jobService;
     private readonly JobStepService _stepService;
     private readonly ExecutionService _executionService;
+    private readonly JobScheduleService _scheduleService;
     private readonly IValidator<CreateJobRequest> _validator;
 
     public JobsController(
         JobService jobService,
         JobStepService stepService,
         ExecutionService executionService,
+        JobScheduleService scheduleService,
         IValidator<CreateJobRequest> validator)
     {
         _jobService = jobService;
         _stepService = stepService;
         _executionService = executionService;
+        _scheduleService = scheduleService;
         _validator = validator;
     }
 
@@ -208,6 +211,110 @@ public class JobsController : ControllerBase
 
         if (!result.Success)
             return NotFound(result);
+
+        return Ok(result);
+    }
+
+    [HttpGet("{jobId:guid}/schedules")]
+    public async Task<ActionResult<ApiResponse<List<JobScheduleDto>>>> ListSchedules(
+        Guid jobId,
+        CancellationToken ct)
+    {
+        var result = await _scheduleService.ListAsync(jobId, ct);
+
+        if (!result.Success)
+            return NotFound(result);
+
+        return Ok(result);
+    }
+
+    [HttpPost("{jobId:guid}/schedules")]
+    public async Task<ActionResult<ApiResponse<JobScheduleDto>>> CreateSchedule(
+        Guid jobId,
+        [FromBody] CreateJobScheduleRequest request,
+        [FromServices] IValidator<CreateJobScheduleRequest> validator,
+        CancellationToken ct)
+    {
+        var validation = await validator.ValidateAsync(request, ct);
+        if (!validation.IsValid)
+        {
+            var details = validation.Errors
+                .Select(e => new FieldError(e.PropertyName, e.ErrorMessage))
+                .ToList();
+
+            return BadRequest(new ApiResponse<JobScheduleDto>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.ValidationFailed, "Validation failed.", details)
+            });
+        }
+
+        var result = await _scheduleService.CreateAsync(jobId, request, ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ResourceNotFound => NotFound(result),
+                _ => StatusCode(500, result)
+            };
+        }
+
+        return Created($"/api/v1/jobs/{jobId}/schedules/{result.Data!.Id}", result);
+    }
+
+    [HttpPut("{jobId:guid}/schedules/{scheduleId:guid}")]
+    public async Task<ActionResult<ApiResponse<JobScheduleDto>>> UpdateSchedule(
+        Guid jobId,
+        Guid scheduleId,
+        [FromBody] UpdateJobScheduleRequest request,
+        [FromServices] IValidator<UpdateJobScheduleRequest> validator,
+        CancellationToken ct)
+    {
+        var validation = await validator.ValidateAsync(request, ct);
+        if (!validation.IsValid)
+        {
+            var details = validation.Errors
+                .Select(e => new FieldError(e.PropertyName, e.ErrorMessage))
+                .ToList();
+
+            return BadRequest(new ApiResponse<JobScheduleDto>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.ValidationFailed, "Validation failed.", details)
+            });
+        }
+
+        var result = await _scheduleService.UpdateAsync(jobId, scheduleId, request, ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ScheduleNotFound => NotFound(result),
+                ErrorCodes.ScheduleJobMismatch => BadRequest(result),
+                _ => StatusCode(500, result)
+            };
+        }
+
+        return Ok(result);
+    }
+
+    [HttpDelete("{jobId:guid}/schedules/{scheduleId:guid}")]
+    public async Task<ActionResult<ApiResponse>> DeleteSchedule(
+        Guid jobId,
+        Guid scheduleId,
+        CancellationToken ct)
+    {
+        var result = await _scheduleService.DeleteAsync(jobId, scheduleId, ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ScheduleNotFound => NotFound(result),
+                ErrorCodes.ScheduleJobMismatch => BadRequest(result),
+                _ => StatusCode(500, result)
+            };
+        }
 
         return Ok(result);
     }
