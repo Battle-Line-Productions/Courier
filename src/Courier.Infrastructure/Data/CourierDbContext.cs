@@ -16,6 +16,8 @@ public class CourierDbContext : DbContext
     public DbSet<StepExecution> StepExecutions => Set<StepExecution>();
     public DbSet<Connection> Connections => Set<Connection>();
     public DbSet<KnownHost> KnownHosts => Set<KnownHost>();
+    public DbSet<PgpKey> PgpKeys => Set<PgpKey>();
+    public DbSet<SshKey> SshKeys => Set<SshKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -186,6 +188,63 @@ public class CourierDbContext : DbContext
 
             entity.HasOne(e => e.Connection).WithMany(c => c.KnownHosts).HasForeignKey(e => e.ConnectionId);
             entity.HasIndex(e => new { e.ConnectionId, e.Fingerprint }).IsUnique();
+        });
+
+        modelBuilder.Entity<PgpKey>(entity =>
+        {
+            entity.ToTable("pgp_keys");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Name).HasColumnName("name").IsRequired();
+            entity.Property(e => e.Fingerprint).HasColumnName("fingerprint");
+            entity.Property(e => e.ShortKeyId).HasColumnName("short_key_id");
+            entity.Property(e => e.Algorithm).HasColumnName("algorithm").IsRequired();
+            entity.Property(e => e.KeyType).HasColumnName("key_type").IsRequired();
+            entity.Property(e => e.Purpose).HasColumnName("purpose");
+            entity.Property(e => e.Status).HasColumnName("status").IsRequired();
+            entity.Property(e => e.PublicKeyData).HasColumnName("public_key_data");
+            entity.Property(e => e.PrivateKeyData).HasColumnName("private_key_data");
+            entity.Property(e => e.PassphraseHash).HasColumnName("passphrase_hash");
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at");
+            entity.Property(e => e.SuccessorKeyId).HasColumnName("successor_key_id");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.Notes).HasColumnName("notes");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+
+            entity.HasIndex(e => e.Name).HasFilter("NOT is_deleted");
+            entity.HasIndex(e => e.Status).HasFilter("NOT is_deleted");
+            entity.HasIndex(e => e.Fingerprint).IsUnique().HasFilter("NOT is_deleted AND fingerprint IS NOT NULL");
+        });
+
+        modelBuilder.Entity<SshKey>(entity =>
+        {
+            entity.ToTable("ssh_keys");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Name).HasColumnName("name").IsRequired();
+            entity.Property(e => e.KeyType).HasColumnName("key_type").IsRequired();
+            entity.Property(e => e.PublicKeyData).HasColumnName("public_key_data");
+            entity.Property(e => e.PrivateKeyData).HasColumnName("private_key_data");
+            entity.Property(e => e.PassphraseHash).HasColumnName("passphrase_hash");
+            entity.Property(e => e.Fingerprint).HasColumnName("fingerprint");
+            entity.Property(e => e.Status).HasColumnName("status").IsRequired();
+            entity.Property(e => e.Notes).HasColumnName("notes");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+
+            entity.HasIndex(e => e.Name).HasFilter("NOT is_deleted");
+            entity.HasIndex(e => e.Status).HasFilter("NOT is_deleted");
+            entity.HasIndex(e => e.Fingerprint).IsUnique().HasFilter("NOT is_deleted AND fingerprint IS NOT NULL");
         });
     }
 }

@@ -25,6 +25,39 @@ public static class ErrorCodes
     public const int ConnectionInUse = 3010;
     public const int InvalidProtocolConfig = 3011;
 
+    // Keys (4000-4999)
+    public const int KeyNotFound = 4000;
+    public const int KeyGenerationFailed = 4001;
+    public const int KeyImportFailed = 4002;
+    public const int KeyImportInvalidFormat = 4003;
+    public const int KeyAlreadyRetired = 4010;
+    public const int KeyAlreadyRevoked = 4011;
+    public const int KeyAlreadyActive = 4012;
+    public const int KeyInUseByConnection = 4020;
+    public const int InvalidKeyTransition = 4030;
+
+    // Transfer Operations (5000-5999)
+    public const int TransferFailed = 5000;
+    public const int ConnectionNotFound = 5001;
+    public const int ProtocolMismatch = 5002;
+    public const int RemotePathNotFound = 5003;
+    public const int UploadFailed = 5010;
+    public const int DownloadFailed = 5011;
+    public const int ConnectionLost = 5020;
+    public const int HostKeyVerificationFailed = 5021;
+    public const int TlsCertificateRejected = 5022;
+    public const int ResumeNotSupported = 5030;
+
+    // Crypto Operations (6000-6999)
+    public const int EncryptionFailed = 6000;
+    public const int DecryptionFailed = 6001;
+    public const int SigningFailed = 6002;
+    public const int VerificationFailed = 6003;
+    public const int KeyStatusInvalid = 6010;
+    public const int KeyTypeInvalid = 6011;
+    public const int WrongDecryptionKey = 6020;
+    public const int CorruptedCiphertext = 6021;
+
     // Local Filesystem (8000-8099)
     public const int DirectoryNotFound = 8000;
     public const int FilesystemAccessDenied = 8001;
@@ -51,6 +84,33 @@ public static class ErrorMessages
         [ErrorCodes.HostUnreachable] = "Host unreachable",
         [ErrorCodes.ConnectionInUse] = "Connection in use",
         [ErrorCodes.InvalidProtocolConfig] = "Invalid protocol configuration",
+        [ErrorCodes.KeyNotFound] = "Key not found",
+        [ErrorCodes.KeyGenerationFailed] = "Key generation failed",
+        [ErrorCodes.KeyImportFailed] = "Key import failed",
+        [ErrorCodes.KeyImportInvalidFormat] = "Key import invalid format",
+        [ErrorCodes.KeyAlreadyRetired] = "Key already retired",
+        [ErrorCodes.KeyAlreadyRevoked] = "Key already revoked",
+        [ErrorCodes.KeyAlreadyActive] = "Key already active",
+        [ErrorCodes.KeyInUseByConnection] = "Key in use by connection",
+        [ErrorCodes.InvalidKeyTransition] = "Invalid key status transition",
+        [ErrorCodes.TransferFailed] = "Transfer failed",
+        [ErrorCodes.ConnectionNotFound] = "Connection not found",
+        [ErrorCodes.ProtocolMismatch] = "Protocol mismatch",
+        [ErrorCodes.RemotePathNotFound] = "Remote path not found",
+        [ErrorCodes.UploadFailed] = "Upload failed",
+        [ErrorCodes.DownloadFailed] = "Download failed",
+        [ErrorCodes.ConnectionLost] = "Connection lost",
+        [ErrorCodes.HostKeyVerificationFailed] = "Host key verification failed",
+        [ErrorCodes.TlsCertificateRejected] = "TLS certificate rejected",
+        [ErrorCodes.ResumeNotSupported] = "Resume not supported",
+        [ErrorCodes.EncryptionFailed] = "Encryption failed",
+        [ErrorCodes.DecryptionFailed] = "Decryption failed",
+        [ErrorCodes.SigningFailed] = "Signing failed",
+        [ErrorCodes.VerificationFailed] = "Verification failed",
+        [ErrorCodes.KeyStatusInvalid] = "Key status invalid",
+        [ErrorCodes.KeyTypeInvalid] = "Key type invalid",
+        [ErrorCodes.WrongDecryptionKey] = "Wrong decryption key",
+        [ErrorCodes.CorruptedCiphertext] = "Corrupted ciphertext",
         [ErrorCodes.DirectoryNotFound] = "Directory not found",
         [ErrorCodes.FilesystemAccessDenied] = "Filesystem access denied",
     };

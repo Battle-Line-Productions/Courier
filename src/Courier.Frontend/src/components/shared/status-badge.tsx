@@ -12,6 +12,10 @@ const stateStyles: Record<string, string> = {
   skipped: "bg-gray-50 text-gray-400 border-gray-200",
   active: "bg-emerald-50 text-emerald-700 border-emerald-200",
   disabled: "bg-gray-50 text-gray-400 border-gray-200",
+  expiring: "bg-amber-50 text-amber-700 border-amber-200",
+  retired: "bg-gray-100 text-gray-500 border-gray-200",
+  revoked: "bg-red-50 text-red-700 border-red-200",
+  deleted: "bg-red-50 text-red-400 border-red-200",
 };
 
 const stateIcons: Record<string, string> = {
@@ -25,6 +29,10 @@ const stateIcons: Record<string, string> = {
   skipped: "\u2014",
   active: "\u2713",
   disabled: "\u25cb",
+  expiring: "\u26a0",
+  retired: "\u25cb",
+  revoked: "\u2717",
+  deleted: "\u2717",
 };
 
 interface StatusBadgeProps {

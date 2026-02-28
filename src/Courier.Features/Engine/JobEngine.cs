@@ -3,6 +3,7 @@ using System.Text.Json;
 using Courier.Domain.Engine;
 using Courier.Domain.Entities;
 using Courier.Domain.Enums;
+using Courier.Features.Engine.Protocols;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -13,12 +14,14 @@ public class JobEngine
 {
     private readonly CourierDbContext _db;
     private readonly StepTypeRegistry _registry;
+    private readonly JobConnectionRegistry _connectionRegistry;
     private readonly ILogger<JobEngine> _logger;
 
-    public JobEngine(CourierDbContext db, StepTypeRegistry registry, ILogger<JobEngine> logger)
+    public JobEngine(CourierDbContext db, StepTypeRegistry registry, JobConnectionRegistry connectionRegistry, ILogger<JobEngine> logger)
     {
         _db = db;
         _registry = registry;
+        _connectionRegistry = connectionRegistry;
         _logger = logger;
     }
 
@@ -52,89 +55,96 @@ public class JobEngine
         var context = new JobContext();
         var allSucceeded = true;
 
-        foreach (var step in steps)
+        try
         {
-            var stepExecution = new StepExecution
+            foreach (var step in steps)
             {
-                Id = Guid.NewGuid(),
-                JobExecutionId = execution.Id,
-                JobStepId = step.Id,
-                StepOrder = step.StepOrder,
-                State = StepExecutionState.Running,
-                StartedAt = DateTime.UtcNow,
-                CreatedAt = DateTime.UtcNow,
-            };
-            _db.StepExecutions.Add(stepExecution);
-            await _db.SaveChangesAsync(cancellationToken);
-
-            var sw = Stopwatch.StartNew();
-            StepResult result;
-
-            try
-            {
-                var handler = _registry.Resolve(step.TypeKey);
-                var config = new StepConfiguration(step.Configuration);
-
-                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                timeoutCts.CancelAfter(TimeSpan.FromSeconds(step.TimeoutSeconds));
-
-                result = await handler.ExecuteAsync(config, context, timeoutCts.Token);
-            }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-            {
-                result = StepResult.Fail($"Step '{step.Name}' timed out after {step.TimeoutSeconds}s");
-            }
-            catch (Exception ex)
-            {
-                result = StepResult.Fail(ex.Message, ex.StackTrace);
-            }
-
-            sw.Stop();
-            stepExecution.DurationMs = sw.ElapsedMilliseconds;
-
-            if (result.Success)
-            {
-                stepExecution.State = StepExecutionState.Completed;
-                stepExecution.CompletedAt = DateTime.UtcNow;
-                stepExecution.BytesProcessed = result.BytesProcessed;
-
-                if (result.Outputs is not null)
+                var stepExecution = new StepExecution
                 {
-                    stepExecution.OutputData = JsonSerializer.Serialize(result.Outputs);
-                    foreach (var kvp in result.Outputs)
-                        context.Set($"{step.StepOrder}.{kvp.Key}", kvp.Value);
-                }
-
-                _logger.LogInformation("Step {StepName} completed in {DurationMs}ms", step.Name, sw.ElapsedMilliseconds);
-            }
-            else
-            {
-                stepExecution.State = StepExecutionState.Failed;
-                stepExecution.CompletedAt = DateTime.UtcNow;
-                stepExecution.ErrorMessage = result.ErrorMessage;
-                stepExecution.ErrorStackTrace = result.ErrorStackTrace;
-
-                _logger.LogWarning("Step {StepName} failed: {Error}", step.Name, result.ErrorMessage);
-
-                if (failurePolicy.Type == FailurePolicyType.SkipAndContinue)
-                {
-                    _logger.LogInformation("Failure policy is SkipAndContinue. Continuing to next step.");
-                    await _db.SaveChangesAsync(cancellationToken);
-                    continue;
-                }
-
-                allSucceeded = false;
+                    Id = Guid.NewGuid(),
+                    JobExecutionId = execution.Id,
+                    JobStepId = step.Id,
+                    StepOrder = step.StepOrder,
+                    State = StepExecutionState.Running,
+                    StartedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow,
+                };
+                _db.StepExecutions.Add(stepExecution);
                 await _db.SaveChangesAsync(cancellationToken);
-                break;
+
+                var sw = Stopwatch.StartNew();
+                StepResult result;
+
+                try
+                {
+                    var handler = _registry.Resolve(step.TypeKey);
+                    var config = new StepConfiguration(step.Configuration);
+
+                    using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    timeoutCts.CancelAfter(TimeSpan.FromSeconds(step.TimeoutSeconds));
+
+                    result = await handler.ExecuteAsync(config, context, timeoutCts.Token);
+                }
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    result = StepResult.Fail($"Step '{step.Name}' timed out after {step.TimeoutSeconds}s");
+                }
+                catch (Exception ex)
+                {
+                    result = StepResult.Fail(ex.Message, ex.StackTrace);
+                }
+
+                sw.Stop();
+                stepExecution.DurationMs = sw.ElapsedMilliseconds;
+
+                if (result.Success)
+                {
+                    stepExecution.State = StepExecutionState.Completed;
+                    stepExecution.CompletedAt = DateTime.UtcNow;
+                    stepExecution.BytesProcessed = result.BytesProcessed;
+
+                    if (result.Outputs is not null)
+                    {
+                        stepExecution.OutputData = JsonSerializer.Serialize(result.Outputs);
+                        foreach (var kvp in result.Outputs)
+                            context.Set($"{step.StepOrder}.{kvp.Key}", kvp.Value);
+                    }
+
+                    _logger.LogInformation("Step {StepName} completed in {DurationMs}ms", step.Name, sw.ElapsedMilliseconds);
+                }
+                else
+                {
+                    stepExecution.State = StepExecutionState.Failed;
+                    stepExecution.CompletedAt = DateTime.UtcNow;
+                    stepExecution.ErrorMessage = result.ErrorMessage;
+                    stepExecution.ErrorStackTrace = result.ErrorStackTrace;
+
+                    _logger.LogWarning("Step {StepName} failed: {Error}", step.Name, result.ErrorMessage);
+
+                    if (failurePolicy.Type == FailurePolicyType.SkipAndContinue)
+                    {
+                        _logger.LogInformation("Failure policy is SkipAndContinue. Continuing to next step.");
+                        await _db.SaveChangesAsync(cancellationToken);
+                        continue;
+                    }
+
+                    allSucceeded = false;
+                    await _db.SaveChangesAsync(cancellationToken);
+                    break;
+                }
+
+                execution.ContextSnapshot = JsonSerializer.Serialize(context.Snapshot());
+                await _db.SaveChangesAsync(cancellationToken);
             }
 
-            execution.ContextSnapshot = JsonSerializer.Serialize(context.Snapshot());
+            execution.CompletedAt = DateTime.UtcNow;
+            execution.State = allSucceeded ? JobExecutionState.Completed : JobExecutionState.Failed;
             await _db.SaveChangesAsync(cancellationToken);
         }
-
-        execution.CompletedAt = DateTime.UtcNow;
-        execution.State = allSucceeded ? JobExecutionState.Completed : JobExecutionState.Failed;
-        await _db.SaveChangesAsync(cancellationToken);
+        finally
+        {
+            await _connectionRegistry.DisposeAsync();
+        }
 
         _logger.LogInformation("JobExecution {ExecutionId} finished with state {State}", executionId, execution.State);
     }

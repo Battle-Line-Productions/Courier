@@ -200,3 +200,77 @@ export interface UpdateConnectionRequest {
   fipsOverride?: boolean;
   notes?: string;
 }
+
+// PGP Key types
+export interface PgpKeyDto {
+  id: string;
+  name: string;
+  fingerprint?: string;
+  shortKeyId?: string;
+  algorithm: string;
+  keyType: string;
+  purpose?: string;
+  status: string;
+  hasPublicKey: boolean;
+  hasPrivateKey: boolean;
+  expiresAt?: string;
+  successorKeyId?: string;
+  createdBy?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GeneratePgpKeyRequest {
+  name: string;
+  algorithm: string;
+  purpose?: string;
+  passphrase?: string;
+  realName?: string;
+  email?: string;
+  expiresInDays?: number;
+}
+
+export interface ImportPgpKeyRequest {
+  name: string;
+  purpose?: string;
+  passphrase?: string;
+}
+
+export interface UpdatePgpKeyRequest {
+  name?: string;
+  purpose?: string;
+  notes?: string;
+}
+
+// SSH Key types
+export interface SshKeyDto {
+  id: string;
+  name: string;
+  keyType: string;
+  fingerprint?: string;
+  status: string;
+  hasPublicKey: boolean;
+  hasPrivateKey: boolean;
+  notes?: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GenerateSshKeyRequest {
+  name: string;
+  keyType: string;
+  passphrase?: string;
+  notes?: string;
+}
+
+export interface ImportSshKeyRequest {
+  name: string;
+  passphrase?: string;
+}
+
+export interface UpdateSshKeyRequest {
+  name?: string;
+  notes?: string;
+}

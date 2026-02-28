@@ -19,6 +19,15 @@
     <PackageVersion Include="dbup-postgresql" Version="6.1.5" />
   </ItemGroup>
 
+  <ItemGroup Label="Cryptography">
+    <PackageVersion Include="BouncyCastle.Cryptography" Version="2.5.1" />
+  </ItemGroup>
+
+  <ItemGroup Label="Transfer Protocols">
+    <PackageVersion Include="SSH.NET" Version="2024.2.0" />
+    <PackageVersion Include="FluentFTP" Version="51.1.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Validation">
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />

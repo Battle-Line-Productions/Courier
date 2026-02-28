@@ -24,6 +24,19 @@ public class StepConfiguration
     public bool GetBool(string key)
         => _root.GetProperty(key).GetBoolean();
 
+    public bool GetBoolOrDefault(string key, bool defaultValue = false)
+        => _root.TryGetProperty(key, out var prop) ? prop.GetBoolean() : defaultValue;
+
+    public int GetIntOrDefault(string key, int defaultValue = 0)
+        => _root.TryGetProperty(key, out var prop) ? prop.GetInt32() : defaultValue;
+
+    public string[] GetStringArray(string key)
+    {
+        if (!_root.TryGetProperty(key, out var prop))
+            return [];
+        return prop.EnumerateArray().Select(e => e.GetString()!).ToArray();
+    }
+
     public bool Has(string key)
         => _root.TryGetProperty(key, out _);
 

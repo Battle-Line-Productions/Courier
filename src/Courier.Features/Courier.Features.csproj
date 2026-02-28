@@ -10,8 +10,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="BouncyCastle.Cryptography" />
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="SSH.NET" />
+    <PackageReference Include="FluentFTP" />
   </ItemGroup>
 
 </Project>
