@@ -62,13 +62,8 @@
       "Bash(Select-String \"error\")",
       "Bash(dotnet run:*)",
       "mcp__athena__*",
-      "Bash(cd /c/code/battleline/Courier && dotnet --version 2>&1)",
-      "Bash(cd /c/code/battleline/Courier && git init 2>&1)",
       "Bash(dotnet new:*)",
-      "Bash(head:*)",
-      "Bash(cd /c/code/battleline/Courier && dotnet list src/Courier.AppHost/Courier.AppHost.csproj package 2>&1)",
-      "Bash(cd /c/code/battleline/Courier/src && npx create-next-app@latest Courier.Frontend --typescript --eslint --tailwind --src-dir --app --no-turbopack --no-import-alias --use-npm 2>&1)",
-      "Bash(cd /c/code/battleline/Courier && python .agent/scripts/quicksave.py \"Walking skeleton complete: 11 projects, Aspire AppHost, DbUp migrations, Jobs CRUD vertical slice, 20 tests passing\" 2>&1)"
+      "Bash(head:*)"
     ],
     "deny": [],
     "ask": []
@@ -76,7 +71,6 @@
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "sequential-thinking",
-    "narsil-mcp",
-    "athena"
+    "narsil-mcp"
   ]
 }
