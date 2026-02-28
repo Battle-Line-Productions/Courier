@@ -18,12 +18,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal, Pencil, Play, Trash2 } from "lucide-react";
+import { Eye, MoreHorizontal, Pencil, Play, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useDeleteJob, useTriggerJob } from "@/lib/hooks/use-job-mutations";
 import { toast } from "sonner";
 import type { JobDto } from "@/lib/types";
-import Link from "next/link";
 
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -74,14 +73,15 @@ export function JobTable({ jobs }: JobTableProps) {
         </TableHeader>
         <TableBody>
           {jobs.map((job) => (
-            <TableRow key={job.id} className="group">
+            <TableRow
+              key={job.id}
+              className="group cursor-pointer"
+              onClick={() => router.push(`/jobs/${job.id}`)}
+            >
               <TableCell>
-                <Link
-                  href={`/jobs/${job.id}`}
-                  className="font-medium text-primary hover:underline underline-offset-4"
-                >
+                <span className="font-medium text-primary">
                   {job.name}
-                </Link>
+                </span>
               </TableCell>
               <TableCell className="text-muted-foreground max-w-[200px] truncate">
                 {job.description || "\u2014"}
@@ -99,7 +99,7 @@ export function JobTable({ jobs }: JobTableProps) {
               <TableCell className="text-muted-foreground text-sm">
                 {timeAgo(job.createdAt)}
               </TableCell>
-              <TableCell>
+              <TableCell onClick={(e) => e.stopPropagation()}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -107,6 +107,10 @@ export function JobTable({ jobs }: JobTableProps) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => router.push(`/jobs/${job.id}`)}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      View
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => router.push(`/jobs/${job.id}/edit`)}>
                       <Pencil className="mr-2 h-4 w-4" />
                       Edit
