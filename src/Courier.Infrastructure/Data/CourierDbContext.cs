@@ -18,6 +18,7 @@ public class CourierDbContext : DbContext
     public DbSet<KnownHost> KnownHosts => Set<KnownHost>();
     public DbSet<PgpKey> PgpKeys => Set<PgpKey>();
     public DbSet<SshKey> SshKeys => Set<SshKey>();
+    public DbSet<JobSchedule> JobSchedules => Set<JobSchedule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -245,6 +246,26 @@ public class CourierDbContext : DbContext
             entity.HasIndex(e => e.Name).HasFilter("NOT is_deleted");
             entity.HasIndex(e => e.Status).HasFilter("NOT is_deleted");
             entity.HasIndex(e => e.Fingerprint).IsUnique().HasFilter("NOT is_deleted AND fingerprint IS NOT NULL");
+        });
+
+        modelBuilder.Entity<JobSchedule>(entity =>
+        {
+            entity.ToTable("job_schedules");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.JobId).HasColumnName("job_id");
+            entity.Property(e => e.ScheduleType).HasColumnName("schedule_type").IsRequired();
+            entity.Property(e => e.CronExpression).HasColumnName("cron_expression");
+            entity.Property(e => e.RunAt).HasColumnName("run_at");
+            entity.Property(e => e.IsEnabled).HasColumnName("is_enabled").HasDefaultValue(true);
+            entity.Property(e => e.LastFiredAt).HasColumnName("last_fired_at");
+            entity.Property(e => e.NextFireAt).HasColumnName("next_fire_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+
+            entity.HasOne(e => e.Job).WithMany(j => j.Schedules).HasForeignKey(e => e.JobId);
+            entity.HasIndex(e => e.JobId);
+            entity.HasIndex(e => new { e.IsEnabled, e.ScheduleType });
         });
     }
 }

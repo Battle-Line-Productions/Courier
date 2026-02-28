@@ -16,6 +16,9 @@ public static class ErrorCodes
     public const int StepTypeNotRegistered = 2002;
     public const int InvalidStepOrder = 2003;
     public const int ExecutionNotFound = 2010;
+    public const int ScheduleNotFound = 2020;
+    public const int InvalidCronExpression = 2021;
+    public const int ScheduleJobMismatch = 2023;
 
     // Connections (3000-3999)
     public const int ConnectionTestFailed = 3000;
@@ -78,6 +81,9 @@ public static class ErrorMessages
         [ErrorCodes.StepTypeNotRegistered] = "Step type not registered",
         [ErrorCodes.InvalidStepOrder] = "Invalid step order",
         [ErrorCodes.ExecutionNotFound] = "Execution not found",
+        [ErrorCodes.ScheduleNotFound] = "Schedule not found",
+        [ErrorCodes.InvalidCronExpression] = "Invalid cron expression",
+        [ErrorCodes.ScheduleJobMismatch] = "Schedule does not belong to this job",
         [ErrorCodes.ConnectionTestFailed] = "Connection test failed",
         [ErrorCodes.AuthenticationFailed] = "Authentication failed",
         [ErrorCodes.HostKeyMismatch] = "Host key mismatch",

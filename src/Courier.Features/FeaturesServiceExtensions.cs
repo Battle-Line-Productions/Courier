@@ -25,6 +25,7 @@ public static class FeaturesServiceExtensions
         services.AddScoped<JobService>();
         services.AddScoped<JobStepService>();
         services.AddScoped<ExecutionService>();
+        services.AddScoped<JobScheduleService>();
         services.AddScoped<FilesystemService>();
         services.AddScoped<JobEngine>();
         services.AddScoped<IJobStep, FileCopyStep>();
