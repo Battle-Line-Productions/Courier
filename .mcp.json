@@ -7,28 +7,6 @@
         "-y",
         "@modelcontextprotocol/server-sequential-thinking"
       ]
-    },
-    "narsil-mcp": {
-      "type": "stdio",
-      "command": "narsil-mcp.exe",
-      "args": [
-        "--repos",
-        "C:\\code\\battleline\\Courier",
-        "--git",
-        "--call-graph",
-        "--persist",
-        "--index-path",
-        ".claude\\cache",
-        "--watch",
-        "--lsp",
-        "--streaming",
-        "--remote",
-        "--neural",
-        "--neural-backend",
-        "api",
-        "--neural-model",
-        "text-embedding-3-small"
-      ]
     }
   }
 }

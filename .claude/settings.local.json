@@ -63,14 +63,14 @@
       "Bash(dotnet run:*)",
       "mcp__athena__*",
       "Bash(dotnet new:*)",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "mcp__serena__*"
     ],
     "deny": [],
     "ask": []
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
-    "sequential-thinking",
-    "narsil-mcp"
+    "sequential-thinking"
   ]
 }

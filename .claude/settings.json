@@ -73,7 +73,6 @@
       "mcp__plugin_stripe_stripe__*",
       "Bash(Select-String \"error\")",
       "Bash(dotnet run:*)",
-      "mcp__athena__*",
       "Bash(dotnet new:*)",
       "Bash(head:*)"
     ],
@@ -82,7 +81,6 @@
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
-    "sequential-thinking",
-    "narsil-mcp"
+    "sequential-thinking"
   ]
 }
