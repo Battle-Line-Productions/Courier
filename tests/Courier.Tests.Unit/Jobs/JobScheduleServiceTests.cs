@@ -3,8 +3,6 @@ using Courier.Domain.Entities;
 using Courier.Features.Jobs;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using NSubstitute;
-using Quartz;
 using Shouldly;
 
 namespace Courier.Tests.Unit.Jobs;
@@ -18,14 +16,6 @@ public class JobScheduleServiceTests
             .Options;
 
         return new CourierDbContext(options);
-    }
-
-    private static (ISchedulerFactory factory, IScheduler scheduler) CreateMockScheduler()
-    {
-        var scheduler = Substitute.For<IScheduler>();
-        var factory = Substitute.For<ISchedulerFactory>();
-        factory.GetScheduler(Arg.Any<CancellationToken>()).Returns(scheduler);
-        return (factory, scheduler);
     }
 
     private static async Task<Job> SeedJob(CourierDbContext db, bool isEnabled = true)
@@ -48,8 +38,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var (factory, _) = CreateMockScheduler();
-        var service = new JobScheduleService(db, factory);
+        var service = new JobScheduleService(db);
 
         // Act
         var result = await service.ListAsync(Guid.NewGuid());
@@ -64,8 +53,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var (factory, _) = CreateMockScheduler();
-        var service = new JobScheduleService(db, factory);
+        var service = new JobScheduleService(db);
         var job = await SeedJob(db);
 
         db.JobSchedules.Add(new JobSchedule
@@ -90,12 +78,11 @@ public class JobScheduleServiceTests
     }
 
     [Fact]
-    public async Task CreateAsync_CronSchedule_RegistersWithQuartz()
+    public async Task CreateAsync_CronSchedule_ReturnsSuccess()
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var (factory, scheduler) = CreateMockScheduler();
-        var service = new JobScheduleService(db, factory);
+        var service = new JobScheduleService(db);
         var job = await SeedJob(db);
 
         var request = new CreateJobScheduleRequest
@@ -114,21 +101,40 @@ public class JobScheduleServiceTests
         result.Data.CronExpression.ShouldBe("0 0 3 * * ?");
         result.Data.IsEnabled.ShouldBeTrue();
         result.Data.JobId.ShouldBe(job.Id);
-
-        await scheduler.Received(1).ScheduleJob(
-            Arg.Any<IJobDetail>(),
-            Arg.Any<IReadOnlyCollection<ITrigger>>(),
-            Arg.Is(true),
-            Arg.Any<CancellationToken>());
+        result.Data.Id.ShouldNotBe(Guid.Empty);
     }
 
     [Fact]
-    public async Task CreateAsync_DisabledSchedule_SkipsQuartz()
+    public async Task CreateAsync_OneShotSchedule_ReturnsSuccess()
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var (factory, scheduler) = CreateMockScheduler();
-        var service = new JobScheduleService(db, factory);
+        var service = new JobScheduleService(db);
+        var job = await SeedJob(db);
+
+        var runAt = DateTimeOffset.UtcNow.AddHours(1);
+        var request = new CreateJobScheduleRequest
+        {
+            ScheduleType = "one_shot",
+            RunAt = runAt,
+            IsEnabled = true,
+        };
+
+        // Act
+        var result = await service.CreateAsync(job.Id, request);
+
+        // Assert
+        result.Success.ShouldBeTrue();
+        result.Data!.ScheduleType.ShouldBe("one_shot");
+        result.Data.RunAt.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task CreateAsync_DisabledSchedule_PersistsDisabledState()
+    {
+        // Arrange
+        using var db = CreateInMemoryContext();
+        var service = new JobScheduleService(db);
         var job = await SeedJob(db);
 
         var request = new CreateJobScheduleRequest
@@ -144,12 +150,6 @@ public class JobScheduleServiceTests
         // Assert
         result.Success.ShouldBeTrue();
         result.Data!.IsEnabled.ShouldBeFalse();
-
-        await scheduler.DidNotReceive().ScheduleJob(
-            Arg.Any<IJobDetail>(),
-            Arg.Any<IReadOnlyCollection<ITrigger>>(),
-            Arg.Any<bool>(),
-            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -157,8 +157,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var (factory, _) = CreateMockScheduler();
-        var service = new JobScheduleService(db, factory);
+        var service = new JobScheduleService(db);
 
         var request = new CreateJobScheduleRequest
         {
@@ -175,12 +174,11 @@ public class JobScheduleServiceTests
     }
 
     [Fact]
-    public async Task UpdateAsync_EnableSchedule_RegistersWithQuartz()
+    public async Task UpdateAsync_UpdatesCronExpression()
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var (factory, scheduler) = CreateMockScheduler();
-        var service = new JobScheduleService(db, factory);
+        var service = new JobScheduleService(db);
         var job = await SeedJob(db);
 
         var schedule = new JobSchedule
@@ -189,7 +187,7 @@ public class JobScheduleServiceTests
             JobId = job.Id,
             ScheduleType = "cron",
             CronExpression = "0 0 3 * * ?",
-            IsEnabled = false,
+            IsEnabled = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
@@ -197,26 +195,19 @@ public class JobScheduleServiceTests
         await db.SaveChangesAsync();
 
         // Act
-        var result = await service.UpdateAsync(job.Id, schedule.Id, new UpdateJobScheduleRequest { IsEnabled = true });
+        var result = await service.UpdateAsync(job.Id, schedule.Id, new UpdateJobScheduleRequest { CronExpression = "0 0 6 * * ?" });
 
         // Assert
         result.Success.ShouldBeTrue();
-        result.Data!.IsEnabled.ShouldBeTrue();
-
-        await scheduler.Received(1).ScheduleJob(
-            Arg.Any<IJobDetail>(),
-            Arg.Any<IReadOnlyCollection<ITrigger>>(),
-            Arg.Is(true),
-            Arg.Any<CancellationToken>());
+        result.Data!.CronExpression.ShouldBe("0 0 6 * * ?");
     }
 
     [Fact]
-    public async Task UpdateAsync_DisableSchedule_UnregistersFromQuartz()
+    public async Task UpdateAsync_TogglesEnabled()
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var (factory, scheduler) = CreateMockScheduler();
-        var service = new JobScheduleService(db, factory);
+        var service = new JobScheduleService(db);
         var job = await SeedJob(db);
 
         var schedule = new JobSchedule
@@ -238,10 +229,6 @@ public class JobScheduleServiceTests
         // Assert
         result.Success.ShouldBeTrue();
         result.Data!.IsEnabled.ShouldBeFalse();
-
-        await scheduler.Received(1).DeleteJob(
-            Arg.Is<JobKey>(k => k.Name == schedule.Id.ToString() && k.Group == "courier"),
-            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -249,8 +236,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var (factory, _) = CreateMockScheduler();
-        var service = new JobScheduleService(db, factory);
+        var service = new JobScheduleService(db);
 
         // Act
         var result = await service.UpdateAsync(Guid.NewGuid(), Guid.NewGuid(), new UpdateJobScheduleRequest { IsEnabled = true });
@@ -265,8 +251,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var (factory, _) = CreateMockScheduler();
-        var service = new JobScheduleService(db, factory);
+        var service = new JobScheduleService(db);
         var job = await SeedJob(db);
 
         var schedule = new JobSchedule
@@ -291,12 +276,11 @@ public class JobScheduleServiceTests
     }
 
     [Fact]
-    public async Task DeleteAsync_RemovesAndUnregisters()
+    public async Task DeleteAsync_RemovesSchedule()
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var (factory, scheduler) = CreateMockScheduler();
-        var service = new JobScheduleService(db, factory);
+        var service = new JobScheduleService(db);
         var job = await SeedJob(db);
 
         var schedule = new JobSchedule
@@ -318,10 +302,6 @@ public class JobScheduleServiceTests
         // Assert
         result.Success.ShouldBeTrue();
         (await db.JobSchedules.AnyAsync(s => s.Id == schedule.Id)).ShouldBeFalse();
-
-        await scheduler.Received(1).DeleteJob(
-            Arg.Is<JobKey>(k => k.Name == schedule.Id.ToString()),
-            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -329,8 +309,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var (factory, _) = CreateMockScheduler();
-        var service = new JobScheduleService(db, factory);
+        var service = new JobScheduleService(db);
 
         // Act
         var result = await service.DeleteAsync(Guid.NewGuid(), Guid.NewGuid());

@@ -2,19 +2,16 @@ using Courier.Domain.Common;
 using Courier.Domain.Entities;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using Quartz;
 
 namespace Courier.Features.Jobs;
 
 public class JobScheduleService
 {
     private readonly CourierDbContext _db;
-    private readonly ISchedulerFactory _schedulerFactory;
 
-    public JobScheduleService(CourierDbContext db, ISchedulerFactory schedulerFactory)
+    public JobScheduleService(CourierDbContext db)
     {
         _db = db;
-        _schedulerFactory = schedulerFactory;
     }
 
     public async Task<ApiResponse<List<JobScheduleDto>>> ListAsync(Guid jobId, CancellationToken ct = default)
@@ -52,9 +49,6 @@ public class JobScheduleService
         _db.JobSchedules.Add(schedule);
         await _db.SaveChangesAsync(ct);
 
-        if (schedule.IsEnabled)
-            await RegisterWithQuartzAsync(schedule);
-
         return new ApiResponse<JobScheduleDto> { Data = MapToDto(schedule) };
     }
 
@@ -79,11 +73,6 @@ public class JobScheduleService
         schedule.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
 
-        if (schedule.IsEnabled)
-            await RegisterWithQuartzAsync(schedule);
-        else
-            await UnregisterFromQuartzAsync(schedule.Id);
-
         return new ApiResponse<JobScheduleDto> { Data = MapToDto(schedule) };
     }
 
@@ -96,52 +85,10 @@ public class JobScheduleService
         if (schedule.JobId != jobId)
             return new ApiResponse { Error = ErrorMessages.Create(ErrorCodes.ScheduleJobMismatch, $"Schedule '{scheduleId}' does not belong to job '{jobId}'.") };
 
-        await UnregisterFromQuartzAsync(schedule.Id);
         _db.JobSchedules.Remove(schedule);
         await _db.SaveChangesAsync(ct);
 
         return new ApiResponse();
-    }
-
-    public async Task RegisterWithQuartzAsync(JobSchedule schedule)
-    {
-        var scheduler = await _schedulerFactory.GetScheduler();
-        var jobKey = new JobKey(schedule.Id.ToString(), "courier");
-        var triggerKey = new TriggerKey(schedule.Id.ToString(), "courier");
-
-        var jobDetail = JobBuilder.Create<QuartzJobAdapter>()
-            .WithIdentity(jobKey)
-            .UsingJobData("jobId", schedule.JobId.ToString())
-            .StoreDurably()
-            .Build();
-
-        TriggerBuilder triggerBuilder = TriggerBuilder.Create()
-            .WithIdentity(triggerKey)
-            .ForJob(jobKey);
-
-        if (schedule.ScheduleType == "cron")
-        {
-            triggerBuilder.WithCronSchedule(schedule.CronExpression!);
-        }
-        else
-        {
-            triggerBuilder.StartAt(schedule.RunAt!.Value)
-                .WithSimpleSchedule(x => x.WithRepeatCount(0));
-        }
-
-        var trigger = triggerBuilder.Build();
-
-        await scheduler.ScheduleJob(jobDetail, [trigger], replace: true);
-
-        schedule.NextFireAt = trigger.GetNextFireTimeUtc();
-        await _db.SaveChangesAsync();
-    }
-
-    public async Task UnregisterFromQuartzAsync(Guid scheduleId)
-    {
-        var scheduler = await _schedulerFactory.GetScheduler();
-        var jobKey = new JobKey(scheduleId.ToString(), "courier");
-        await scheduler.DeleteJob(jobKey);
     }
 
     private static JobScheduleDto MapToDto(JobSchedule s) => new()

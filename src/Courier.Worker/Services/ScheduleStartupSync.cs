@@ -1,16 +1,14 @@
-using Courier.Features.Jobs;
-using Courier.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Courier.Worker.Services;
 
-public class ScheduleStartupSync : IHostedService
+public class ScheduleStartupSync : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ScheduleStartupSync> _logger;
+    private readonly TimeSpan _syncInterval = TimeSpan.FromSeconds(30);
 
     public ScheduleStartupSync(IServiceScopeFactory scopeFactory, ILogger<ScheduleStartupSync> logger)
     {
@@ -18,33 +16,44 @@ public class ScheduleStartupSync : IHostedService
         _logger = logger;
     }
 
-    public async Task StartAsync(CancellationToken cancellationToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<CourierDbContext>();
-        var scheduleService = scope.ServiceProvider.GetRequiredService<JobScheduleService>();
+        // Initial sync on startup
+        await SyncAsync(stoppingToken);
 
-        var enabledSchedules = await db.JobSchedules
-            .Where(s => s.IsEnabled)
-            .ToListAsync(cancellationToken);
-
-        var synced = 0;
-        foreach (var schedule in enabledSchedules)
+        // Periodic re-sync to pick up API-created schedules
+        while (!stoppingToken.IsCancellationRequested)
         {
+            await Task.Delay(_syncInterval, stoppingToken);
+
             try
             {
-                await scheduleService.UnregisterFromQuartzAsync(schedule.Id);
-                await scheduleService.RegisterWithQuartzAsync(schedule);
-                synced++;
+                await SyncAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to sync schedule {ScheduleId} for job {JobId}", schedule.Id, schedule.JobId);
+                _logger.LogError(ex, "Error during schedule sync");
             }
         }
-
-        _logger.LogInformation("ScheduleStartupSync: synced {Count}/{Total} enabled schedules", synced, enabledSchedules.Count);
     }
 
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    private async Task SyncAsync(CancellationToken ct)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var manager = scope.ServiceProvider.GetRequiredService<QuartzScheduleManager>();
+
+        try
+        {
+            await manager.SyncAllAsync(ct);
+            _logger.LogDebug("Schedule sync completed");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Schedule sync failed");
+        }
+    }
 }
