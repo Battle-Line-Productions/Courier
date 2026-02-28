@@ -1,120 +1,115 @@
-# Athena Integration
+# CLAUDE.md
 
-This project uses the [Athena SDK](https://github.com/winstonkoh87/Athena-Public) for session management, long-term memory, and multi-perspective reasoning.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
----
+## Build & Run Commands
 
-## Session Workflow
+```bash
+# Build
+dotnet build Courier.slnx
 
-### On Session Start
+# Run everything (starts Postgres, Seq, API, Worker, Frontend via Aspire)
+cd src/Courier.AppHost && dotnet run
 
-Run the boot sequence before beginning work:
+# Frontend first-time setup
+cd src/Courier.Frontend && npm install
 
-    athena
+# Run all tests
+dotnet test Courier.slnx
 
-This will:
+# Run specific test suites
+dotnet test tests/Courier.Tests.Unit              # Fast, no Docker
+dotnet test tests/Courier.Tests.Architecture      # Dependency rule enforcement
+dotnet test tests/Courier.Tests.Integration       # Requires Docker (Testcontainers)
 
-1. Verify Core Identity and workspace integrity
-2. Recall the last session's context and deferred items
-3. Create a new timestamped session log
-4. Initialize the Committee of Seats (COS) reasoning framework
+# Run a single test by name
+dotnet test tests/Courier.Tests.Unit --filter "FullyQualifiedName~JobServiceTests.CreateAsync"
 
-### During Work
-
-- Run `athena save "brief summary"` after completing meaningful chunks of work
-- Save before: large refactors, schema changes, contract changes, or cross-layer modifications
-
-### On Session End
-
-    athena --end
-
-This closes the session log and persists context for the next session.
-
----
-
-## Committee of Seats (COS)
-
-This project has 6 specialized review agents available in `.claude/agents/`. Use them for multi-perspective reasoning on important decisions.
-
-### When to Use COS Agents
-
-| Complexity | Action |
-|-----------|--------|
-| Simple (bug fix, small tweak) | Just do it. No committee needed. |
-| Medium (new feature, refactor) | Spawn 2-3 relevant agents for input |
-| Complex (architecture, security, deploy) | Convene the full committee |
-
-### Available Agents
-
-| Agent | Perspective | Spawn When |
-|-------|------------|------------|
-| `cos-strategist` | "Does this serve the goal?" | Feature proposals, prioritization, scope decisions |
-| `cos-guardian` | "What could go wrong?" | Auth changes, user input handling, secret management, API security |
-| `cos-operator` | "How do we build it?" | Implementation planning, task breakdown, debugging |
-| `cos-architect` | "Is the structure sound?" | Schema changes, API design, layer boundary changes, tech choices |
-| `cos-skeptic` | "What are we missing?" | Before shipping, after "it works" claims, edge case hunting |
-| `cos-compliance` | "Should we ship this?" | Pre-merge, pre-deploy, quality gate checks |
-
-### How to Use
-
-For medium-complexity decisions, spawn relevant agents as a team:
-
-```
-Task: "Review this authentication change from the Guardian and Architect perspectives"
-  -> cos-guardian: Security review
-  -> cos-architect: Structural impact assessment
+# Run tests in a specific class
+dotnet test tests/Courier.Tests.Unit --filter "FullyQualifiedName~JobServiceTests"
 ```
 
-For complex decisions, convene the full committee and synthesize their recommendations.
+Prerequisites: .NET 10 SDK, Docker Desktop, Node.js 20+.
 
----
+## Architecture
 
-## Athena CLI Commands
-
-| Command | Purpose |
-|---------|---------|
-| `athena` | Boot session (default) |
-| `athena init .` | Initialize workspace in current directory |
-| `athena check` | System health check |
-| `athena save "note"` | Quicksave checkpoint to session log |
-| `athena --end` | Close session |
-| `athena --version` | Show version |
-
----
-
-## Claude Code Integration
-
-### Slash Commands
-
-| Command | Action |
-|---------|--------|
-| `/start` | Boot Athena session (runs `athena`) |
-| `/end` | Close session (runs `athena --end`) |
-| `/save [summary]` | Quicksave checkpoint (runs `athena save`) |
-
-### MCP Tools (via .mcp.json)
-
-If the Athena MCP server is running, these tools are available:
-
-- `smart_search` — Search Athena's knowledge base (hybrid RAG)
-- `quicksave` — Save checkpoint programmatically
-- `recall_session` — Retrieve recent session log content
-- `health_check` — System health audit
-
-### Session Hook
-
-A SessionStart hook in `.claude/settings.json` reminds you to boot Athena at the start of every session.
-
----
-
-## Workspace Structure
+**Vertical slice architecture** with strict dependency layers:
 
 ```
-.framework/modules/    Core Identity and operating principles
-.context/              Session logs, project state, memories
-.agent/                Workflows, scripts, skills, protocols
-.claude/agents/        COS review agents (6 specialized perspectives)
-.claude/skills/        Slash commands (/start, /end, /save)
-.claude/rules/         Behavioral rules (session discipline, framework protection)
-.mcp.json              Athena MCP server configuration
+Api / Worker  →  Features  →  Infrastructure  →  Domain (BCL-only, zero NuGet deps)
+                                                  Migrations (independent, DbUp)
 ```
+
+- **Domain** (`Courier.Domain`): Entities, enums, value objects, interfaces. No external dependencies — enforced by architecture tests.
+- **Infrastructure** (`Courier.Infrastructure`): EF Core DbContext (queries only), AES-GCM credential encryption. Does not reference Features.
+- **Features** (`Courier.Features`): Vertical slices — each feature folder owns controller, service, DTOs, validators. Contains the job engine and step handlers.
+- **Api** (`Courier.Api`): ASP.NET Core host. Controllers live in Features, not here — `AddApplicationPart(typeof(FeaturesServiceExtensions).Assembly)` pulls them in.
+- **Worker** (`Courier.Worker`): .NET Worker Service. Polls `job_executions` table for queued jobs (DB-as-queue, 5s interval). Runs Quartz.NET scheduler.
+- **Migrations** (`Courier.Migrations`): DbUp embedded SQL scripts. Runs on API startup only; Worker validates schema version.
+- **AppHost** (`Courier.AppHost`): Aspire orchestrator for local dev.
+
+## Key Conventions
+
+### API Pattern
+
+- All endpoints return `ApiResponse<T>` or `PagedApiResponse<T>` envelope (defined in Domain)
+- Error handling: services return `ApiResponse` with `Error` field; controllers switch on `Error.Code` for HTTP status
+- Numeric error codes in ranges: 1000 general, 2000 jobs, 3000 connections, 4000 keys, 5000 transfer, 6000 crypto, 8000 filesystem
+- Routes: `api/v1/{resource}` — controllers use `[ApiController]` + `[Route("api/v1/...")]`
+- Validation: FluentValidation, validated inline in controller actions (not filters)
+
+### Entity Pattern
+
+- Guid PKs, set in service layer with `Guid.CreateVersion7()`
+- Soft delete: `IsDeleted` + `DeletedAt`, global EF query filter, bypassed with `IgnoreQueryFilters()`
+- `CreatedAt`/`UpdatedAt` set manually in service code (no interceptors)
+- Status fields stored as lowercase strings in DB, not enums on the entity
+
+### Service Pattern
+
+- Concrete classes (no interfaces), Scoped lifetime, inject `CourierDbContext` directly
+- Always return `ApiResponse<T>` — never throw for business errors
+- `MapToDto` is a private static method on each service
+- Single `AddCourierFeatures(IServiceCollection, IConfiguration)` extension registers everything for both Api and Worker
+
+### Database
+
+- PostgreSQL 16+ with snake_case naming (tables, columns)
+- EF Core for queries only; DbUp for all schema changes
+- Migration scripts: `src/Courier.Migrations/Scripts/NNNN_description.sql`
+- SQL conventions: `UUID PK DEFAULT gen_random_uuid()`, `TIMESTAMPTZ`, `BOOLEAN` soft delete, `BYTEA` for encrypted fields, `JSONB` for structured data
+- `pg_advisory_lock(12345)` prevents concurrent migrations
+
+### Serialization
+
+- System.Text.Json everywhere (ASP.NET default camelCase output)
+- Enums serialized as lowercase strings via explicit `MapToDto` logic (not JsonConverter)
+- Newtonsoft used only for Quartz.NET persistent store serialization
+
+### Job Engine
+
+- `IJobStep` interface: `TypeKey` property + `ExecuteAsync(StepConfiguration, JobContext, CancellationToken)`
+- Step type keys: `"file.copy"`, `"sftp.upload"`, `"pgp.encrypt"`, etc.
+- `StepConfiguration` wraps `JsonElement` with typed accessors (`GetString`, `GetBool`, `GetStringArray`)
+- `JobContext` is a key-value bag passed through all steps; outputs keyed as `"{stepOrder}.{outputKey}"`
+- `context:` prefix in config values references prior step outputs (e.g., `"context:1.uploaded_file"`)
+- `JobConnectionRegistry` pools transfer client connections within a single job execution
+
+### Encryption
+
+- AES-256-GCM envelope encryption: fresh DEK per encrypt, wrapped by KEK
+- Blob format: `[1B version][12B nonce][16B tag][32B wrapped-dek][12B nonce][16B tag][N ciphertext]`
+- KEK from config section `"Encryption"` — base64-encoded 32-byte key
+
+### Testing
+
+- **Unit tests**: InMemory EF database (unique per test), NSubstitute for mocking, Shouldly assertions
+- **Integration tests**: `WebApplicationFactory<Courier.Api.Program>` + Testcontainers PostgreSQL. Factory removes all `IHostedService` registrations and replaces EF connection.
+- **Architecture tests**: NetArchTest enforces dependency rules (Domain has zero external deps, etc.)
+
+### Frontend
+
+- Next.js 15 + React 19 + TypeScript + Tailwind + shadcn/ui
+- TanStack Query hooks in `src/lib/hooks/` per domain (e.g., `use-jobs.ts`, `use-connections.ts`)
+- API client class in `src/lib/api.ts` — throws `ApiClientError` with structured error info
+- TypeScript types in `src/lib/types.ts` mirror backend DTOs exactly
