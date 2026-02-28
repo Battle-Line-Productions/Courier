@@ -95,6 +95,33 @@ export interface BrowseResult {
   entries: FileEntry[];
 }
 
+// Schedules
+export interface JobScheduleDto {
+  id: string;
+  jobId: string;
+  scheduleType: string;
+  cronExpression?: string;
+  runAt?: string;
+  isEnabled: boolean;
+  lastFiredAt?: string;
+  nextFireAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateJobScheduleRequest {
+  scheduleType: string;
+  cronExpression?: string;
+  runAt?: string;
+  isEnabled: boolean;
+}
+
+export interface UpdateJobScheduleRequest {
+  cronExpression?: string;
+  runAt?: string;
+  isEnabled?: boolean;
+}
+
 // Request types
 export interface CreateJobRequest {
   name: string;

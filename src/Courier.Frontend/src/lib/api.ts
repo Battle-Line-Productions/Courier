@@ -4,11 +4,14 @@ import type {
   JobDto,
   JobStepDto,
   JobExecutionDto,
+  JobScheduleDto,
   BrowseResult,
   CreateJobRequest,
   UpdateJobRequest,
   ReplaceJobStepsRequest,
   TriggerJobRequest,
+  CreateJobScheduleRequest,
+  UpdateJobScheduleRequest,
   ConnectionDto,
   CreateConnectionRequest,
   UpdateConnectionRequest,
@@ -101,6 +104,29 @@ class ApiClient {
       method: "POST",
       body: JSON.stringify(data),
     });
+  }
+
+  // Schedules
+  async listSchedules(jobId: string): Promise<ApiResponse<JobScheduleDto[]>> {
+    return this.request(`/api/v1/jobs/${jobId}/schedules`);
+  }
+
+  async createSchedule(jobId: string, data: CreateJobScheduleRequest): Promise<ApiResponse<JobScheduleDto>> {
+    return this.request(`/api/v1/jobs/${jobId}/schedules`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateSchedule(jobId: string, scheduleId: string, data: UpdateJobScheduleRequest): Promise<ApiResponse<JobScheduleDto>> {
+    return this.request(`/api/v1/jobs/${jobId}/schedules/${scheduleId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteSchedule(jobId: string, scheduleId: string): Promise<ApiResponse<void>> {
+    return this.request(`/api/v1/jobs/${jobId}/schedules/${scheduleId}`, { method: "DELETE" });
   }
 
   // Connections

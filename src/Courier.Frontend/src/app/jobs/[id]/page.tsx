@@ -6,6 +6,7 @@ import { useJob } from "@/lib/hooks/use-jobs";
 import { useJobSteps } from "@/lib/hooks/use-job-steps";
 import { RunButton } from "@/components/jobs/run-button";
 import { ExecutionTimeline } from "@/components/jobs/execution-timeline";
+import { SchedulePanel } from "@/components/jobs/schedule-panel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -129,6 +130,9 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
           )}
         </CardContent>
       </Card>
+
+      {/* Schedules */}
+      <SchedulePanel jobId={id} />
 
       {/* Executions */}
       <Card>
