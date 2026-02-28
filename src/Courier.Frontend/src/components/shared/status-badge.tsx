@@ -10,6 +10,8 @@ const stateStyles: Record<string, string> = {
   cancelled: "bg-gray-50 text-gray-400 border-gray-200",
   pending: "bg-gray-100 text-gray-600 border-gray-200",
   skipped: "bg-gray-50 text-gray-400 border-gray-200",
+  active: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  disabled: "bg-gray-50 text-gray-400 border-gray-200",
 };
 
 const stateIcons: Record<string, string> = {
@@ -21,6 +23,8 @@ const stateIcons: Record<string, string> = {
   cancelled: "\u2298",
   pending: "\u25cb",
   skipped: "\u2014",
+  active: "\u2713",
+  disabled: "\u25cb",
 };
 
 interface StatusBadgeProps {

@@ -28,7 +28,7 @@ builder.AddNpgsqlDbContext<CourierDbContext>("CourierDb");
 builder.Services.AddHostedService<MigrationRunner>();
 
 // Features (Jobs, validators, etc.)
-builder.Services.AddCourierFeatures();
+builder.Services.AddCourierFeatures(builder.Configuration);
 
 // CORS — allow frontend origin in development
 builder.Services.AddCors(options =>

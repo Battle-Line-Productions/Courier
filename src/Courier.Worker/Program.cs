@@ -33,7 +33,7 @@ builder.Services.AddHostedService<SchemaVersionValidator>();
 builder.Services.AddHostedService<WorkerHeartbeat>();
 
 // Features (engine, step registry, step handlers, services)
-builder.Services.AddCourierFeatures();
+builder.Services.AddCourierFeatures(builder.Configuration);
 
 // Job queue processor
 builder.Services.AddHostedService<JobQueueProcessor>();

@@ -121,3 +121,82 @@ export interface ReplaceJobStepsRequest {
 export interface TriggerJobRequest {
   triggeredBy: string;
 }
+
+// Connection types
+export interface ConnectionDto {
+  id: string;
+  name: string;
+  group?: string;
+  protocol: string;
+  host: string;
+  port: number;
+  authMethod: string;
+  username: string;
+  hasPassword: boolean;
+  sshKeyId?: string;
+  hostKeyPolicy: string;
+  storedHostFingerprint?: string;
+  sshAlgorithms?: string;
+  passiveMode: boolean;
+  tlsVersionFloor?: string;
+  tlsCertPolicy: string;
+  tlsPinnedThumbprint?: string;
+  connectTimeoutSec: number;
+  operationTimeoutSec: number;
+  keepaliveIntervalSec: number;
+  transportRetries: number;
+  status: string;
+  fipsOverride: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateConnectionRequest {
+  name: string;
+  group?: string;
+  protocol: string;
+  host: string;
+  port?: number;
+  authMethod: string;
+  username: string;
+  password?: string;
+  sshKeyId?: string;
+  hostKeyPolicy?: string;
+  sshAlgorithms?: string;
+  passiveMode?: boolean;
+  tlsVersionFloor?: string;
+  tlsCertPolicy?: string;
+  tlsPinnedThumbprint?: string;
+  connectTimeoutSec?: number;
+  operationTimeoutSec?: number;
+  keepaliveIntervalSec?: number;
+  transportRetries?: number;
+  fipsOverride?: boolean;
+  notes?: string;
+}
+
+export interface UpdateConnectionRequest {
+  name: string;
+  group?: string;
+  protocol: string;
+  host: string;
+  port?: number;
+  authMethod: string;
+  username: string;
+  password?: string;
+  sshKeyId?: string;
+  hostKeyPolicy?: string;
+  sshAlgorithms?: string;
+  passiveMode?: boolean;
+  tlsVersionFloor?: string;
+  tlsCertPolicy?: string;
+  tlsPinnedThumbprint?: string;
+  connectTimeoutSec?: number;
+  operationTimeoutSec?: number;
+  keepaliveIntervalSec?: number;
+  transportRetries?: number;
+  status?: string;
+  fipsOverride?: boolean;
+  notes?: string;
+}

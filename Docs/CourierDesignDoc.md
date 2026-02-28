@@ -2765,6 +2765,22 @@ For scenarios where a partner needs to download a public key without Entra ID cr
 
 #### 7.3.6 Private Key Encryption at Rest
 
+> **V1 Implementation Note — Local KEK (No Azure Key Vault)**
+>
+> The design below describes the target architecture using Azure Key Vault for KEK management. In V1, we opted **not** to use Azure Key Vault. Instead, credential encryption uses a **local AES-256-GCM envelope encryption** scheme with a KEK sourced from an environment variable (`COURIER_ENCRYPTION_KEY`, base64-encoded 256-bit key) or `appsettings.json` configuration (`Encryption:KeyEncryptionKey`).
+>
+> **V1 implementation (`AesGcmCredentialEncryptor`)**:
+> - KEK is loaded from configuration at startup (validated: must be exactly 32 bytes)
+> - DEK wrapping uses AES-256-GCM (KEK wraps DEK locally) instead of Key Vault `WrapKey`/`UnwrapKey`
+> - Blob format: `[1B version][12B DEK-wrap-nonce][16B DEK-wrap-tag][32B wrapped-DEK][12B data-nonce][16B data-tag][N bytes ciphertext]` (89 + N bytes)
+> - DEK is zeroed via `CryptographicOperations.ZeroMemory()` in `finally` blocks
+> - The KEK **does** exist in process memory (unlike Key Vault where it never leaves the HSM)
+> - A pre-generated dev-only key is provided in `appsettings.Development.json`; production deployments must supply their own key
+>
+> **Migration path to Key Vault (V2)**: Replace `AesGcmCredentialEncryptor` with the `EnvelopeEncryptionService` described below. Since both schemes use AES-256-GCM for data encryption, migration requires only re-wrapping DEKs (unwrap with local KEK, re-wrap via Key Vault) — the ciphertext payload is unchanged. The `ICredentialEncryptor` interface abstracts this swap.
+>
+> **Security trade-off**: The local KEK approach is simpler to deploy (no Azure dependency) but the KEK resides in process memory. An attacker with a memory dump could extract it. Key Vault eliminates this risk. For V1's deployment model (single-tenant, controlled infrastructure), this trade-off is acceptable.
+
 All private key material is encrypted before storage in PostgreSQL using **AES-256-GCM envelope encryption** with Azure Key Vault wrap/unwrap operations. The master key (KEK) never leaves Key Vault.
 
 **Encryption flow** (on key generation or import):

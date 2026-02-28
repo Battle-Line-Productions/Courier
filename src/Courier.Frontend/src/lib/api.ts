@@ -9,6 +9,9 @@ import type {
   UpdateJobRequest,
   ReplaceJobStepsRequest,
   TriggerJobRequest,
+  ConnectionDto,
+  CreateConnectionRequest,
+  UpdateConnectionRequest,
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -92,6 +95,46 @@ class ApiClient {
       method: "POST",
       body: JSON.stringify(data),
     });
+  }
+
+  // Connections
+  async listConnections(
+    page = 1,
+    pageSize = 10,
+    filters?: { search?: string; protocol?: string; group?: string; status?: string }
+  ): Promise<PagedApiResponse<ConnectionDto>> {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (filters?.search) params.set("search", filters.search);
+    if (filters?.protocol) params.set("protocol", filters.protocol);
+    if (filters?.group) params.set("group", filters.group);
+    if (filters?.status) params.set("status", filters.status);
+    return this.request(`/api/v1/connections?${params}`);
+  }
+
+  async getConnection(id: string): Promise<ApiResponse<ConnectionDto>> {
+    return this.request(`/api/v1/connections/${id}`);
+  }
+
+  async createConnection(data: CreateConnectionRequest): Promise<ApiResponse<ConnectionDto>> {
+    return this.request("/api/v1/connections", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateConnection(id: string, data: UpdateConnectionRequest): Promise<ApiResponse<ConnectionDto>> {
+    return this.request(`/api/v1/connections/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteConnection(id: string): Promise<ApiResponse<void>> {
+    return this.request(`/api/v1/connections/${id}`, { method: "DELETE" });
+  }
+
+  async testConnection(id: string): Promise<ApiResponse<void>> {
+    return this.request(`/api/v1/connections/${id}/test`, { method: "POST" });
   }
 
   // Filesystem

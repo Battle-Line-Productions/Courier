@@ -17,9 +17,17 @@ public static class ErrorCodes
     public const int InvalidStepOrder = 2003;
     public const int ExecutionNotFound = 2010;
 
-    // Filesystem (3000-3999)
-    public const int DirectoryNotFound = 3000;
-    public const int FilesystemAccessDenied = 3001;
+    // Connections (3000-3999)
+    public const int ConnectionTestFailed = 3000;
+    public const int AuthenticationFailed = 3001;
+    public const int HostKeyMismatch = 3002;
+    public const int HostUnreachable = 3003;
+    public const int ConnectionInUse = 3010;
+    public const int InvalidProtocolConfig = 3011;
+
+    // Local Filesystem (8000-8099)
+    public const int DirectoryNotFound = 8000;
+    public const int FilesystemAccessDenied = 8001;
 }
 
 public static class ErrorMessages
@@ -37,6 +45,12 @@ public static class ErrorMessages
         [ErrorCodes.StepTypeNotRegistered] = "Step type not registered",
         [ErrorCodes.InvalidStepOrder] = "Invalid step order",
         [ErrorCodes.ExecutionNotFound] = "Execution not found",
+        [ErrorCodes.ConnectionTestFailed] = "Connection test failed",
+        [ErrorCodes.AuthenticationFailed] = "Authentication failed",
+        [ErrorCodes.HostKeyMismatch] = "Host key mismatch",
+        [ErrorCodes.HostUnreachable] = "Host unreachable",
+        [ErrorCodes.ConnectionInUse] = "Connection in use",
+        [ErrorCodes.InvalidProtocolConfig] = "Invalid protocol configuration",
         [ErrorCodes.DirectoryNotFound] = "Directory not found",
         [ErrorCodes.FilesystemAccessDenied] = "Filesystem access denied",
     };

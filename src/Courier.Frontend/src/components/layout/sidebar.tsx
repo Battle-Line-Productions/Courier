@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 
 const navItems = [
   { label: "Jobs", href: "/jobs", icon: Briefcase, active: true },
-  { label: "Connections", href: "#", icon: Cable, active: false },
+  { label: "Connections", href: "/connections", icon: Cable, active: true },
   { label: "Keys", href: "#", icon: KeyRound, active: false },
   { label: "Monitors", href: "#", icon: Eye, active: false },
   { label: "Audit", href: "#", icon: FileText, active: false },

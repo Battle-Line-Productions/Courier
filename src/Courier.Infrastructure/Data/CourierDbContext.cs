@@ -14,6 +14,8 @@ public class CourierDbContext : DbContext
     public DbSet<JobStep> JobSteps => Set<JobStep>();
     public DbSet<JobExecution> JobExecutions => Set<JobExecution>();
     public DbSet<StepExecution> StepExecutions => Set<StepExecution>();
+    public DbSet<Connection> Connections => Set<Connection>();
+    public DbSet<KnownHost> KnownHosts => Set<KnownHost>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -128,6 +130,62 @@ public class CourierDbContext : DbContext
 
             entity.HasOne(e => e.JobExecution).WithMany(je => je.StepExecutions).HasForeignKey(e => e.JobExecutionId);
             entity.HasOne(e => e.JobStep).WithMany().HasForeignKey(e => e.JobStepId);
+        });
+
+        modelBuilder.Entity<Connection>(entity =>
+        {
+            entity.ToTable("connections");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Name).HasColumnName("name").IsRequired();
+            entity.Property(e => e.Group).HasColumnName("group");
+            entity.Property(e => e.Protocol).HasColumnName("protocol").IsRequired();
+            entity.Property(e => e.Host).HasColumnName("host").IsRequired();
+            entity.Property(e => e.Port).HasColumnName("port");
+            entity.Property(e => e.AuthMethod).HasColumnName("auth_method").IsRequired();
+            entity.Property(e => e.Username).HasColumnName("username").IsRequired();
+            entity.Property(e => e.PasswordEncrypted).HasColumnName("password_encrypted");
+            entity.Property(e => e.SshKeyId).HasColumnName("ssh_key_id");
+            entity.Property(e => e.HostKeyPolicy).HasColumnName("host_key_policy").IsRequired();
+            entity.Property(e => e.StoredHostFingerprint).HasColumnName("stored_host_fingerprint");
+            entity.Property(e => e.SshAlgorithms).HasColumnName("ssh_algorithms").HasColumnType("jsonb");
+            entity.Property(e => e.PassiveMode).HasColumnName("passive_mode").HasDefaultValue(true);
+            entity.Property(e => e.TlsVersionFloor).HasColumnName("tls_version_floor");
+            entity.Property(e => e.TlsCertPolicy).HasColumnName("tls_cert_policy").IsRequired();
+            entity.Property(e => e.TlsPinnedThumbprint).HasColumnName("tls_pinned_thumbprint");
+            entity.Property(e => e.ConnectTimeoutSec).HasColumnName("connect_timeout_sec").HasDefaultValue(30);
+            entity.Property(e => e.OperationTimeoutSec).HasColumnName("operation_timeout_sec").HasDefaultValue(300);
+            entity.Property(e => e.KeepaliveIntervalSec).HasColumnName("keepalive_interval_sec").HasDefaultValue(60);
+            entity.Property(e => e.TransportRetries).HasColumnName("transport_retries").HasDefaultValue(2);
+            entity.Property(e => e.Status).HasColumnName("status").IsRequired();
+            entity.Property(e => e.FipsOverride).HasColumnName("fips_override").HasDefaultValue(false);
+            entity.Property(e => e.Notes).HasColumnName("notes");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+
+            entity.HasIndex(e => e.Name).HasFilter("NOT is_deleted");
+            entity.HasIndex(e => e.Group).HasFilter("NOT is_deleted AND \"group\" IS NOT NULL");
+            entity.HasIndex(e => e.Protocol).HasFilter("NOT is_deleted");
+        });
+
+        modelBuilder.Entity<KnownHost>(entity =>
+        {
+            entity.ToTable("known_hosts");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ConnectionId).HasColumnName("connection_id");
+            entity.Property(e => e.Fingerprint).HasColumnName("fingerprint").IsRequired();
+            entity.Property(e => e.KeyType).HasColumnName("key_type").IsRequired();
+            entity.Property(e => e.FirstSeen).HasColumnName("first_seen");
+            entity.Property(e => e.LastSeen).HasColumnName("last_seen");
+            entity.Property(e => e.ApprovedBy).HasColumnName("approved_by").IsRequired();
+
+            entity.HasOne(e => e.Connection).WithMany(c => c.KnownHosts).HasForeignKey(e => e.ConnectionId);
+            entity.HasIndex(e => new { e.ConnectionId, e.Fingerprint }).IsUnique();
         });
     }
 }
