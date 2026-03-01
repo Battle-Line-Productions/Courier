@@ -160,7 +160,9 @@ export interface ConnectionDto {
   authMethod: string;
   username: string;
   hasPassword: boolean;
+  hasClientSecret: boolean;
   sshKeyId?: string;
+  properties?: string;
   hostKeyPolicy: string;
   storedHostFingerprint?: string;
   sshAlgorithms?: string;
@@ -188,7 +190,9 @@ export interface CreateConnectionRequest {
   authMethod: string;
   username: string;
   password?: string;
+  clientSecret?: string;
   sshKeyId?: string;
+  properties?: string;
   hostKeyPolicy?: string;
   sshAlgorithms?: string;
   passiveMode?: boolean;
@@ -212,7 +216,9 @@ export interface UpdateConnectionRequest {
   authMethod: string;
   username: string;
   password?: string;
+  clientSecret?: string;
   sshKeyId?: string;
+  properties?: string;
   hostKeyPolicy?: string;
   sshAlgorithms?: string;
   passiveMode?: boolean;
@@ -226,6 +232,13 @@ export interface UpdateConnectionRequest {
   status?: string;
   fipsOverride?: boolean;
   notes?: string;
+}
+
+// Azure Function types
+export interface AzureFunctionTraceDto {
+  timestamp: string;
+  message: string;
+  severityLevel: number;
 }
 
 // PGP Key types

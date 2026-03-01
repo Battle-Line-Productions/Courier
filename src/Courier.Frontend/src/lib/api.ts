@@ -21,6 +21,7 @@ import type {
   SshKeyDto,
   GenerateSshKeyRequest,
   UpdateSshKeyRequest,
+  AzureFunctionTraceDto,
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -290,6 +291,11 @@ class ApiClient {
 
   async activateSshKey(id: string): Promise<ApiResponse<SshKeyDto>> {
     return this.request(`/api/v1/ssh-keys/${id}/activate`, { method: "POST" });
+  }
+
+  // Azure Functions
+  async getAzureFunctionTraces(connectionId: string, invocationId: string): Promise<ApiResponse<AzureFunctionTraceDto[]>> {
+    return this.request(`/api/v1/azure-functions/${connectionId}/traces/${encodeURIComponent(invocationId)}`);
   }
 
   // Filesystem
