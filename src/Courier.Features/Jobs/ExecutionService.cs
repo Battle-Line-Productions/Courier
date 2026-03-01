@@ -44,11 +44,14 @@ public class ExecutionService
 
     public async Task<ApiResponse<JobExecutionDto>> GetExecutionAsync(Guid executionId, CancellationToken ct)
     {
-        var execution = await _db.JobExecutions.FirstOrDefaultAsync(e => e.Id == executionId, ct);
+        var execution = await _db.JobExecutions
+            .Include(e => e.StepExecutions)
+                .ThenInclude(se => se.JobStep)
+            .FirstOrDefaultAsync(e => e.Id == executionId, ct);
         if (execution is null)
             return new ApiResponse<JobExecutionDto> { Error = ErrorMessages.Create(ErrorCodes.ExecutionNotFound, $"Execution '{executionId}' not found.") };
 
-        return new ApiResponse<JobExecutionDto> { Data = MapToDto(execution) };
+        return new ApiResponse<JobExecutionDto> { Data = MapToDto(execution, includeSteps: true) };
     }
 
     public async Task<PagedApiResponse<JobExecutionDto>> ListExecutionsAsync(Guid jobId, int page = 1, int pageSize = 25, CancellationToken ct = default)
@@ -76,7 +79,7 @@ public class ExecutionService
         };
     }
 
-    private static JobExecutionDto MapToDto(JobExecution e) => new()
+    private static JobExecutionDto MapToDto(JobExecution e, bool includeSteps = false) => new()
     {
         Id = e.Id,
         JobId = e.JobId,
@@ -86,5 +89,24 @@ public class ExecutionService
         StartedAt = e.StartedAt,
         CompletedAt = e.CompletedAt,
         CreatedAt = e.CreatedAt,
+        StepExecutions = includeSteps && e.StepExecutions.Count > 0
+            ? e.StepExecutions.OrderBy(se => se.StepOrder).Select(MapStepToDto).ToList()
+            : null,
+    };
+
+    private static StepExecutionDto MapStepToDto(StepExecution se) => new()
+    {
+        Id = se.Id,
+        StepOrder = se.StepOrder,
+        StepName = se.JobStep?.Name ?? $"Step {se.StepOrder}",
+        StepTypeKey = se.JobStep?.TypeKey ?? "unknown",
+        State = se.State.ToString().ToLowerInvariant(),
+        StartedAt = se.StartedAt,
+        CompletedAt = se.CompletedAt,
+        DurationMs = se.DurationMs,
+        BytesProcessed = se.BytesProcessed,
+        OutputData = se.OutputData,
+        ErrorMessage = se.ErrorMessage,
+        RetryAttempt = se.RetryAttempt,
     };
 }
