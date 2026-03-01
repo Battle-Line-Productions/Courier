@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code when working with the Courier repository.
 
+## IMPOORTANT
+
+- DO NOT USE GIT WORKTREES
+- DO NOT COMMIT CODE, THIS IS MY JOB!
+- ALWAYS USE AVAILABLE TOOLS
+
 ## Build & Run
 
 Prerequisites: .NET 10 SDK, Docker Desktop, Node.js 20+.
