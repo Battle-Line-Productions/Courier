@@ -26,6 +26,9 @@ import type {
   GenerateSshKeyRequest,
   UpdateSshKeyRequest,
   AzureFunctionTraceDto,
+  DashboardSummaryDto,
+  RecentExecutionDto,
+  ExpiringKeyDto,
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -354,6 +357,23 @@ class ApiClient {
   ): Promise<PagedApiResponse<MonitorFileLogDto>> {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     return this.request(`/api/v1/monitors/${monitorId}/file-log?${params}`);
+  }
+
+  // Dashboard
+  async getDashboardSummary(): Promise<ApiResponse<DashboardSummaryDto>> {
+    return this.request("/api/v1/dashboard/summary");
+  }
+
+  async getRecentExecutions(count = 10): Promise<ApiResponse<RecentExecutionDto[]>> {
+    return this.request(`/api/v1/dashboard/recent-executions?count=${count}`);
+  }
+
+  async getActiveMonitors(): Promise<ApiResponse<MonitorDto[]>> {
+    return this.request("/api/v1/dashboard/active-monitors");
+  }
+
+  async getExpiringKeys(daysAhead = 30): Promise<ApiResponse<ExpiringKeyDto[]>> {
+    return this.request(`/api/v1/dashboard/key-expiry?daysAhead=${daysAhead}`);
   }
 
   // Azure Functions

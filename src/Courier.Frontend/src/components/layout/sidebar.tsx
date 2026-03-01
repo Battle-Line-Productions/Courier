@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  LayoutDashboard,
   Briefcase,
   Cable,
   KeyRound,
@@ -18,6 +19,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
+  { label: "Dashboard", href: "/", icon: LayoutDashboard, active: true, exact: true },
   { label: "Jobs", href: "/jobs", icon: Briefcase, active: true },
   { label: "Connections", href: "/connections", icon: Cable, active: true },
   { label: "Keys", href: "/keys", icon: KeyRound, active: true },
@@ -54,7 +56,7 @@ export function Sidebar() {
 
       <nav className="flex-1 space-y-0.5 p-2 pt-3">
         {navItems.map((item) => {
-          const isActive = item.active && pathname.startsWith(item.href);
+          const isActive = item.active && ("exact" in item && item.exact ? pathname === item.href : pathname.startsWith(item.href));
           return (
             <Link
               key={item.label}

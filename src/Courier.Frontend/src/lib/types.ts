@@ -312,6 +312,41 @@ export interface UpdateMonitorRequest {
   jobIds?: string[];
 }
 
+// Dashboard types
+export interface DashboardSummaryDto {
+  totalJobs: number;
+  totalConnections: number;
+  totalMonitors: number;
+  totalPgpKeys: number;
+  totalSshKeys: number;
+  executions24H: number;
+  executionsSucceeded24H: number;
+  executionsFailed24H: number;
+  executions7D: number;
+  executionsSucceeded7D: number;
+  executionsFailed7D: number;
+}
+
+export interface RecentExecutionDto {
+  id: string;
+  jobId: string;
+  jobName?: string;
+  state: string;
+  triggeredBy: string;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+}
+
+export interface ExpiringKeyDto {
+  id: string;
+  name: string;
+  keyType: string;
+  fingerprint?: string;
+  expiresAt: string;
+  daysUntilExpiry: number;
+}
+
 // PGP Key types
 export interface PgpKeyDto {
   id: string;

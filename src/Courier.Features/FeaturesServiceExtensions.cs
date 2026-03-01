@@ -1,6 +1,7 @@
 using Courier.Domain.Encryption;
 using Courier.Domain.Engine;
 using Courier.Features.Connections;
+using Courier.Features.Dashboard;
 using Courier.Features.Engine;
 using Courier.Features.Engine.Crypto;
 using Courier.Features.Engine.Protocols;
@@ -94,6 +95,9 @@ public static class FeaturesServiceExtensions
 
         // Monitors
         services.AddScoped<MonitorService>();
+
+        // Dashboard
+        services.AddScoped<DashboardService>();
 
         // Encryption
         services.Configure<EncryptionSettings>(configuration.GetSection("Encryption"));
