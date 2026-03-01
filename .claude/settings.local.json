@@ -66,7 +66,7 @@
       "Bash(dotnet new:*)",
       "Bash(head:*)",
       "mcp__serena__*",
-      "mcp__sequential-thinking__sequentialthinking"
+      "mcp__sequential-thinking__*"
     ],
     "deny": [],
     "ask": []

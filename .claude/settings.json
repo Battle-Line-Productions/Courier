@@ -75,7 +75,9 @@
       "Bash(Select-String \"error\")",
       "Bash(dotnet run:*)",
       "Bash(dotnet new:*)",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "mcp__serena__*",
+      "mcp__sequential-thinking__*"
     ],
     "deny": [],
     "ask": []
