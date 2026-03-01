@@ -12,6 +12,22 @@ import {
   serializeAzureFunctionConfig,
 } from "./azure-function-step-config";
 import type { AzureFunctionStepConfig } from "./azure-function-step-config";
+import {
+  FileZipStepConfigForm,
+  parseFileZipConfig,
+  serializeFileZipConfig,
+  FileUnzipStepConfigForm,
+  parseFileUnzipConfig,
+  serializeFileUnzipConfig,
+  FileDeleteStepConfigForm,
+  parseFileDeleteConfig,
+  serializeFileDeleteConfig,
+} from "./compression-step-config";
+import type {
+  FileZipStepConfig,
+  FileUnzipStepConfig,
+  FileDeleteStepConfig,
+} from "./compression-step-config";
 
 // --- File step config (file.copy, file.move) ---
 
@@ -105,10 +121,19 @@ interface StepConfigFormProps {
 
 // Union config type used externally
 export interface StepConfig {
-  // File step fields
+  // File copy/move fields
   sourcePath?: string;
   destinationPath?: string;
   overwrite?: boolean;
+  // File zip fields
+  outputPath?: string;
+  password?: string;
+  // File unzip fields
+  archivePath?: string;
+  outputDirectory?: string;
+  // File delete fields
+  path?: string;
+  failIfNotFound?: boolean;
   // Azure function fields
   connectionId?: string;
   functionName?: string;
@@ -141,6 +166,64 @@ export function StepConfigForm({ typeKey, config, onChange }: StepConfigFormProp
             pollIntervalSec: c.pollIntervalSec,
             maxWaitSec: c.maxWaitSec,
             initialDelaySec: c.initialDelaySec,
+          })
+        }
+      />
+    );
+  }
+
+  if (typeKey === "file.zip") {
+    const zipConfig: FileZipStepConfig = {
+      sourcePath: (config.sourcePath as string) ?? "",
+      outputPath: (config.outputPath as string) ?? "",
+      password: (config.password as string) ?? "",
+    };
+    return (
+      <FileZipStepConfigForm
+        config={zipConfig}
+        onChange={(c) =>
+          onChange({
+            sourcePath: c.sourcePath,
+            outputPath: c.outputPath,
+            password: c.password,
+          })
+        }
+      />
+    );
+  }
+
+  if (typeKey === "file.unzip") {
+    const unzipConfig: FileUnzipStepConfig = {
+      archivePath: (config.archivePath as string) ?? "",
+      outputDirectory: (config.outputDirectory as string) ?? "",
+      password: (config.password as string) ?? "",
+    };
+    return (
+      <FileUnzipStepConfigForm
+        config={unzipConfig}
+        onChange={(c) =>
+          onChange({
+            archivePath: c.archivePath,
+            outputDirectory: c.outputDirectory,
+            password: c.password,
+          })
+        }
+      />
+    );
+  }
+
+  if (typeKey === "file.delete") {
+    const deleteConfig: FileDeleteStepConfig = {
+      path: (config.path as string) ?? "",
+      failIfNotFound: (config.failIfNotFound as boolean) ?? false,
+    };
+    return (
+      <FileDeleteStepConfigForm
+        config={deleteConfig}
+        onChange={(c) =>
+          onChange({
+            path: c.path,
+            failIfNotFound: c.failIfNotFound,
           })
         }
       />
@@ -180,7 +263,33 @@ export function parseStepConfig(configJson: string, typeKey?: string): StepConfi
     };
   }
 
-  // Default: file step
+  if (typeKey === "file.zip") {
+    const zip = parseFileZipConfig(configJson);
+    return {
+      sourcePath: zip.sourcePath,
+      outputPath: zip.outputPath,
+      password: zip.password,
+    };
+  }
+
+  if (typeKey === "file.unzip") {
+    const unzip = parseFileUnzipConfig(configJson);
+    return {
+      archivePath: unzip.archivePath,
+      outputDirectory: unzip.outputDirectory,
+      password: unzip.password,
+    };
+  }
+
+  if (typeKey === "file.delete") {
+    const del = parseFileDeleteConfig(configJson);
+    return {
+      path: del.path,
+      failIfNotFound: del.failIfNotFound,
+    };
+  }
+
+  // Default: file copy/move step
   try {
     const parsed = JSON.parse(configJson);
     return {
@@ -205,7 +314,30 @@ export function serializeStepConfig(config: StepConfig, typeKey?: string): strin
     });
   }
 
-  // Default: file step
+  if (typeKey === "file.zip") {
+    return serializeFileZipConfig({
+      sourcePath: (config.sourcePath as string) ?? "",
+      outputPath: (config.outputPath as string) ?? "",
+      password: (config.password as string) ?? "",
+    });
+  }
+
+  if (typeKey === "file.unzip") {
+    return serializeFileUnzipConfig({
+      archivePath: (config.archivePath as string) ?? "",
+      outputDirectory: (config.outputDirectory as string) ?? "",
+      password: (config.password as string) ?? "",
+    });
+  }
+
+  if (typeKey === "file.delete") {
+    return serializeFileDeleteConfig({
+      path: (config.path as string) ?? "",
+      failIfNotFound: (config.failIfNotFound as boolean) ?? false,
+    });
+  }
+
+  // Default: file copy/move step
   return JSON.stringify({
     sourcePath: config.sourcePath,
     destinationPath: config.destinationPath,

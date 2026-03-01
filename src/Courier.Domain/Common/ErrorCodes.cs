@@ -72,6 +72,13 @@ public static class ErrorCodes
     public const int AppInsightsQueryFailed = 9003;
     public const int EntraTokenAcquisitionFailed = 9004;
     public const int InvalidAzureFunctionConfig = 9005;
+
+    // File Monitors (7000-7099)
+    public const int MonitorNotActive = 7000;
+    public const int MonitorNotInError = 7001;
+    public const int MonitorAlreadyActive = 7002;
+    public const int InvalidWatchTarget = 7003;
+    public const int InvalidPollingInterval = 7004;
 }
 
 public static class ErrorMessages
@@ -133,6 +140,11 @@ public static class ErrorMessages
         [ErrorCodes.AppInsightsQueryFailed] = "Application Insights query failed",
         [ErrorCodes.EntraTokenAcquisitionFailed] = "Entra token acquisition failed",
         [ErrorCodes.InvalidAzureFunctionConfig] = "Invalid Azure Function configuration",
+        [ErrorCodes.MonitorNotActive] = "Monitor not active",
+        [ErrorCodes.MonitorNotInError] = "Monitor not in error state",
+        [ErrorCodes.MonitorAlreadyActive] = "Monitor already active",
+        [ErrorCodes.InvalidWatchTarget] = "Invalid watch target",
+        [ErrorCodes.InvalidPollingInterval] = "Invalid polling interval",
     };
 
     public static ApiError Create(int code, string message, IReadOnlyList<FieldError>? details = null)

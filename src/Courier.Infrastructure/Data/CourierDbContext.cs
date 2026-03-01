@@ -19,6 +19,9 @@ public class CourierDbContext : DbContext
     public DbSet<PgpKey> PgpKeys => Set<PgpKey>();
     public DbSet<SshKey> SshKeys => Set<SshKey>();
     public DbSet<JobSchedule> JobSchedules => Set<JobSchedule>();
+    public DbSet<FileMonitor> FileMonitors => Set<FileMonitor>();
+    public DbSet<MonitorJobBinding> MonitorJobBindings => Set<MonitorJobBinding>();
+    public DbSet<MonitorFileLog> MonitorFileLogs => Set<MonitorFileLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -268,6 +271,67 @@ public class CourierDbContext : DbContext
             entity.HasOne(e => e.Job).WithMany(j => j.Schedules).HasForeignKey(e => e.JobId);
             entity.HasIndex(e => e.JobId);
             entity.HasIndex(e => new { e.IsEnabled, e.ScheduleType });
+        });
+
+        modelBuilder.Entity<FileMonitor>(entity =>
+        {
+            entity.ToTable("file_monitors");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Name).HasColumnName("name").IsRequired();
+            entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.WatchTarget).HasColumnName("watch_target").HasColumnType("jsonb").IsRequired();
+            entity.Property(e => e.TriggerEvents).HasColumnName("trigger_events");
+            entity.Property(e => e.FilePatterns).HasColumnName("file_patterns").HasColumnType("jsonb");
+            entity.Property(e => e.PollingIntervalSec).HasColumnName("polling_interval_sec").HasDefaultValue(60);
+            entity.Property(e => e.StabilityWindowSec).HasColumnName("stability_window_sec").HasDefaultValue(0);
+            entity.Property(e => e.BatchMode).HasColumnName("batch_mode").HasDefaultValue(false);
+            entity.Property(e => e.MaxConsecutiveFailures).HasColumnName("max_consecutive_failures").HasDefaultValue(5);
+            entity.Property(e => e.ConsecutiveFailureCount).HasColumnName("consecutive_failure_count").HasDefaultValue(0);
+            entity.Property(e => e.State).HasColumnName("state").IsRequired();
+            entity.Property(e => e.LastPolledAt).HasColumnName("last_polled_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+
+            entity.HasIndex(e => e.Name).HasFilter("NOT is_deleted");
+            entity.HasIndex(e => e.State).HasFilter("NOT is_deleted");
+        });
+
+        modelBuilder.Entity<MonitorJobBinding>(entity =>
+        {
+            entity.ToTable("monitor_job_bindings");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.MonitorId).HasColumnName("monitor_id");
+            entity.Property(e => e.JobId).HasColumnName("job_id");
+
+            entity.HasOne(e => e.Monitor).WithMany(m => m.Bindings).HasForeignKey(e => e.MonitorId);
+            entity.HasOne(e => e.Job).WithMany().HasForeignKey(e => e.JobId);
+            entity.HasIndex(e => new { e.MonitorId, e.JobId }).IsUnique();
+            entity.HasIndex(e => e.JobId);
+        });
+
+        modelBuilder.Entity<MonitorFileLog>(entity =>
+        {
+            entity.ToTable("monitor_file_logs");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.MonitorId).HasColumnName("monitor_id");
+            entity.Property(e => e.FilePath).HasColumnName("file_path").IsRequired();
+            entity.Property(e => e.FileSize).HasColumnName("file_size").HasDefaultValue(0L);
+            entity.Property(e => e.FileHash).HasColumnName("file_hash");
+            entity.Property(e => e.LastModified).HasColumnName("last_modified");
+            entity.Property(e => e.TriggeredAt).HasColumnName("triggered_at");
+            entity.Property(e => e.ExecutionId).HasColumnName("execution_id");
+
+            entity.HasOne(e => e.Monitor).WithMany().HasForeignKey(e => e.MonitorId);
+            entity.HasIndex(e => e.MonitorId);
+            entity.HasIndex(e => new { e.MonitorId, e.FilePath });
+            entity.HasIndex(e => e.TriggeredAt).IsDescending();
         });
     }
 }

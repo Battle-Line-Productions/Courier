@@ -30,6 +30,12 @@ public class StepConfiguration
     public int GetIntOrDefault(string key, int defaultValue = 0)
         => _root.TryGetProperty(key, out var prop) ? prop.GetInt32() : defaultValue;
 
+    public long GetLong(string key)
+        => _root.GetProperty(key).GetInt64();
+
+    public long GetLongOrDefault(string key, long defaultValue = 0)
+        => _root.TryGetProperty(key, out var prop) ? prop.GetInt64() : defaultValue;
+
     public string[] GetStringArray(string key)
     {
         if (!_root.TryGetProperty(key, out var prop))

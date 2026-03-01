@@ -24,6 +24,9 @@ interface StepBuilderProps {
 const STEP_TYPES = [
   { value: "file.copy", label: "File Copy" },
   { value: "file.move", label: "File Move" },
+  { value: "file.zip", label: "File Zip (Compress)" },
+  { value: "file.unzip", label: "File Unzip (Extract)" },
+  { value: "file.delete", label: "File Delete" },
   { value: "azure_function.execute", label: "Azure Function Execute" },
 ];
 
@@ -35,7 +38,26 @@ function getStepSummary(step: StepFormData): string | null {
     return fn ? fn : null;
   }
 
-  // File steps
+  if (step.typeKey === "file.zip") {
+    const src = config.sourcePath as string;
+    const out = config.outputPath as string;
+    if (src) return `${src} \u2192 ${out}`;
+    return null;
+  }
+
+  if (step.typeKey === "file.unzip") {
+    const archive = config.archivePath as string;
+    const out = config.outputDirectory as string;
+    if (archive) return `${archive} \u2192 ${out}`;
+    return null;
+  }
+
+  if (step.typeKey === "file.delete") {
+    const path = config.path as string;
+    return path || null;
+  }
+
+  // File copy/move steps
   const src = config.sourcePath as string;
   const dst = config.destinationPath as string;
   if (src) return `${src} \u2192 ${dst}`;

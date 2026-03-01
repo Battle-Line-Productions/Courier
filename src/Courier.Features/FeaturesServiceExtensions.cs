@@ -7,10 +7,13 @@ using Courier.Features.Engine.Protocols;
 using Courier.Features.Engine.Steps;
 using Courier.Features.Engine.Steps.Crypto;
 using Courier.Features.Engine.Steps.Azure;
+using Courier.Features.Engine.Steps.FileOps;
 using Courier.Features.Engine.Steps.Transfer;
+using Courier.Features.Engine.Compression;
 using Courier.Features.AzureFunctions;
 using Courier.Features.Filesystem;
 using Courier.Features.Jobs;
+using Courier.Features.Monitors;
 using Courier.Features.PgpKeys;
 using Courier.Features.SshKeys;
 using Courier.Infrastructure.Encryption;
@@ -40,6 +43,15 @@ public static class FeaturesServiceExtensions
 
         // Crypto services
         services.AddScoped<ICryptoProvider, PgpCryptoProvider>();
+
+        // Compression services
+        services.AddScoped<ICompressionProvider, ZipCompressionProvider>();
+        services.AddScoped<CompressionProviderRegistry>();
+
+        // File operation step handlers (3)
+        services.AddScoped<IJobStep, FileZipStep>();
+        services.AddScoped<IJobStep, FileUnzipStep>();
+        services.AddScoped<IJobStep, FileDeleteStep>();
 
         // Transfer step handlers (15)
         services.AddScoped<IJobStep, SftpUploadStep>();
@@ -79,6 +91,9 @@ public static class FeaturesServiceExtensions
         // Keys
         services.AddScoped<PgpKeyService>();
         services.AddScoped<SshKeyService>();
+
+        // Monitors
+        services.AddScoped<MonitorService>();
 
         // Encryption
         services.Configure<EncryptionSettings>(configuration.GetSection("Encryption"));
