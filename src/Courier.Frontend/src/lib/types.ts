@@ -244,6 +244,74 @@ export interface AzureFunctionTraceDto {
   severityLevel: number;
 }
 
+// Monitor types
+export interface MonitorDto {
+  id: string;
+  name: string;
+  description?: string;
+  watchTarget: string;
+  triggerEvents: number;
+  filePatterns?: string;
+  pollingIntervalSec: number;
+  stabilityWindowSec: number;
+  batchMode: boolean;
+  maxConsecutiveFailures: number;
+  consecutiveFailureCount: number;
+  state: string;
+  lastPolledAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  bindings: MonitorJobBindingDto[];
+}
+
+export interface MonitorJobBindingDto {
+  id: string;
+  jobId: string;
+  jobName?: string;
+}
+
+export interface MonitorFileLogDto {
+  id: string;
+  filePath: string;
+  fileSize: number;
+  fileHash?: string;
+  lastModified: string;
+  triggeredAt: string;
+  executionId?: string;
+}
+
+export interface WatchTarget {
+  type: "local" | "remote";
+  path: string;
+  connectionId?: string;
+}
+
+export interface CreateMonitorRequest {
+  name: string;
+  description?: string;
+  watchTarget: string;
+  triggerEvents: number;
+  filePatterns?: string;
+  pollingIntervalSec: number;
+  stabilityWindowSec?: number;
+  batchMode?: boolean;
+  maxConsecutiveFailures?: number;
+  jobIds: string[];
+}
+
+export interface UpdateMonitorRequest {
+  name?: string;
+  description?: string;
+  watchTarget?: string;
+  triggerEvents?: number;
+  filePatterns?: string;
+  pollingIntervalSec?: number;
+  stabilityWindowSec?: number;
+  batchMode?: boolean;
+  maxConsecutiveFailures?: number;
+  jobIds?: string[];
+}
+
 // PGP Key types
 export interface PgpKeyDto {
   id: string;

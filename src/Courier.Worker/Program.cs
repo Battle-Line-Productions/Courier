@@ -38,6 +38,9 @@ builder.Services.AddCourierFeatures(builder.Configuration);
 // Job queue processor
 builder.Services.AddHostedService<JobQueueProcessor>();
 
+// Monitor polling service
+builder.Services.AddHostedService<MonitorPollingService>();
+
 // Quartz.NET persistent store
 builder.Services.AddQuartz(q =>
 {

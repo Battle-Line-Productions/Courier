@@ -21,7 +21,7 @@ const navItems = [
   { label: "Jobs", href: "/jobs", icon: Briefcase, active: true },
   { label: "Connections", href: "/connections", icon: Cable, active: true },
   { label: "Keys", href: "/keys", icon: KeyRound, active: true },
-  { label: "Monitors", href: "#", icon: Eye, active: false },
+  { label: "Monitors", href: "/monitors", icon: Eye, active: true },
   { label: "Audit", href: "#", icon: FileText, active: false },
 ];
 

@@ -15,6 +15,10 @@ import type {
   ConnectionDto,
   CreateConnectionRequest,
   UpdateConnectionRequest,
+  MonitorDto,
+  MonitorFileLogDto,
+  CreateMonitorRequest,
+  UpdateMonitorRequest,
   PgpKeyDto,
   GeneratePgpKeyRequest,
   UpdatePgpKeyRequest,
@@ -291,6 +295,65 @@ class ApiClient {
 
   async activateSshKey(id: string): Promise<ApiResponse<SshKeyDto>> {
     return this.request(`/api/v1/ssh-keys/${id}/activate`, { method: "POST" });
+  }
+
+  // Monitors
+  async listMonitors(
+    page = 1,
+    pageSize = 10,
+    filters?: { search?: string; state?: string }
+  ): Promise<PagedApiResponse<MonitorDto>> {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (filters?.search) params.set("search", filters.search);
+    if (filters?.state) params.set("state", filters.state);
+    return this.request(`/api/v1/monitors?${params}`);
+  }
+
+  async getMonitor(id: string): Promise<ApiResponse<MonitorDto>> {
+    return this.request(`/api/v1/monitors/${id}`);
+  }
+
+  async createMonitor(data: CreateMonitorRequest): Promise<ApiResponse<MonitorDto>> {
+    return this.request("/api/v1/monitors", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateMonitor(id: string, data: UpdateMonitorRequest): Promise<ApiResponse<MonitorDto>> {
+    return this.request(`/api/v1/monitors/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteMonitor(id: string): Promise<ApiResponse<void>> {
+    return this.request(`/api/v1/monitors/${id}`, { method: "DELETE" });
+  }
+
+  async activateMonitor(id: string): Promise<ApiResponse<MonitorDto>> {
+    return this.request(`/api/v1/monitors/${id}/activate`, { method: "POST" });
+  }
+
+  async pauseMonitor(id: string): Promise<ApiResponse<MonitorDto>> {
+    return this.request(`/api/v1/monitors/${id}/pause`, { method: "POST" });
+  }
+
+  async disableMonitor(id: string): Promise<ApiResponse<MonitorDto>> {
+    return this.request(`/api/v1/monitors/${id}/disable`, { method: "POST" });
+  }
+
+  async acknowledgeMonitorError(id: string): Promise<ApiResponse<MonitorDto>> {
+    return this.request(`/api/v1/monitors/${id}/acknowledge-error`, { method: "POST" });
+  }
+
+  async listMonitorFileLog(
+    monitorId: string,
+    page = 1,
+    pageSize = 25
+  ): Promise<PagedApiResponse<MonitorFileLogDto>> {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    return this.request(`/api/v1/monitors/${monitorId}/file-log?${params}`);
   }
 
   // Azure Functions
