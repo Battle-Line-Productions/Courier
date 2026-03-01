@@ -15,7 +15,7 @@ public class AzureFunctionClient
         _logger = logger;
     }
 
-    public async Task<AzureFunctionTriggerResult> TriggerAsync(
+    public virtual async Task<AzureFunctionTriggerResult> TriggerAsync(
         string host,
         string functionName,
         string masterKey,

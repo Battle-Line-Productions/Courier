@@ -27,7 +27,7 @@ public class AppInsightsQueryService
         return tokenResult.Token;
     }
 
-    public async Task<FunctionExecutionResult?> PollForCompletionAsync(
+    public virtual async Task<FunctionExecutionResult?> PollForCompletionAsync(
         string workspaceId,
         string token,
         string functionName,
@@ -88,7 +88,7 @@ public class AppInsightsQueryService
         return null;
     }
 
-    public async Task<List<AzureFunctionTraceDto>> GetTracesAsync(
+    public virtual async Task<List<AzureFunctionTraceDto>> GetTracesAsync(
         string workspaceId,
         string token,
         string invocationId,
