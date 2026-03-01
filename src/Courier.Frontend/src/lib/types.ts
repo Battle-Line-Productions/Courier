@@ -63,13 +63,16 @@ export interface JobExecutionDto {
   startedAt?: string;
   completedAt?: string;
   createdAt: string;
+  stepExecutions?: StepExecutionDto[];
 }
 
 export interface StepExecutionDto {
   id: string;
-  jobExecutionId: string;
-  jobStepId: string;
+  jobExecutionId?: string;
+  jobStepId?: string;
   stepOrder: number;
+  stepName: string;
+  stepTypeKey: string;
   state: string;
   startedAt?: string;
   completedAt?: string;
@@ -78,7 +81,7 @@ export interface StepExecutionDto {
   outputData?: string;
   errorMessage?: string;
   retryAttempt: number;
-  createdAt: string;
+  createdAt?: string;
 }
 
 // Filesystem

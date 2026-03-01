@@ -28,6 +28,15 @@ function formatLabel(value: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function parseProperties(props?: string): Record<string, string> {
+  if (!props) return {};
+  try {
+    return JSON.parse(props);
+  } catch {
+    return {};
+  }
+}
+
 export default function ConnectionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data, isLoading } = useConnection(id);
@@ -47,8 +56,10 @@ export default function ConnectionDetailPage({ params }: { params: Promise<{ id:
     return <p className="text-muted-foreground">Connection not found.</p>;
   }
 
+  const isAzureFunction = conn.protocol === "azure_function";
   const isSftp = conn.protocol === "sftp";
   const isFtpOrFtps = conn.protocol === "ftp" || conn.protocol === "ftps";
+  const azureProps = isAzureFunction ? parseProperties(conn.properties) : {};
 
   return (
     <div className="space-y-6">
@@ -63,7 +74,7 @@ export default function ConnectionDetailPage({ params }: { params: Promise<{ id:
               </Badge>
             )}
             <Badge variant="secondary" className="font-mono text-xs uppercase">
-              {conn.protocol}
+              {conn.protocol === "azure_function" ? "Azure Function" : conn.protocol}
             </Badge>
             <StatusBadge state={conn.status} />
             <span className="text-sm text-muted-foreground">
@@ -89,26 +100,46 @@ export default function ConnectionDetailPage({ params }: { params: Promise<{ id:
         <CardContent>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
             <div>
-              <dt className="text-sm font-medium text-muted-foreground">Host</dt>
+              <dt className="text-sm font-medium text-muted-foreground">
+                {isAzureFunction ? "Function App URL" : "Host"}
+              </dt>
               <dd className="mt-0.5 font-mono text-sm">{conn.host}:{conn.port}</dd>
             </div>
             <div>
               <dt className="text-sm font-medium text-muted-foreground">Protocol</dt>
-              <dd className="mt-0.5 text-sm uppercase">{conn.protocol}</dd>
+              <dd className="mt-0.5 text-sm uppercase">
+                {conn.protocol === "azure_function" ? "Azure Function" : conn.protocol}
+              </dd>
             </div>
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">Auth Method</dt>
-              <dd className="mt-0.5 text-sm">{formatLabel(conn.authMethod)}</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">Username</dt>
-              <dd className="mt-0.5 font-mono text-sm">{conn.username}</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">Has Password</dt>
-              <dd className="mt-0.5 text-sm">{conn.hasPassword ? "Yes" : "No"}</dd>
-            </div>
-            {conn.sshKeyId && (
+            {!isAzureFunction && (
+              <>
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">Auth Method</dt>
+                  <dd className="mt-0.5 text-sm">{formatLabel(conn.authMethod)}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">Username</dt>
+                  <dd className="mt-0.5 font-mono text-sm">{conn.username}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">Has Password</dt>
+                  <dd className="mt-0.5 text-sm">{conn.hasPassword ? "Yes" : "No"}</dd>
+                </div>
+              </>
+            )}
+            {isAzureFunction && (
+              <>
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">Has Master Key</dt>
+                  <dd className="mt-0.5 text-sm">{conn.hasPassword ? "Yes" : "No"}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">Has Client Secret</dt>
+                  <dd className="mt-0.5 text-sm">{conn.hasClientSecret ? "Yes" : "No"}</dd>
+                </div>
+              </>
+            )}
+            {conn.sshKeyId && !isAzureFunction && (
               <div>
                 <dt className="text-sm font-medium text-muted-foreground">SSH Key</dt>
                 <dd className="mt-0.5 font-mono text-sm">{conn.sshKeyId}</dd>
@@ -118,74 +149,112 @@ export default function ConnectionDetailPage({ params }: { params: Promise<{ id:
         </CardContent>
       </Card>
 
-      {/* Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Settings</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">Connect Timeout</dt>
-              <dd className="mt-0.5 text-sm">{conn.connectTimeoutSec}s</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">Operation Timeout</dt>
-              <dd className="mt-0.5 text-sm">{conn.operationTimeoutSec}s</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">Keepalive Interval</dt>
-              <dd className="mt-0.5 text-sm">{conn.keepaliveIntervalSec}s</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">Retries</dt>
-              <dd className="mt-0.5 text-sm">{conn.transportRetries}</dd>
-            </div>
-            {isSftp && (
-              <>
+      {/* Azure Function Details */}
+      {isAzureFunction && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Azure Settings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
+              {azureProps.tenantId && (
                 <div>
-                  <dt className="text-sm font-medium text-muted-foreground">Host Key Policy</dt>
-                  <dd className="mt-0.5 text-sm">{formatLabel(conn.hostKeyPolicy)}</dd>
+                  <dt className="text-sm font-medium text-muted-foreground">Tenant ID</dt>
+                  <dd className="mt-0.5 font-mono text-sm">{azureProps.tenantId}</dd>
                 </div>
-                {conn.sshAlgorithms && (
-                  <div className="col-span-2">
-                    <dt className="text-sm font-medium text-muted-foreground">SSH Algorithms</dt>
-                    <dd className="mt-0.5 font-mono text-xs">{conn.sshAlgorithms}</dd>
-                  </div>
-                )}
-              </>
-            )}
-            {isFtpOrFtps && (
-              <>
+              )}
+              {azureProps.clientId && (
                 <div>
-                  <dt className="text-sm font-medium text-muted-foreground">Passive Mode</dt>
-                  <dd className="mt-0.5 text-sm">{conn.passiveMode ? "Yes" : "No"}</dd>
+                  <dt className="text-sm font-medium text-muted-foreground">Client ID</dt>
+                  <dd className="mt-0.5 font-mono text-sm">{azureProps.clientId}</dd>
                 </div>
-                {conn.protocol === "ftps" && (
-                  <>
-                    {conn.tlsVersionFloor && (
-                      <div>
-                        <dt className="text-sm font-medium text-muted-foreground">TLS Version Floor</dt>
-                        <dd className="mt-0.5 text-sm">{conn.tlsVersionFloor === "tls12" ? "TLS 1.2" : "TLS 1.3"}</dd>
-                      </div>
-                    )}
-                    <div>
-                      <dt className="text-sm font-medium text-muted-foreground">TLS Cert Policy</dt>
-                      <dd className="mt-0.5 text-sm">{formatLabel(conn.tlsCertPolicy)}</dd>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-            {conn.fipsOverride && (
+              )}
+              {azureProps.workspaceId && (
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">Workspace ID</dt>
+                  <dd className="mt-0.5 font-mono text-sm">{azureProps.workspaceId}</dd>
+                </div>
+              )}
+              {!azureProps.tenantId && !azureProps.clientId && !azureProps.workspaceId && (
+                <div className="col-span-full">
+                  <p className="text-sm text-muted-foreground">No Azure properties configured.</p>
+                </div>
+              )}
+            </dl>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Settings (file transfer protocols) */}
+      {!isAzureFunction && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Settings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
               <div>
-                <dt className="text-sm font-medium text-muted-foreground">FIPS Override</dt>
-                <dd className="mt-0.5 text-sm">Enabled</dd>
+                <dt className="text-sm font-medium text-muted-foreground">Connect Timeout</dt>
+                <dd className="mt-0.5 text-sm">{conn.connectTimeoutSec}s</dd>
               </div>
-            )}
-          </dl>
-        </CardContent>
-      </Card>
+              <div>
+                <dt className="text-sm font-medium text-muted-foreground">Operation Timeout</dt>
+                <dd className="mt-0.5 text-sm">{conn.operationTimeoutSec}s</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-muted-foreground">Keepalive Interval</dt>
+                <dd className="mt-0.5 text-sm">{conn.keepaliveIntervalSec}s</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-muted-foreground">Retries</dt>
+                <dd className="mt-0.5 text-sm">{conn.transportRetries}</dd>
+              </div>
+              {isSftp && (
+                <>
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Host Key Policy</dt>
+                    <dd className="mt-0.5 text-sm">{formatLabel(conn.hostKeyPolicy)}</dd>
+                  </div>
+                  {conn.sshAlgorithms && (
+                    <div className="col-span-2">
+                      <dt className="text-sm font-medium text-muted-foreground">SSH Algorithms</dt>
+                      <dd className="mt-0.5 font-mono text-xs">{conn.sshAlgorithms}</dd>
+                    </div>
+                  )}
+                </>
+              )}
+              {isFtpOrFtps && (
+                <>
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Passive Mode</dt>
+                    <dd className="mt-0.5 text-sm">{conn.passiveMode ? "Yes" : "No"}</dd>
+                  </div>
+                  {conn.protocol === "ftps" && (
+                    <>
+                      {conn.tlsVersionFloor && (
+                        <div>
+                          <dt className="text-sm font-medium text-muted-foreground">TLS Version Floor</dt>
+                          <dd className="mt-0.5 text-sm">{conn.tlsVersionFloor === "tls12" ? "TLS 1.2" : "TLS 1.3"}</dd>
+                        </div>
+                      )}
+                      <div>
+                        <dt className="text-sm font-medium text-muted-foreground">TLS Cert Policy</dt>
+                        <dd className="mt-0.5 text-sm">{formatLabel(conn.tlsCertPolicy)}</dd>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+              {conn.fipsOverride && (
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">FIPS Override</dt>
+                  <dd className="mt-0.5 text-sm">Enabled</dd>
+                </div>
+              )}
+            </dl>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Known Hosts */}
       {isSftp && (

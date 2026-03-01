@@ -5,8 +5,9 @@ import { useJobExecutions, useExecution } from "@/lib/hooks/use-job-executions";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight } from "lucide-react";
-import type { JobExecutionDto } from "@/lib/types";
+import { ChevronDown, ChevronRight, Terminal } from "lucide-react";
+import { AzureFunctionTraceViewer } from "@/components/azure-function-trace-viewer";
+import type { JobExecutionDto, StepExecutionDto } from "@/lib/types";
 
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -23,6 +24,15 @@ function formatDuration(ms?: number): string {
   if (!ms) return "";
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function parseOutputData(outputData?: string): Record<string, string> | null {
+  if (!outputData) return null;
+  try {
+    return JSON.parse(outputData);
+  } catch {
+    return null;
+  }
 }
 
 interface ExecutionTimelineProps {
@@ -106,7 +116,7 @@ function ExecutionRow({
   const isRunning =
     execution.state === "queued" || execution.state === "running";
 
-  const { data: liveData } = useExecution(execution.id, isRunning);
+  const { data: liveData } = useExecution(execution.id, isRunning || expanded);
   const liveExecution = liveData?.data ?? execution;
 
   return (
@@ -153,9 +163,68 @@ function ExecutionRow({
                 {liveExecution.completedAt && ` \u00b7 Completed: ${timeAgo(liveExecution.completedAt)}`}
               </p>
             </div>
+
+            {/* Step Executions */}
+            {liveExecution.stepExecutions && liveExecution.stepExecutions.length > 0 && (
+              <div className="mt-4 space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Steps</p>
+                {liveExecution.stepExecutions.map((step) => (
+                  <StepExecutionRow key={step.id} step={step} />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function StepExecutionRow({ step }: { step: StepExecutionDto }) {
+  const [showTraces, setShowTraces] = useState(false);
+
+  const outputData = parseOutputData(step.outputData);
+  const invocationId = outputData?.invocation_id;
+  const connectionId = outputData?.connection_id;
+  const isAzureFunction = step.stepTypeKey === "azure_function.execute";
+  const hasTraceData = isAzureFunction && invocationId && connectionId;
+
+  return (
+    <div className="rounded-md border bg-muted/30 px-3 py-2">
+      <div className="flex items-center gap-2 text-sm">
+        <StatusBadge state={step.state} />
+        <span className="text-muted-foreground tabular-nums">Step {step.stepOrder}:</span>
+        <span className="font-medium">{step.stepName}</span>
+        <span className="text-xs text-muted-foreground font-mono">({step.stepTypeKey})</span>
+        {step.durationMs != null && (
+          <span className="text-xs text-muted-foreground ml-auto">
+            {formatDuration(step.durationMs)}
+          </span>
+        )}
+        {hasTraceData && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="ml-1 h-6 px-2 text-xs"
+            onClick={() => setShowTraces(!showTraces)}
+          >
+            <Terminal className="mr-1 h-3 w-3" />
+            {showTraces ? "Hide Logs" : "View Logs"}
+          </Button>
+        )}
+      </div>
+      {step.errorMessage && (
+        <p className="mt-1 text-xs text-destructive font-mono">{step.errorMessage}</p>
+      )}
+      {showTraces && hasTraceData && (
+        <div className="mt-2">
+          <AzureFunctionTraceViewer
+            connectionId={connectionId}
+            invocationId={invocationId}
+          />
+        </div>
+      )}
+    </div>
   );
 }

@@ -24,7 +24,23 @@ interface StepBuilderProps {
 const STEP_TYPES = [
   { value: "file.copy", label: "File Copy" },
   { value: "file.move", label: "File Move" },
+  { value: "azure_function.execute", label: "Azure Function Execute" },
 ];
+
+function getStepSummary(step: StepFormData): string | null {
+  const config = parseStepConfig(step.configuration, step.typeKey);
+
+  if (step.typeKey === "azure_function.execute") {
+    const fn = config.functionName as string;
+    return fn ? fn : null;
+  }
+
+  // File steps
+  const src = config.sourcePath as string;
+  const dst = config.destinationPath as string;
+  if (src) return `${src} \u2192 ${dst}`;
+  return null;
+}
 
 export function StepBuilder({ steps, onChange }: StepBuilderProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -62,6 +78,15 @@ export function StepBuilder({ steps, onChange }: StepBuilderProps) {
     if (editingIndex === from) setEditingIndex(to);
   }
 
+  function handleTypeChange(step: StepFormData, index: number | null, newTypeKey: string) {
+    const updated = { ...step, typeKey: newTypeKey, configuration: "{}" };
+    if (index !== null) {
+      updateStep(index, updated);
+    } else {
+      setDraft(updated);
+    }
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -85,8 +110,9 @@ export function StepBuilder({ steps, onChange }: StepBuilderProps) {
       )}
 
       {steps.map((step, index) => {
-        const config = parseStepConfig(step.configuration);
+        const config = parseStepConfig(step.configuration, step.typeKey);
         const isEditing = editingIndex === index;
+        const summary = getStepSummary(step);
 
         return (
           <Card key={index}>
@@ -139,9 +165,7 @@ export function StepBuilder({ steps, onChange }: StepBuilderProps) {
                         <Label className="text-xs">Step Type</Label>
                         <select
                           value={step.typeKey}
-                          onChange={(e) =>
-                            updateStep(index, { ...step, typeKey: e.target.value })
-                          }
+                          onChange={(e) => handleTypeChange(step, index, e.target.value)}
                           className="rounded-md border bg-background px-3 py-1.5 text-sm"
                         >
                           {STEP_TYPES.map((t) => (
@@ -157,7 +181,7 @@ export function StepBuilder({ steps, onChange }: StepBuilderProps) {
                         onChange={(c) =>
                           updateStep(index, {
                             ...step,
-                            configuration: serializeStepConfig(c),
+                            configuration: serializeStepConfig(c, step.typeKey),
                           })
                         }
                       />
@@ -172,9 +196,9 @@ export function StepBuilder({ steps, onChange }: StepBuilderProps) {
                       </Button>
                     </>
                   ) : (
-                    config.sourcePath && (
+                    summary && (
                       <p className="mt-1 text-sm text-muted-foreground font-mono">
-                        {config.sourcePath} &rarr; {config.destinationPath}
+                        {summary}
                       </p>
                     )
                   )}
@@ -223,7 +247,7 @@ export function StepBuilder({ steps, onChange }: StepBuilderProps) {
               <Label className="text-xs">Step Type</Label>
               <select
                 value={draft.typeKey}
-                onChange={(e) => setDraft({ ...draft, typeKey: e.target.value })}
+                onChange={(e) => handleTypeChange(draft, null, e.target.value)}
                 className="rounded-md border bg-background px-3 py-1.5 text-sm"
               >
                 {STEP_TYPES.map((t) => (
@@ -235,9 +259,9 @@ export function StepBuilder({ steps, onChange }: StepBuilderProps) {
             </div>
             <StepConfigForm
               typeKey={draft.typeKey}
-              config={parseStepConfig(draft.configuration)}
+              config={parseStepConfig(draft.configuration, draft.typeKey)}
               onChange={(c) =>
-                setDraft({ ...draft, configuration: serializeStepConfig(c) })
+                setDraft({ ...draft, configuration: serializeStepConfig(c, draft.typeKey) })
               }
             />
             <div className="flex gap-2">

@@ -17,28 +17,35 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useCreateConnection, useUpdateConnection } from "@/lib/hooks/use-connection-mutations";
 import { toast } from "sonner";
-import type { ConnectionDto } from "@/lib/types";
+import type { ConnectionDto, CreateConnectionRequest, UpdateConnectionRequest } from "@/lib/types";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, HelpCircle } from "lucide-react";
 import { useEffect } from "react";
 
 const protocolDefaults: Record<string, number> = {
   sftp: 22,
   ftp: 21,
   ftps: 990,
+  azure_function: 443,
 };
 
 const connectionSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name must be 100 characters or less"),
   group: z.string().max(100).optional(),
-  protocol: z.enum(["sftp", "ftp", "ftps"], { message: "Protocol is required" }),
+  protocol: z.enum(["sftp", "ftp", "ftps", "azure_function"], { message: "Protocol is required" }),
   host: z.string().min(1, "Host is required").max(255),
   port: z.number().int().min(1).max(65535),
-  authMethod: z.enum(["password", "ssh_key", "password_ssh_key"], { message: "Auth method is required" }),
-  username: z.string().min(1, "Username is required").max(100),
+  authMethod: z.enum(["password", "ssh_key", "password_ssh_key", "service_principal"], { message: "Auth method is required" }),
+  username: z.string().max(100).optional(),
   password: z.string().max(500).optional(),
+  clientSecret: z.string().max(500).optional(),
   sshKeyId: z.string().optional(),
   hostKeyPolicy: z.enum(["trust_on_first_use", "accept_any", "manual"]).optional(),
   sshAlgorithms: z.string().max(2000).optional(),
@@ -53,6 +60,10 @@ const connectionSchema = z.object({
   status: z.enum(["active", "disabled"]).optional(),
   fipsOverride: z.boolean().optional(),
   notes: z.string().max(2000).optional(),
+  // Azure Function specific (stored in properties JSON)
+  tenantId: z.string().max(100).optional(),
+  clientId: z.string().max(100).optional(),
+  workspaceId: z.string().max(100).optional(),
 });
 
 type ConnectionFormValues = z.infer<typeof connectionSchema>;
@@ -61,9 +72,32 @@ interface ConnectionFormProps {
   connection?: ConnectionDto;
 }
 
+function FieldTooltip({ text }: { text: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs">
+        <p className="text-xs">{text}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+function parseAzureProperties(props?: string): { tenantId?: string; clientId?: string; workspaceId?: string } {
+  if (!props) return {};
+  try {
+    return JSON.parse(props);
+  } catch {
+    return {};
+  }
+}
+
 export function ConnectionForm({ connection }: ConnectionFormProps) {
   const router = useRouter();
   const isEdit = !!connection;
+  const azureProps = parseAzureProperties(connection?.properties);
 
   const {
     register,
@@ -83,6 +117,7 @@ export function ConnectionForm({ connection }: ConnectionFormProps) {
       authMethod: (connection?.authMethod as ConnectionFormValues["authMethod"]) ?? "password",
       username: connection?.username ?? "",
       password: "",
+      clientSecret: "",
       sshKeyId: connection?.sshKeyId ?? "",
       hostKeyPolicy: (connection?.hostKeyPolicy as ConnectionFormValues["hostKeyPolicy"]) ?? "trust_on_first_use",
       sshAlgorithms: connection?.sshAlgorithms ?? "",
@@ -97,12 +132,22 @@ export function ConnectionForm({ connection }: ConnectionFormProps) {
       status: (connection?.status as ConnectionFormValues["status"]) ?? "active",
       fipsOverride: connection?.fipsOverride ?? false,
       notes: connection?.notes ?? "",
+      tenantId: azureProps.tenantId ?? "",
+      clientId: azureProps.clientId ?? "",
+      workspaceId: azureProps.workspaceId ?? "",
     },
   });
 
   const protocol = watch("protocol");
   const authMethod = watch("authMethod");
   const tlsCertPolicy = watch("tlsCertPolicy");
+
+  const isAzureFunction = protocol === "azure_function";
+  const isSftp = protocol === "sftp";
+  const isFtpOrFtps = protocol === "ftp" || protocol === "ftps";
+  const isFileTransfer = isSftp || isFtpOrFtps;
+  const showPasswordField = !isAzureFunction && (authMethod === "password" || authMethod === "password_ssh_key");
+  const showSshKeyField = !isAzureFunction && (authMethod === "ssh_key" || authMethod === "password_ssh_key");
 
   // Auto-default port when protocol changes
   useEffect(() => {
@@ -113,23 +158,64 @@ export function ConnectionForm({ connection }: ConnectionFormProps) {
     }
   }, [protocol, setValue, watch]);
 
+  // Auto-set auth method and username for azure_function
+  useEffect(() => {
+    if (isAzureFunction) {
+      setValue("authMethod", "service_principal");
+      setValue("username", "service_principal");
+    }
+  }, [isAzureFunction, setValue]);
+
   const createConnection = useCreateConnection();
   const updateConnection = useUpdateConnection(connection?.id ?? "");
   const isSubmitting = createConnection.isPending || updateConnection.isPending;
 
-  const showPasswordField = authMethod === "password" || authMethod === "password_ssh_key";
-  const showSshKeyField = authMethod === "ssh_key" || authMethod === "password_ssh_key";
-  const isSftp = protocol === "sftp";
-  const isFtpOrFtps = protocol === "ftp" || protocol === "ftps";
-
   async function onSubmit(values: ConnectionFormValues) {
+    // Build the request, mapping azure-specific fields
+    const isAzure = values.protocol === "azure_function";
+    const properties = isAzure
+      ? JSON.stringify({
+          tenantId: values.tenantId || undefined,
+          clientId: values.clientId || undefined,
+          workspaceId: values.workspaceId || undefined,
+        })
+      : undefined;
+
+    const base = {
+      name: values.name,
+      group: values.group,
+      protocol: values.protocol,
+      host: values.host,
+      port: values.port,
+      authMethod: isAzure ? "service_principal" : values.authMethod,
+      username: isAzure ? "service_principal" : (values.username || ""),
+      password: values.password || undefined,
+      clientSecret: values.clientSecret || undefined,
+      sshKeyId: values.sshKeyId || undefined,
+      properties,
+      hostKeyPolicy: values.hostKeyPolicy,
+      sshAlgorithms: values.sshAlgorithms || undefined,
+      passiveMode: values.passiveMode,
+      tlsVersionFloor: values.tlsVersionFloor,
+      tlsCertPolicy: values.tlsCertPolicy,
+      tlsPinnedThumbprint: values.tlsPinnedThumbprint || undefined,
+      connectTimeoutSec: values.connectTimeoutSec,
+      operationTimeoutSec: values.operationTimeoutSec,
+      keepaliveIntervalSec: values.keepaliveIntervalSec,
+      transportRetries: values.transportRetries,
+      fipsOverride: values.fipsOverride,
+      notes: values.notes || undefined,
+    };
+
     try {
       if (isEdit) {
-        await updateConnection.mutateAsync(values);
+        const updateReq: UpdateConnectionRequest = { ...base, status: values.status };
+        await updateConnection.mutateAsync(updateReq);
         toast.success("Connection updated");
         router.push(`/connections/${connection.id}`);
       } else {
-        const result = await createConnection.mutateAsync(values);
+        const createReq: CreateConnectionRequest = base;
+        const result = await createConnection.mutateAsync(createReq);
         toast.success("Connection created");
         router.push(`/connections/${result.data!.id}`);
       }
@@ -189,6 +275,7 @@ export function ConnectionForm({ connection }: ConnectionFormProps) {
                       <SelectItem value="sftp">SFTP</SelectItem>
                       <SelectItem value="ftp">FTP</SelectItem>
                       <SelectItem value="ftps">FTPS</SelectItem>
+                      <SelectItem value="azure_function">Azure Function</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
@@ -199,7 +286,11 @@ export function ConnectionForm({ connection }: ConnectionFormProps) {
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="host">Host</Label>
-              <Input id="host" placeholder="e.g., sftp.example.com" {...register("host")} />
+              <Input
+                id="host"
+                placeholder={isAzureFunction ? "e.g., myapp.azurewebsites.net" : "e.g., sftp.example.com"}
+                {...register("host")}
+              />
               {errors.host && (
                 <p className="text-sm text-destructive">{errors.host.message}</p>
               )}
@@ -222,65 +313,152 @@ export function ConnectionForm({ connection }: ConnectionFormProps) {
         </CardContent>
       </Card>
 
-      {/* Authentication */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Authentication</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+      {/* Azure Function Settings */}
+      {isAzureFunction && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Azure Function Settings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="grid gap-1.5">
-              <Label>Auth Method</Label>
-              <Controller
-                control={control}
-                name="authMethod"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select auth method" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="password">Password</SelectItem>
-                      <SelectItem value="ssh_key">SSH Key</SelectItem>
-                      <SelectItem value="password_ssh_key">Password + SSH Key</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {errors.authMethod && (
-                <p className="text-sm text-destructive">{errors.authMethod.message}</p>
-              )}
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="username">Username</Label>
-              <Input id="username" placeholder="e.g., sftpuser" {...register("username")} />
-              {errors.username && (
-                <p className="text-sm text-destructive">{errors.username.message}</p>
-              )}
-            </div>
-          </div>
-          {showPasswordField && (
-            <div className="grid gap-1.5">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="password">Master Key</Label>
+                <FieldTooltip text="The Function App's master key, found in Azure Portal under Function App > App Keys. Used to authenticate trigger requests via the Admin API." />
+              </div>
               <Input
                 id="password"
                 type="password"
-                placeholder={isEdit ? "Leave blank to keep current password" : "Enter password"}
+                placeholder={isEdit ? "Leave blank to keep current key" : "Enter master key"}
                 {...register("password")}
               />
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password.message}</p>
               )}
             </div>
-          )}
-          {showSshKeyField && (
             <div className="grid gap-1.5">
-              <Label>SSH Key</Label>
-              <Input disabled placeholder="Coming soon - SSH key selection" />
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="clientSecret">Client Secret</Label>
+                <FieldTooltip text="Entra ID service principal client secret. Used to authenticate with Application Insights for monitoring function execution." />
+              </div>
+              <Input
+                id="clientSecret"
+                type="password"
+                placeholder={isEdit ? "Leave blank to keep current secret" : "Enter client secret"}
+                {...register("clientSecret")}
+              />
+              {errors.clientSecret && (
+                <p className="text-sm text-destructive">{errors.clientSecret.message}</p>
+              )}
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="grid gap-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="tenantId">Tenant ID</Label>
+                  <FieldTooltip text="Azure Entra ID tenant ID (GUID). Found in Azure Portal > Entra ID > Overview." />
+                </div>
+                <Input
+                  id="tenantId"
+                  placeholder="e.g., 12345678-abcd-..."
+                  {...register("tenantId")}
+                />
+                {errors.tenantId && (
+                  <p className="text-sm text-destructive">{errors.tenantId.message}</p>
+                )}
+              </div>
+              <div className="grid gap-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="clientId">Client ID</Label>
+                  <FieldTooltip text="Entra ID app registration client ID (GUID). The service principal must have Log Analytics Reader role on the App Insights workspace." />
+                </div>
+                <Input
+                  id="clientId"
+                  placeholder="e.g., 12345678-abcd-..."
+                  {...register("clientId")}
+                />
+                {errors.clientId && (
+                  <p className="text-sm text-destructive">{errors.clientId.message}</p>
+                )}
+              </div>
+              <div className="grid gap-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Label htmlFor="workspaceId">Workspace ID</Label>
+                  <FieldTooltip text="Log Analytics workspace ID (GUID). Found in Azure Portal > Log Analytics Workspaces > your workspace > Properties." />
+                </div>
+                <Input
+                  id="workspaceId"
+                  placeholder="e.g., 12345678-abcd-..."
+                  {...register("workspaceId")}
+                />
+                {errors.workspaceId && (
+                  <p className="text-sm text-destructive">{errors.workspaceId.message}</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Authentication (hidden for azure_function) */}
+      {!isAzureFunction && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Authentication</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-1.5">
+                <Label>Auth Method</Label>
+                <Controller
+                  control={control}
+                  name="authMethod"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select auth method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="password">Password</SelectItem>
+                        <SelectItem value="ssh_key">SSH Key</SelectItem>
+                        <SelectItem value="password_ssh_key">Password + SSH Key</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.authMethod && (
+                  <p className="text-sm text-destructive">{errors.authMethod.message}</p>
+                )}
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="username">Username</Label>
+                <Input id="username" placeholder="e.g., sftpuser" {...register("username")} />
+                {errors.username && (
+                  <p className="text-sm text-destructive">{errors.username.message}</p>
+                )}
+              </div>
+            </div>
+            {showPasswordField && (
+              <div className="grid gap-1.5">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder={isEdit ? "Leave blank to keep current password" : "Enter password"}
+                  {...register("password")}
+                />
+                {errors.password && (
+                  <p className="text-sm text-destructive">{errors.password.message}</p>
+                )}
+              </div>
+            )}
+            {showSshKeyField && (
+              <div className="grid gap-1.5">
+                <Label>SSH Key</Label>
+                <Input disabled placeholder="Coming soon - SSH key selection" />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* SFTP Settings */}
       {isSftp && (
@@ -403,44 +581,46 @@ export function ConnectionForm({ connection }: ConnectionFormProps) {
         </Card>
       )}
 
-      {/* Timeouts */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Timeouts</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div className="grid gap-1.5">
-              <Label htmlFor="connectTimeoutSec">Connect (sec)</Label>
-              <Input id="connectTimeoutSec" type="number" {...register("connectTimeoutSec", { valueAsNumber: true })} />
-              {errors.connectTimeoutSec && (
-                <p className="text-sm text-destructive">{errors.connectTimeoutSec.message}</p>
-              )}
+      {/* Timeouts (hidden for azure_function) */}
+      {isFileTransfer && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Timeouts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="grid gap-1.5">
+                <Label htmlFor="connectTimeoutSec">Connect (sec)</Label>
+                <Input id="connectTimeoutSec" type="number" {...register("connectTimeoutSec", { valueAsNumber: true })} />
+                {errors.connectTimeoutSec && (
+                  <p className="text-sm text-destructive">{errors.connectTimeoutSec.message}</p>
+                )}
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="operationTimeoutSec">Operation (sec)</Label>
+                <Input id="operationTimeoutSec" type="number" {...register("operationTimeoutSec", { valueAsNumber: true })} />
+                {errors.operationTimeoutSec && (
+                  <p className="text-sm text-destructive">{errors.operationTimeoutSec.message}</p>
+                )}
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="keepaliveIntervalSec">Keepalive (sec)</Label>
+                <Input id="keepaliveIntervalSec" type="number" {...register("keepaliveIntervalSec", { valueAsNumber: true })} />
+                {errors.keepaliveIntervalSec && (
+                  <p className="text-sm text-destructive">{errors.keepaliveIntervalSec.message}</p>
+                )}
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="transportRetries">Retries</Label>
+                <Input id="transportRetries" type="number" {...register("transportRetries", { valueAsNumber: true })} />
+                {errors.transportRetries && (
+                  <p className="text-sm text-destructive">{errors.transportRetries.message}</p>
+                )}
+              </div>
             </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="operationTimeoutSec">Operation (sec)</Label>
-              <Input id="operationTimeoutSec" type="number" {...register("operationTimeoutSec", { valueAsNumber: true })} />
-              {errors.operationTimeoutSec && (
-                <p className="text-sm text-destructive">{errors.operationTimeoutSec.message}</p>
-              )}
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="keepaliveIntervalSec">Keepalive (sec)</Label>
-              <Input id="keepaliveIntervalSec" type="number" {...register("keepaliveIntervalSec", { valueAsNumber: true })} />
-              {errors.keepaliveIntervalSec && (
-                <p className="text-sm text-destructive">{errors.keepaliveIntervalSec.message}</p>
-              )}
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="transportRetries">Retries</Label>
-              <Input id="transportRetries" type="number" {...register("transportRetries", { valueAsNumber: true })} />
-              {errors.transportRetries && (
-                <p className="text-sm text-destructive">{errors.transportRetries.message}</p>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Advanced (edit only) */}
       {isEdit && (
