@@ -727,6 +727,8 @@ These limits are acceptable for V1's target workload (internal file transfer ope
 | Azure Blob Storage | Outbound | HTTPS (REST) | Archived partition data (cold storage) | 13.6 |
 | Azure Application Insights | Outbound | HTTPS | Telemetry, tracing, alerting (prod) | 3.10 |
 | Seq | Outbound | HTTP | Structured log search (dev only) | 3.10 |
+| Azure Function Apps | Outbound | HTTPS (Admin API) | Trigger serverless functions as job steps; poll completion via App Insights | 5.2, 6.1 |
+| Azure Log Analytics | Outbound | HTTPS (REST) | Query Application Insights for function execution status and traces | 5.2 |
 | Partner SFTP servers | Outbound | SFTP (SSH) | File transfer — upload, download, directory listing | 6 |
 | Partner FTP/FTPS servers | Outbound | FTP / FTPS | File transfer — upload, download, directory listing | 6 |
 | PostgreSQL | Both | TCP (SSL) | Primary data store | 13 |
@@ -1650,6 +1652,7 @@ public interface IJobStep
 | `file.move`         | Move file(s) to a destination path           |
 | `file.copy`         | Copy file(s) to a destination path           |
 | `file.delete`       | Delete file(s) from a path                   |
+| `azure_function.execute` | Trigger an Azure Function and poll for completion via Application Insights |
 
 Each step type is registered in a `StepTypeRegistry` at startup via dependency injection. The registry resolves the correct `IJobStep` implementation by `TypeKey` at runtime.
 
@@ -1975,12 +1978,14 @@ A Connection is a first-class persisted entity representing a configured remote 
 | `id`                   | UUID      | Internal identifier referenced by job step configuration       |
 | `name`                 | TEXT      | Human-readable label (e.g., "Partner X Production SFTP")       |
 | `group`                | TEXT      | Organizational folder (e.g., "Partner X", "Legacy Systems")    |
-| `protocol`             | ENUM      | `SFTP`, `FTP`, `FTPS`                                         |
+| `protocol`             | ENUM      | `SFTP`, `FTP`, `FTPS`, `azure_function`                        |
 | `host`                 | TEXT      | Hostname or IP address                                         |
 | `port`                 | INT       | Port number (defaults: SFTP=22, FTP=21, FTPS=990)             |
-| `auth_method`          | ENUM      | `Password`, `SshKey`, `PasswordAndSshKey`                      |
+| `auth_method`          | ENUM      | `Password`, `SshKey`, `PasswordAndSshKey`, `service_principal` |
 | `username`             | TEXT      | Login username                                                 |
-| `password_encrypted`   | BYTEA     | AES-256 encrypted password (nullable)                          |
+| `password_encrypted`   | BYTEA     | AES-256 encrypted password (nullable); master key for `azure_function` |
+| `client_secret_encrypted` | BYTEA  | AES-256 encrypted Entra client secret (nullable; used by `azure_function` protocol) |
+| `properties`           | JSONB     | Protocol-specific config (e.g., `workspace_id`, `tenant_id`, `client_id` for `azure_function`) |
 | `ssh_key_id`           | UUID      | FK to the SSH Key Store (nullable)                             |
 | `host_key_policy`      | ENUM      | `TrustOnFirstUse`, `AlwaysTrust`, `Manual`                     |
 | `stored_host_fingerprint` | TEXT   | Known host fingerprint for TOFU/Manual policies                |
@@ -2182,6 +2187,24 @@ private void ConfigureTlsValidation(FtpClient client, Connection connection)
 | Directory listing       | Yes           | Yes           | Yes           |
 | Atomic rename           | Yes           | Yes           | Yes           |
 | Large file streaming    | Yes           | Yes           | Yes           |
+
+#### 6.3.4 Azure Functions
+
+Azure Function connections use the Admin API for fire-and-forget function invocation and Application Insights (Log Analytics) for polling completion and retrieving execution traces.
+
+| Field | Purpose |
+|-------|---------|
+| `host` | Function App URL (e.g., `myapp.azurewebsites.net`) |
+| `password_encrypted` | Master key for the Function App (encrypted) |
+| `client_secret_encrypted` | Entra service principal client secret (encrypted) |
+| `auth_method` | `service_principal` |
+| `properties` (JSONB) | `{ "workspace_id": "...", "tenant_id": "...", "client_id": "..." }` |
+
+**Trigger flow:** POST to `https://{host}/admin/functions/{functionName}` with `x-functions-key` header. Returns 202 immediately (fire-and-forget). No invocation ID is returned by Azure's Admin API.
+
+**Completion detection:** Poll Application Insights via Log Analytics REST API using KQL: query `requests` table filtered by function name and trigger timestamp. Uses `Azure.Identity.ClientSecretCredential` for Entra token acquisition (handles automatic token refresh for multi-hour polls).
+
+**Trace retrieval:** On-demand query of `traces` table filtered by `customDimensions.InvocationId`. Available after function completion via dedicated API endpoint.
 
 ### 6.4 Connection Session Management
 
@@ -4494,7 +4517,39 @@ GET    /api/v1/dashboard/key-expiry           Keys expiring within N days
 }
 ```
 
-### 10.12 Step Type Registry API
+### 10.12 Azure Functions API
+
+On-demand trace retrieval for Azure Function executions. Traces are fetched live from Application Insights — nothing is stored in the Courier database.
+
+```
+GET    /api/v1/azure-functions/{connectionId}/traces/{invocationId}   Get execution traces
+```
+
+#### Response
+
+```json
+{
+    "data": [
+        {
+            "timestamp": "2026-02-28T15:30:01.123Z",
+            "message": "Processing file abc-123...",
+            "severityLevel": 1
+        },
+        {
+            "timestamp": "2026-02-28T15:30:05.456Z",
+            "message": "File processed successfully",
+            "severityLevel": 1
+        }
+    ],
+    "error": null,
+    "success": true,
+    "timestamp": "2026-02-28T15:31:00Z"
+}
+```
+
+Severity levels follow Application Insights convention: 0=Verbose, 1=Information, 2=Warning, 3=Error, 4=Critical.
+
+### 10.13 Step Type Registry API
 
 A read-only endpoint that returns all available step types and their configuration schemas. Used by the frontend job builder to render step-specific configuration forms.
 
@@ -4554,7 +4609,7 @@ GET    /api/v1/step-types/{typeKey}           Get configuration schema for a ste
 
 The `configurationSchema` follows JSON Schema with custom `uiHint` extensions that the frontend uses to render appropriate input controls (e.g., `connection-picker` renders a connection dropdown, `key-picker` renders a PGP key selector).
 
-### 10.13 OpenAPI / Swagger Configuration
+### 10.14 OpenAPI / Swagger Configuration
 
 The API specification is generated at build time via Swashbuckle and served at `/swagger` in development and staging environments. Production exposes the spec at `/api/v1/openapi.json` but disables the Swagger UI.
 
@@ -4598,7 +4653,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 ```
 
-### 10.14 Request Validation
+### 10.15 Request Validation
 
 All request bodies are validated using **FluentValidation**. Validators are auto-discovered from the assembly and wired into the ASP.NET pipeline via a validation filter. Validation errors return an HTTP 400 with error code `1000` (`Validation failed`) and field-level details.
 
