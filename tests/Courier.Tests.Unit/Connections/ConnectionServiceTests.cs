@@ -388,4 +388,149 @@ public class ConnectionServiceTests
         result.Data!.HostKeyPolicy.ShouldBe("trust_on_first_use");
         result.Data.TlsCertPolicy.ShouldBe("system_trust");
     }
+
+    // Azure Function connection tests
+
+    private static CreateConnectionRequest MakeAzureFunctionRequest(
+        string name = "Test Azure Function",
+        string? clientSecret = "my-client-secret",
+        string? properties = """{"workspace_id":"ws-1","tenant_id":"t-1","client_id":"c-1"}""") => new()
+    {
+        Name = name,
+        Protocol = "azure_function",
+        Host = "myapp.azurewebsites.net",
+        AuthMethod = "service_principal",
+        Username = "app-name",
+        Password = "master-key",
+        ClientSecret = clientSecret,
+        Properties = properties,
+    };
+
+    [Fact]
+    public async Task Create_AzureFunction_ReturnsSuccessWithDefaultPort443()
+    {
+        // Arrange
+        using var db = CreateInMemoryContext();
+        var service = new ConnectionService(db, CreateMockEncryptor());
+
+        // Act
+        var result = await service.CreateAsync(MakeAzureFunctionRequest());
+
+        // Assert
+        result.Success.ShouldBeTrue();
+        result.Data.ShouldNotBeNull();
+        result.Data!.Protocol.ShouldBe("azure_function");
+        result.Data.Port.ShouldBe(443);
+        result.Data.AuthMethod.ShouldBe("service_principal");
+    }
+
+    [Fact]
+    public async Task Create_AzureFunction_EncryptsClientSecret()
+    {
+        // Arrange
+        using var db = CreateInMemoryContext();
+        var encryptor = CreateMockEncryptor();
+        var service = new ConnectionService(db, encryptor);
+
+        // Act
+        var result = await service.CreateAsync(MakeAzureFunctionRequest());
+
+        // Assert
+        result.Data!.HasClientSecret.ShouldBeTrue();
+        encryptor.Received(1).Encrypt("my-client-secret");
+    }
+
+    [Fact]
+    public async Task Create_AzureFunction_StoresProperties()
+    {
+        // Arrange
+        using var db = CreateInMemoryContext();
+        var service = new ConnectionService(db, CreateMockEncryptor());
+
+        // Act
+        var result = await service.CreateAsync(MakeAzureFunctionRequest());
+
+        // Assert
+        result.Data!.Properties.ShouldNotBeNull();
+        result.Data.Properties.ShouldContain("workspace_id");
+    }
+
+    [Fact]
+    public async Task Create_AzureFunction_NoClientSecret_HasClientSecretFalse()
+    {
+        // Arrange
+        using var db = CreateInMemoryContext();
+        var service = new ConnectionService(db, CreateMockEncryptor());
+
+        // Act
+        var result = await service.CreateAsync(MakeAzureFunctionRequest(clientSecret: null));
+
+        // Assert
+        result.Data!.HasClientSecret.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Update_AzureFunction_ClientSecretNull_NoChange()
+    {
+        // Arrange
+        using var db = CreateInMemoryContext();
+        var encryptor = CreateMockEncryptor();
+        var service = new ConnectionService(db, encryptor);
+        var created = await service.CreateAsync(MakeAzureFunctionRequest());
+
+        // Act — update with ClientSecret = null (no change)
+        var result = await service.UpdateAsync(created.Data!.Id, new UpdateConnectionRequest
+        {
+            Name = "Same", Protocol = "azure_function", Host = "myapp.azurewebsites.net",
+            AuthMethod = "service_principal", Username = "app-name", ClientSecret = null,
+            Properties = """{"workspace_id":"ws-1","tenant_id":"t-1","client_id":"c-1"}"""
+        });
+
+        // Assert
+        result.Data!.HasClientSecret.ShouldBeTrue();
+        // Encrypt called twice: once for password, once for client secret in create
+        encryptor.Received(1).Encrypt("my-client-secret");
+    }
+
+    [Fact]
+    public async Task Update_AzureFunction_ClientSecretEmpty_ClearsClientSecret()
+    {
+        // Arrange
+        using var db = CreateInMemoryContext();
+        var service = new ConnectionService(db, CreateMockEncryptor());
+        var created = await service.CreateAsync(MakeAzureFunctionRequest());
+
+        // Act
+        var result = await service.UpdateAsync(created.Data!.Id, new UpdateConnectionRequest
+        {
+            Name = "Same", Protocol = "azure_function", Host = "myapp.azurewebsites.net",
+            AuthMethod = "service_principal", Username = "app-name", ClientSecret = "",
+            Properties = """{"workspace_id":"ws-1","tenant_id":"t-1","client_id":"c-1"}"""
+        });
+
+        // Assert
+        result.Data!.HasClientSecret.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Update_AzureFunction_ClientSecretNewValue_ReEncrypts()
+    {
+        // Arrange
+        using var db = CreateInMemoryContext();
+        var encryptor = CreateMockEncryptor();
+        var service = new ConnectionService(db, encryptor);
+        var created = await service.CreateAsync(MakeAzureFunctionRequest());
+
+        // Act
+        await service.UpdateAsync(created.Data!.Id, new UpdateConnectionRequest
+        {
+            Name = "Same", Protocol = "azure_function", Host = "myapp.azurewebsites.net",
+            AuthMethod = "service_principal", Username = "app-name", ClientSecret = "new-secret",
+            Properties = """{"workspace_id":"ws-1","tenant_id":"t-1","client_id":"c-1"}"""
+        });
+
+        // Assert
+        encryptor.Received(1).Encrypt("my-client-secret"); // create
+        encryptor.Received(1).Encrypt("new-secret"); // update
+    }
 }
