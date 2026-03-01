@@ -19,7 +19,7 @@ public class AppInsightsQueryService
         _logger = logger;
     }
 
-    public static async Task<string> AcquireTokenAsync(string tenantId, string clientId, string clientSecret, CancellationToken ct)
+    public virtual async Task<string> AcquireTokenAsync(string tenantId, string clientId, string clientSecret, CancellationToken ct)
     {
         var credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
         var tokenResult = await credential.GetTokenAsync(

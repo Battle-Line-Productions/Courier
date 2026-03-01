@@ -102,7 +102,7 @@ public class AzureFunctionExecuteStep : IJobStep
         string token;
         try
         {
-            token = await AppInsightsQueryService.AcquireTokenAsync(tenantId, clientId, clientSecret, cancellationToken);
+            token = await _appInsights.AcquireTokenAsync(tenantId, clientId, clientSecret, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

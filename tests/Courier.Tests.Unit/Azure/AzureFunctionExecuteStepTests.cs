@@ -265,6 +265,9 @@ public class AzureFunctionExecuteStepTests
             .Returns(new AzureFunctionTriggerResult(true, triggerTime));
 
         var appInsights = CreateMockAppInsights();
+        appInsights.AcquireTokenAsync(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns("fake-token");
         appInsights.PollForCompletionAsync(
             Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<DateTime>(),
             Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
@@ -301,6 +304,9 @@ public class AzureFunctionExecuteStepTests
             .Returns(new AzureFunctionTriggerResult(true, triggerTime));
 
         var appInsights = CreateMockAppInsights();
+        appInsights.AcquireTokenAsync(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns("fake-token");
         appInsights.PollForCompletionAsync(
             Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<DateTime>(),
             Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
@@ -341,6 +347,9 @@ public class AzureFunctionExecuteStepTests
             .Returns(new AzureFunctionTriggerResult(true, triggerTime));
 
         var appInsights = CreateMockAppInsights();
+        appInsights.AcquireTokenAsync(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns("fake-token");
         appInsights.PollForCompletionAsync(
             Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<DateTime>(),
             Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())

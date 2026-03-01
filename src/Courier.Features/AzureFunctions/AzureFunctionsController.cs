@@ -91,7 +91,7 @@ public class AzureFunctionsController : ControllerBase
         string token;
         try
         {
-            token = await AppInsightsQueryService.AcquireTokenAsync(tenantId, clientId, clientSecret, ct);
+            token = await _appInsights.AcquireTokenAsync(tenantId, clientId, clientSecret, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
