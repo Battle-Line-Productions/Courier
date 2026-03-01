@@ -64,6 +64,14 @@ public static class ErrorCodes
     // Local Filesystem (8000-8099)
     public const int DirectoryNotFound = 8000;
     public const int FilesystemAccessDenied = 8001;
+
+    // Azure Functions (9000-9099)
+    public const int AzureFunctionTriggerFailed = 9000;
+    public const int AzureFunctionExecutionFailed = 9001;
+    public const int AzureFunctionPollTimeout = 9002;
+    public const int AppInsightsQueryFailed = 9003;
+    public const int EntraTokenAcquisitionFailed = 9004;
+    public const int InvalidAzureFunctionConfig = 9005;
 }
 
 public static class ErrorMessages
@@ -119,6 +127,12 @@ public static class ErrorMessages
         [ErrorCodes.CorruptedCiphertext] = "Corrupted ciphertext",
         [ErrorCodes.DirectoryNotFound] = "Directory not found",
         [ErrorCodes.FilesystemAccessDenied] = "Filesystem access denied",
+        [ErrorCodes.AzureFunctionTriggerFailed] = "Azure Function trigger failed",
+        [ErrorCodes.AzureFunctionExecutionFailed] = "Azure Function execution failed",
+        [ErrorCodes.AzureFunctionPollTimeout] = "Azure Function poll timeout",
+        [ErrorCodes.AppInsightsQueryFailed] = "Application Insights query failed",
+        [ErrorCodes.EntraTokenAcquisitionFailed] = "Entra token acquisition failed",
+        [ErrorCodes.InvalidAzureFunctionConfig] = "Invalid Azure Function configuration",
     };
 
     public static ApiError Create(int code, string message, IReadOnlyList<FieldError>? details = null)

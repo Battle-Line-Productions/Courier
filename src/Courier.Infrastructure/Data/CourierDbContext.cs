@@ -148,6 +148,8 @@ public class CourierDbContext : DbContext
             entity.Property(e => e.AuthMethod).HasColumnName("auth_method").IsRequired();
             entity.Property(e => e.Username).HasColumnName("username").IsRequired();
             entity.Property(e => e.PasswordEncrypted).HasColumnName("password_encrypted");
+            entity.Property(e => e.ClientSecretEncrypted).HasColumnName("client_secret_encrypted");
+            entity.Property(e => e.Properties).HasColumnName("properties").HasColumnType("jsonb");
             entity.Property(e => e.SshKeyId).HasColumnName("ssh_key_id");
             entity.Property(e => e.HostKeyPolicy).HasColumnName("host_key_policy").IsRequired();
             entity.Property(e => e.StoredHostFingerprint).HasColumnName("stored_host_fingerprint");
