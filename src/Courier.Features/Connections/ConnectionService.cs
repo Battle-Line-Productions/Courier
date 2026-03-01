@@ -32,6 +32,8 @@ public class ConnectionService
             AuthMethod = request.AuthMethod,
             Username = request.Username,
             PasswordEncrypted = request.Password is not null ? _encryptor.Encrypt(request.Password) : null,
+            ClientSecretEncrypted = request.ClientSecret is not null ? _encryptor.Encrypt(request.ClientSecret) : null,
+            Properties = request.Properties,
             SshKeyId = request.SshKeyId,
             HostKeyPolicy = request.HostKeyPolicy ?? "trust_on_first_use",
             SshAlgorithms = request.SshAlgorithms,
@@ -138,6 +140,7 @@ public class ConnectionService
         connection.AuthMethod = request.AuthMethod;
         connection.Username = request.Username;
         connection.SshKeyId = request.SshKeyId;
+        connection.Properties = request.Properties;
         connection.HostKeyPolicy = request.HostKeyPolicy ?? connection.HostKeyPolicy;
         connection.SshAlgorithms = request.SshAlgorithms;
         connection.PassiveMode = request.PassiveMode ?? connection.PassiveMode;
@@ -157,6 +160,14 @@ public class ConnectionService
         {
             connection.PasswordEncrypted = request.Password.Length > 0
                 ? _encryptor.Encrypt(request.Password)
+                : null;
+        }
+
+        // ClientSecret follows the same semantics as Password
+        if (request.ClientSecret is not null)
+        {
+            connection.ClientSecretEncrypted = request.ClientSecret.Length > 0
+                ? _encryptor.Encrypt(request.ClientSecret)
                 : null;
         }
 
@@ -192,6 +203,7 @@ public class ConnectionService
         "sftp" => 22,
         "ftp" => 21,
         "ftps" => 990,
+        "azure_function" => 443,
         _ => 22
     };
 
@@ -206,6 +218,8 @@ public class ConnectionService
         AuthMethod = c.AuthMethod,
         Username = c.Username,
         HasPassword = c.PasswordEncrypted is not null,
+        HasClientSecret = c.ClientSecretEncrypted is not null,
+        Properties = c.Properties,
         SshKeyId = c.SshKeyId,
         HostKeyPolicy = c.HostKeyPolicy,
         StoredHostFingerprint = c.StoredHostFingerprint,

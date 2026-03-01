@@ -11,6 +11,8 @@ public class Connection
     public string AuthMethod { get; set; } = string.Empty;
     public string Username { get; set; } = string.Empty;
     public byte[]? PasswordEncrypted { get; set; }
+    public byte[]? ClientSecretEncrypted { get; set; }
+    public string? Properties { get; set; }
     public Guid? SshKeyId { get; set; }
     public string HostKeyPolicy { get; set; } = "trust_on_first_use";
     public string? StoredHostFingerprint { get; set; }

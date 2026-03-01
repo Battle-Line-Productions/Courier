@@ -6,7 +6,9 @@ using Courier.Features.Engine.Crypto;
 using Courier.Features.Engine.Protocols;
 using Courier.Features.Engine.Steps;
 using Courier.Features.Engine.Steps.Crypto;
+using Courier.Features.Engine.Steps.Azure;
 using Courier.Features.Engine.Steps.Transfer;
+using Courier.Features.AzureFunctions;
 using Courier.Features.Filesystem;
 using Courier.Features.Jobs;
 using Courier.Features.PgpKeys;
@@ -61,6 +63,14 @@ public static class FeaturesServiceExtensions
         services.AddScoped<IJobStep, PgpDecryptStep>();
         services.AddScoped<IJobStep, PgpSignStep>();
         services.AddScoped<IJobStep, PgpVerifyStep>();
+
+        // Azure Function step handler
+        services.AddHttpClient("AzureFunctions");
+        services.AddHttpClient("LogAnalytics");
+        services.AddScoped<AzureFunctionClient>();
+        services.AddScoped<AppInsightsQueryService>();
+        services.AddScoped<IJobStep, AzureFunctionExecuteStep>();
+
         services.AddValidatorsFromAssemblyContaining<CreateJobValidator>();
 
         // Connections

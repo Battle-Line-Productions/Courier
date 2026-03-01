@@ -4,8 +4,8 @@ namespace Courier.Features.Connections;
 
 public class CreateConnectionValidator : AbstractValidator<CreateConnectionRequest>
 {
-    private static readonly string[] ValidProtocols = ["sftp", "ftp", "ftps"];
-    private static readonly string[] ValidAuthMethods = ["password", "ssh_key", "password_and_ssh_key"];
+    private static readonly string[] ValidProtocols = ["sftp", "ftp", "ftps", "azure_function"];
+    private static readonly string[] ValidAuthMethods = ["password", "ssh_key", "password_and_ssh_key", "service_principal"];
     private static readonly string[] ValidHostKeyPolicies = ["trust_on_first_use", "always_trust", "manual"];
     private static readonly string[] ValidTlsCertPolicies = ["system_trust", "pinned_thumbprint", "insecure"];
 
@@ -18,7 +18,7 @@ public class CreateConnectionValidator : AbstractValidator<CreateConnectionReque
         RuleFor(x => x.Protocol)
             .NotEmpty().WithMessage("Protocol is required.")
             .Must(v => ValidProtocols.Contains(v))
-            .WithMessage("Protocol must be one of: sftp, ftp, ftps.");
+            .WithMessage("Protocol must be one of: sftp, ftp, ftps, azure_function.");
 
         RuleFor(x => x.Host)
             .NotEmpty().WithMessage("Host is required.");
@@ -30,7 +30,7 @@ public class CreateConnectionValidator : AbstractValidator<CreateConnectionReque
         RuleFor(x => x.AuthMethod)
             .NotEmpty().WithMessage("Auth method is required.")
             .Must(v => ValidAuthMethods.Contains(v))
-            .WithMessage("Auth method must be one of: password, ssh_key, password_and_ssh_key.");
+            .WithMessage("Auth method must be one of: password, ssh_key, password_and_ssh_key, service_principal.");
 
         RuleFor(x => x.Username)
             .NotEmpty().WithMessage("Username is required.");
@@ -42,6 +42,19 @@ public class CreateConnectionValidator : AbstractValidator<CreateConnectionReque
         RuleFor(x => x.SshKeyId)
             .NotNull().WithMessage("SSH key ID is required when auth method includes ssh_key.")
             .When(x => x.AuthMethod is "ssh_key" or "password_and_ssh_key");
+
+        // Azure Function-specific validation
+        RuleFor(x => x.AuthMethod)
+            .Equal("service_principal").WithMessage("Azure Function connections require service_principal auth method.")
+            .When(x => x.Protocol == "azure_function");
+
+        RuleFor(x => x.ClientSecret)
+            .NotEmpty().WithMessage("Client secret is required for service_principal auth.")
+            .When(x => x.AuthMethod == "service_principal");
+
+        RuleFor(x => x.Properties)
+            .NotEmpty().WithMessage("Properties are required for azure_function connections.")
+            .When(x => x.Protocol == "azure_function");
 
         RuleFor(x => x.HostKeyPolicy)
             .Must(v => ValidHostKeyPolicies.Contains(v))
@@ -77,8 +90,8 @@ public class CreateConnectionValidator : AbstractValidator<CreateConnectionReque
 
 public class UpdateConnectionValidator : AbstractValidator<UpdateConnectionRequest>
 {
-    private static readonly string[] ValidProtocols = ["sftp", "ftp", "ftps"];
-    private static readonly string[] ValidAuthMethods = ["password", "ssh_key", "password_and_ssh_key"];
+    private static readonly string[] ValidProtocols = ["sftp", "ftp", "ftps", "azure_function"];
+    private static readonly string[] ValidAuthMethods = ["password", "ssh_key", "password_and_ssh_key", "service_principal"];
     private static readonly string[] ValidHostKeyPolicies = ["trust_on_first_use", "always_trust", "manual"];
     private static readonly string[] ValidTlsCertPolicies = ["system_trust", "pinned_thumbprint", "insecure"];
     private static readonly string[] ValidStatuses = ["active", "disabled"];
@@ -92,7 +105,7 @@ public class UpdateConnectionValidator : AbstractValidator<UpdateConnectionReque
         RuleFor(x => x.Protocol)
             .NotEmpty().WithMessage("Protocol is required.")
             .Must(v => ValidProtocols.Contains(v))
-            .WithMessage("Protocol must be one of: sftp, ftp, ftps.");
+            .WithMessage("Protocol must be one of: sftp, ftp, ftps, azure_function.");
 
         RuleFor(x => x.Host)
             .NotEmpty().WithMessage("Host is required.");
@@ -104,7 +117,7 @@ public class UpdateConnectionValidator : AbstractValidator<UpdateConnectionReque
         RuleFor(x => x.AuthMethod)
             .NotEmpty().WithMessage("Auth method is required.")
             .Must(v => ValidAuthMethods.Contains(v))
-            .WithMessage("Auth method must be one of: password, ssh_key, password_and_ssh_key.");
+            .WithMessage("Auth method must be one of: password, ssh_key, password_and_ssh_key, service_principal.");
 
         RuleFor(x => x.Username)
             .NotEmpty().WithMessage("Username is required.");
@@ -112,6 +125,19 @@ public class UpdateConnectionValidator : AbstractValidator<UpdateConnectionReque
         RuleFor(x => x.SshKeyId)
             .NotNull().WithMessage("SSH key ID is required when auth method includes ssh_key.")
             .When(x => x.AuthMethod is "ssh_key" or "password_and_ssh_key");
+
+        // Azure Function-specific validation
+        RuleFor(x => x.AuthMethod)
+            .Equal("service_principal").WithMessage("Azure Function connections require service_principal auth method.")
+            .When(x => x.Protocol == "azure_function");
+
+        RuleFor(x => x.ClientSecret)
+            .NotEmpty().WithMessage("Client secret is required for service_principal auth.")
+            .When(x => x.AuthMethod == "service_principal" && x.ClientSecret is not null);
+
+        RuleFor(x => x.Properties)
+            .NotEmpty().WithMessage("Properties are required for azure_function connections.")
+            .When(x => x.Protocol == "azure_function");
 
         RuleFor(x => x.HostKeyPolicy)
             .Must(v => ValidHostKeyPolicies.Contains(v))

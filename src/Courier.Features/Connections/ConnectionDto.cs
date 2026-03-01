@@ -11,7 +11,9 @@ public record ConnectionDto
     public required string AuthMethod { get; init; }
     public required string Username { get; init; }
     public bool HasPassword { get; init; }
+    public bool HasClientSecret { get; init; }
     public Guid? SshKeyId { get; init; }
+    public string? Properties { get; init; }
     public required string HostKeyPolicy { get; init; }
     public string? StoredHostFingerprint { get; init; }
     public string? SshAlgorithms { get; init; }
@@ -40,7 +42,9 @@ public record CreateConnectionRequest
     public required string AuthMethod { get; init; }
     public required string Username { get; init; }
     public string? Password { get; init; }
+    public string? ClientSecret { get; init; }
     public Guid? SshKeyId { get; init; }
+    public string? Properties { get; init; }
     public string? HostKeyPolicy { get; init; }
     public string? SshAlgorithms { get; init; }
     public bool? PassiveMode { get; init; }
@@ -65,7 +69,9 @@ public record UpdateConnectionRequest
     public required string AuthMethod { get; init; }
     public required string Username { get; init; }
     public string? Password { get; init; }
+    public string? ClientSecret { get; init; }
     public Guid? SshKeyId { get; init; }
+    public string? Properties { get; init; }
     public string? HostKeyPolicy { get; init; }
     public string? SshAlgorithms { get; init; }
     public bool? PassiveMode { get; init; }
