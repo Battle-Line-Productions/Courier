@@ -1,4 +1,5 @@
 using Courier.Domain.Encryption;
+using Courier.Features.AuditLog;
 using Courier.Features.Connections;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -65,7 +66,7 @@ public class ConnectionServiceTests
     public async Task Create_ValidSftpRequest_ReturnsSuccessWithDefaultPort22()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
 
         var result = await service.CreateAsync(MakeSftpRequest());
 
@@ -82,7 +83,7 @@ public class ConnectionServiceTests
     public async Task Create_ValidFtpRequest_ReturnsSuccessWithDefaultPort21()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
 
         var result = await service.CreateAsync(MakeFtpRequest());
 
@@ -94,7 +95,7 @@ public class ConnectionServiceTests
     public async Task Create_ValidFtpsRequest_ReturnsSuccessWithDefaultPort990()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
 
         var result = await service.CreateAsync(MakeFtpsRequest());
 
@@ -106,7 +107,7 @@ public class ConnectionServiceTests
     public async Task Create_CustomPort_UsesProvidedPort()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
         var request = MakeSftpRequest() with { Port = 2222 };
 
         var result = await service.CreateAsync(request);
@@ -119,7 +120,7 @@ public class ConnectionServiceTests
     {
         using var db = CreateInMemoryContext();
         var encryptor = CreateMockEncryptor();
-        var service = new ConnectionService(db, encryptor);
+        var service = new ConnectionService(db, encryptor, new AuditService(db));
 
         var result = await service.CreateAsync(MakeSftpRequest());
 
@@ -131,7 +132,7 @@ public class ConnectionServiceTests
     public async Task Create_WithoutPassword_HasPasswordFalse()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
         var request = MakeSftpRequest(password: null);
 
         var result = await service.CreateAsync(request);
@@ -143,7 +144,7 @@ public class ConnectionServiceTests
     public async Task GetById_ExistingConnection_ReturnsConnection()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.CreateAsync(MakeSftpRequest("Find Me"));
 
         var result = await service.GetByIdAsync(created.Data!.Id);
@@ -156,7 +157,7 @@ public class ConnectionServiceTests
     public async Task GetById_NonExistent_ReturnsNotFoundError()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
 
         var result = await service.GetByIdAsync(Guid.NewGuid());
 
@@ -169,7 +170,7 @@ public class ConnectionServiceTests
     public async Task GetById_NeverReturnsPasswordBytes()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.CreateAsync(MakeSftpRequest());
 
         var result = await service.GetByIdAsync(created.Data!.Id);
@@ -183,7 +184,7 @@ public class ConnectionServiceTests
     public async Task List_ReturnsAllConnections()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
         await service.CreateAsync(MakeSftpRequest("Conn A"));
         await service.CreateAsync(MakeFtpRequest("Conn B"));
 
@@ -198,7 +199,7 @@ public class ConnectionServiceTests
     public async Task List_FilterByProtocol_ReturnsMatching()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
         await service.CreateAsync(MakeSftpRequest("SFTP One"));
         await service.CreateAsync(MakeFtpRequest("FTP One"));
 
@@ -212,7 +213,7 @@ public class ConnectionServiceTests
     public async Task List_FilterBySearch_MatchesNameOrHost()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
         await service.CreateAsync(MakeSftpRequest("Alpha Server"));
         await service.CreateAsync(MakeFtpRequest("Beta Server"));
 
@@ -226,7 +227,7 @@ public class ConnectionServiceTests
     public async Task List_FilterByStatus_ReturnsMatching()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.CreateAsync(MakeSftpRequest("Active One"));
         await service.UpdateAsync(created.Data!.Id, new UpdateConnectionRequest
         {
@@ -245,7 +246,7 @@ public class ConnectionServiceTests
     public async Task Update_ExistingConnection_ReturnsUpdated()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.CreateAsync(MakeSftpRequest("Old Name"));
 
         var result = await service.UpdateAsync(created.Data!.Id, new UpdateConnectionRequest
@@ -267,7 +268,7 @@ public class ConnectionServiceTests
     public async Task Update_NonExistent_ReturnsNotFound()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
 
         var result = await service.UpdateAsync(Guid.NewGuid(), new UpdateConnectionRequest
         {
@@ -283,7 +284,7 @@ public class ConnectionServiceTests
     {
         using var db = CreateInMemoryContext();
         var encryptor = CreateMockEncryptor();
-        var service = new ConnectionService(db, encryptor);
+        var service = new ConnectionService(db, encryptor, new AuditService(db));
         var created = await service.CreateAsync(MakeSftpRequest());
 
         // Update with Password = null (no change)
@@ -302,7 +303,7 @@ public class ConnectionServiceTests
     public async Task Update_PasswordEmpty_ClearsPassword()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.CreateAsync(MakeSftpRequest());
 
         var result = await service.UpdateAsync(created.Data!.Id, new UpdateConnectionRequest
@@ -319,7 +320,7 @@ public class ConnectionServiceTests
     {
         using var db = CreateInMemoryContext();
         var encryptor = CreateMockEncryptor();
-        var service = new ConnectionService(db, encryptor);
+        var service = new ConnectionService(db, encryptor, new AuditService(db));
         var created = await service.CreateAsync(MakeSftpRequest());
 
         await service.UpdateAsync(created.Data!.Id, new UpdateConnectionRequest
@@ -336,7 +337,7 @@ public class ConnectionServiceTests
     public async Task Delete_ExistingConnection_SoftDeletes()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.CreateAsync(MakeSftpRequest("To Delete"));
 
         var result = await service.DeleteAsync(created.Data!.Id);
@@ -355,7 +356,7 @@ public class ConnectionServiceTests
     public async Task Delete_NonExistent_ReturnsNotFound()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
 
         var result = await service.DeleteAsync(Guid.NewGuid());
 
@@ -367,7 +368,7 @@ public class ConnectionServiceTests
     public async Task Create_DefaultTimeoutsApplied()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
 
         var result = await service.CreateAsync(MakeSftpRequest());
 
@@ -381,7 +382,7 @@ public class ConnectionServiceTests
     public async Task Create_DefaultHostKeyPolicyApplied()
     {
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
 
         var result = await service.CreateAsync(MakeSftpRequest());
 
@@ -411,7 +412,7 @@ public class ConnectionServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
 
         // Act
         var result = await service.CreateAsync(MakeAzureFunctionRequest());
@@ -430,7 +431,7 @@ public class ConnectionServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var encryptor = CreateMockEncryptor();
-        var service = new ConnectionService(db, encryptor);
+        var service = new ConnectionService(db, encryptor, new AuditService(db));
 
         // Act
         var result = await service.CreateAsync(MakeAzureFunctionRequest());
@@ -445,7 +446,7 @@ public class ConnectionServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
 
         // Act
         var result = await service.CreateAsync(MakeAzureFunctionRequest());
@@ -460,7 +461,7 @@ public class ConnectionServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
 
         // Act
         var result = await service.CreateAsync(MakeAzureFunctionRequest(clientSecret: null));
@@ -475,7 +476,7 @@ public class ConnectionServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var encryptor = CreateMockEncryptor();
-        var service = new ConnectionService(db, encryptor);
+        var service = new ConnectionService(db, encryptor, new AuditService(db));
         var created = await service.CreateAsync(MakeAzureFunctionRequest());
 
         // Act — update with ClientSecret = null (no change)
@@ -497,7 +498,7 @@ public class ConnectionServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new ConnectionService(db, CreateMockEncryptor());
+        var service = new ConnectionService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.CreateAsync(MakeAzureFunctionRequest());
 
         // Act
@@ -518,7 +519,7 @@ public class ConnectionServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var encryptor = CreateMockEncryptor();
-        var service = new ConnectionService(db, encryptor);
+        var service = new ConnectionService(db, encryptor, new AuditService(db));
         var created = await service.CreateAsync(MakeAzureFunctionRequest());
 
         // Act

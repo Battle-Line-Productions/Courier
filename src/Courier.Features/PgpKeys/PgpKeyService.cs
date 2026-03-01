@@ -1,6 +1,8 @@
 using Courier.Domain.Common;
 using Courier.Domain.Encryption;
 using Courier.Domain.Entities;
+using Courier.Domain.Enums;
+using Courier.Features.AuditLog;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Org.BouncyCastle.Bcpg;
@@ -17,11 +19,13 @@ public class PgpKeyService
 {
     private readonly CourierDbContext _db;
     private readonly ICredentialEncryptor _encryptor;
+    private readonly AuditService _audit;
 
-    public PgpKeyService(CourierDbContext db, ICredentialEncryptor encryptor)
+    public PgpKeyService(CourierDbContext db, ICredentialEncryptor encryptor, AuditService audit)
     {
         _db = db;
         _encryptor = encryptor;
+        _audit = audit;
     }
 
     public async Task<ApiResponse<PgpKeyDto>> GenerateAsync(GeneratePgpKeyRequest request, CancellationToken ct = default)
@@ -63,6 +67,8 @@ public class PgpKeyService
 
             _db.PgpKeys.Add(pgpKey);
             await _db.SaveChangesAsync(ct);
+
+            await _audit.LogAsync(AuditableEntityType.PgpKey, pgpKey.Id, "Created", details: new { pgpKey.Name, pgpKey.Algorithm, pgpKey.Fingerprint }, ct: ct);
 
             return new ApiResponse<PgpKeyDto> { Data = MapToDto(pgpKey) };
         }
@@ -172,6 +178,8 @@ public class PgpKeyService
             _db.PgpKeys.Add(pgpKey);
             await _db.SaveChangesAsync(ct);
 
+            await _audit.LogAsync(AuditableEntityType.PgpKey, pgpKey.Id, "Imported", details: new { pgpKey.Name, pgpKey.Algorithm, pgpKey.Fingerprint }, ct: ct);
+
             return new ApiResponse<PgpKeyDto> { Data = MapToDto(pgpKey) };
         }
         catch (Exception ex)
@@ -269,6 +277,8 @@ public class PgpKeyService
 
         await _db.SaveChangesAsync(ct);
 
+        await _audit.LogAsync(AuditableEntityType.PgpKey, id, "Updated", ct: ct);
+
         return new ApiResponse<PgpKeyDto> { Data = MapToDto(key) };
     }
 
@@ -293,6 +303,8 @@ public class PgpKeyService
         key.DeletedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
+
+        await _audit.LogAsync(AuditableEntityType.PgpKey, id, "Deleted", ct: ct);
 
         return new ApiResponse();
     }

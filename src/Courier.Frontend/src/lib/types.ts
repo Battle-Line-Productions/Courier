@@ -420,3 +420,23 @@ export interface UpdateSshKeyRequest {
   name?: string;
   notes?: string;
 }
+
+// Audit log types
+export interface AuditLogEntryDto {
+  id: string;
+  entityType: string;
+  entityId: string;
+  operation: string;
+  performedBy: string;
+  performedAt: string;
+  details: string;
+}
+
+export interface AuditLogFilter {
+  entityType?: string;
+  entityId?: string;
+  operation?: string;
+  performedBy?: string;
+  from?: string;
+  to?: string;
+}

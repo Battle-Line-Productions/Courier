@@ -1,6 +1,8 @@
 using Courier.Domain.Common;
 using Courier.Domain.Encryption;
 using Courier.Domain.Entities;
+using Courier.Domain.Enums;
+using Courier.Features.AuditLog;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,11 +12,13 @@ public class ConnectionService
 {
     private readonly CourierDbContext _db;
     private readonly ICredentialEncryptor _encryptor;
+    private readonly AuditService _audit;
 
-    public ConnectionService(CourierDbContext db, ICredentialEncryptor encryptor)
+    public ConnectionService(CourierDbContext db, ICredentialEncryptor encryptor, AuditService audit)
     {
         _db = db;
         _encryptor = encryptor;
+        _audit = audit;
     }
 
     public async Task<ApiResponse<ConnectionDto>> CreateAsync(CreateConnectionRequest request, CancellationToken ct = default)
@@ -54,6 +58,8 @@ public class ConnectionService
 
         _db.Connections.Add(connection);
         await _db.SaveChangesAsync(ct);
+
+        await _audit.LogAsync(AuditableEntityType.Connection, connection.Id, "Created", details: new { connection.Name, connection.Host, connection.Protocol }, ct: ct);
 
         return new ApiResponse<ConnectionDto> { Data = MapToDto(connection) };
     }
@@ -175,6 +181,8 @@ public class ConnectionService
 
         await _db.SaveChangesAsync(ct);
 
+        await _audit.LogAsync(AuditableEntityType.Connection, id, "Updated", ct: ct);
+
         return new ApiResponse<ConnectionDto> { Data = MapToDto(connection) };
     }
 
@@ -194,6 +202,8 @@ public class ConnectionService
         connection.DeletedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
+
+        await _audit.LogAsync(AuditableEntityType.Connection, id, "Deleted", ct: ct);
 
         return new ApiResponse();
     }

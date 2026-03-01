@@ -1,4 +1,5 @@
 using Courier.Domain.Entities;
+using Courier.Features.AuditLog;
 using Courier.Features.Jobs;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +23,7 @@ public class JobServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new JobService(db);
+        var service = new JobService(db, new AuditService(db));
         var request = new CreateJobRequest { Name = "Test Job", Description = "A test" };
 
         // Act
@@ -43,7 +44,7 @@ public class JobServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new JobService(db);
+        var service = new JobService(db, new AuditService(db));
 
         await service.CreateAsync(new CreateJobRequest { Name = "Job A" });
         await service.CreateAsync(new CreateJobRequest { Name = "Job B" });
@@ -62,7 +63,7 @@ public class JobServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new JobService(db);
+        var service = new JobService(db, new AuditService(db));
         var created = await service.CreateAsync(new CreateJobRequest { Name = "Find Me" });
 
         // Act
@@ -78,7 +79,7 @@ public class JobServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new JobService(db);
+        var service = new JobService(db, new AuditService(db));
 
         // Act
         var result = await service.GetByIdAsync(Guid.NewGuid());
@@ -93,7 +94,7 @@ public class JobServiceTests
     public async Task UpdateAsync_ExistingJob_ReturnsUpdatedDto()
     {
         using var db = CreateInMemoryContext();
-        var service = new JobService(db);
+        var service = new JobService(db, new AuditService(db));
         var created = await service.CreateAsync(new CreateJobRequest { Name = "Old Name", Description = "Old Desc" });
 
         var result = await service.UpdateAsync(created.Data!.Id, "New Name", "New Desc");
@@ -109,7 +110,7 @@ public class JobServiceTests
     public async Task UpdateAsync_NonExistentJob_ReturnsNotFoundError()
     {
         using var db = CreateInMemoryContext();
-        var service = new JobService(db);
+        var service = new JobService(db, new AuditService(db));
 
         var result = await service.UpdateAsync(Guid.NewGuid(), "Name", null);
 
@@ -121,7 +122,7 @@ public class JobServiceTests
     public async Task DeleteAsync_ExistingJob_SoftDeletes()
     {
         using var db = CreateInMemoryContext();
-        var service = new JobService(db);
+        var service = new JobService(db, new AuditService(db));
         var created = await service.CreateAsync(new CreateJobRequest { Name = "To Delete" });
 
         var result = await service.DeleteAsync(created.Data!.Id);
@@ -140,7 +141,7 @@ public class JobServiceTests
     public async Task DeleteAsync_NonExistentJob_ReturnsNotFound()
     {
         using var db = CreateInMemoryContext();
-        var service = new JobService(db);
+        var service = new JobService(db, new AuditService(db));
 
         var result = await service.DeleteAsync(Guid.NewGuid());
 

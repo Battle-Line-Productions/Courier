@@ -3,6 +3,8 @@ using System.Text;
 using Courier.Domain.Common;
 using Courier.Domain.Encryption;
 using Courier.Domain.Entities;
+using Courier.Domain.Enums;
+using Courier.Features.AuditLog;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,11 +14,13 @@ public class SshKeyService
 {
     private readonly CourierDbContext _db;
     private readonly ICredentialEncryptor _encryptor;
+    private readonly AuditService _audit;
 
-    public SshKeyService(CourierDbContext db, ICredentialEncryptor encryptor)
+    public SshKeyService(CourierDbContext db, ICredentialEncryptor encryptor, AuditService audit)
     {
         _db = db;
         _encryptor = encryptor;
+        _audit = audit;
     }
 
     public async Task<ApiResponse<SshKeyDto>> GenerateAsync(GenerateSshKeyRequest request, CancellationToken ct = default)
@@ -45,6 +49,8 @@ public class SshKeyService
 
             _db.SshKeys.Add(sshKey);
             await _db.SaveChangesAsync(ct);
+
+            await _audit.LogAsync(AuditableEntityType.SshKey, sshKey.Id, "Created", details: new { sshKey.Name, sshKey.KeyType, sshKey.Fingerprint }, ct: ct);
 
             return new ApiResponse<SshKeyDto> { Data = MapToDto(sshKey) };
         }
@@ -114,6 +120,8 @@ public class SshKeyService
 
             _db.SshKeys.Add(sshKey);
             await _db.SaveChangesAsync(ct);
+
+            await _audit.LogAsync(AuditableEntityType.SshKey, sshKey.Id, "Imported", details: new { sshKey.Name, sshKey.KeyType, sshKey.Fingerprint }, ct: ct);
 
             return new ApiResponse<SshKeyDto> { Data = MapToDto(sshKey) };
         }
@@ -206,6 +214,8 @@ public class SshKeyService
 
         await _db.SaveChangesAsync(ct);
 
+        await _audit.LogAsync(AuditableEntityType.SshKey, id, "Updated", ct: ct);
+
         return new ApiResponse<SshKeyDto> { Data = MapToDto(key) };
     }
 
@@ -230,6 +240,8 @@ public class SshKeyService
         key.DeletedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
+
+        await _audit.LogAsync(AuditableEntityType.SshKey, id, "Deleted", ct: ct);
 
         return new ApiResponse();
     }

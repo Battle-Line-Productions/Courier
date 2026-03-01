@@ -2,6 +2,7 @@ using Courier.Domain.Common;
 using Courier.Domain.Entities;
 using Courier.Domain.Engine;
 using Courier.Domain.Enums;
+using Courier.Features.AuditLog;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,10 +11,12 @@ namespace Courier.Features.Monitors;
 public class MonitorService
 {
     private readonly CourierDbContext _db;
+    private readonly AuditService _audit;
 
-    public MonitorService(CourierDbContext db)
+    public MonitorService(CourierDbContext db, AuditService audit)
     {
         _db = db;
+        _audit = audit;
     }
 
     public async Task<ApiResponse<MonitorDto>> CreateAsync(CreateMonitorRequest request, CancellationToken ct = default)
@@ -54,6 +57,8 @@ public class MonitorService
 
         _db.FileMonitors.Add(monitor);
         await _db.SaveChangesAsync(ct);
+
+        await _audit.LogAsync(AuditableEntityType.FileMonitor, monitor.Id, "Created", details: new { monitor.Name, monitor.WatchTarget }, ct: ct);
 
         var created = await _db.FileMonitors
             .Include(m => m.Bindings).ThenInclude(b => b.Job)
@@ -173,6 +178,8 @@ public class MonitorService
         monitor.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
 
+        await _audit.LogAsync(AuditableEntityType.FileMonitor, id, "Updated", ct: ct);
+
         var updated = await _db.FileMonitors
             .AsNoTracking()
             .Include(m => m.Bindings).ThenInclude(b => b.Job)
@@ -197,6 +204,8 @@ public class MonitorService
         monitor.DeletedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
+
+        await _audit.LogAsync(AuditableEntityType.FileMonitor, id, "Deleted", ct: ct);
 
         return new ApiResponse();
     }
@@ -239,6 +248,8 @@ public class MonitorService
         monitor.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
 
+        await _audit.LogAsync(AuditableEntityType.FileMonitor, id, "Activated", ct: ct);
+
         return new ApiResponse<MonitorDto> { Data = MapToDto(monitor) };
     }
 
@@ -269,6 +280,8 @@ public class MonitorService
         monitor.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
 
+        await _audit.LogAsync(AuditableEntityType.FileMonitor, id, "Paused", ct: ct);
+
         return new ApiResponse<MonitorDto> { Data = MapToDto(monitor) };
     }
 
@@ -298,6 +311,8 @@ public class MonitorService
         monitor.State = "disabled";
         monitor.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
+
+        await _audit.LogAsync(AuditableEntityType.FileMonitor, id, "Disabled", ct: ct);
 
         return new ApiResponse<MonitorDto> { Data = MapToDto(monitor) };
     }

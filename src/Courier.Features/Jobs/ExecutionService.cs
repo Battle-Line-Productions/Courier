@@ -1,6 +1,7 @@
 using Courier.Domain.Common;
 using Courier.Domain.Entities;
 using Courier.Domain.Enums;
+using Courier.Features.AuditLog;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,8 +10,13 @@ namespace Courier.Features.Jobs;
 public class ExecutionService
 {
     private readonly CourierDbContext _db;
+    private readonly AuditService _audit;
 
-    public ExecutionService(CourierDbContext db) => _db = db;
+    public ExecutionService(CourierDbContext db, AuditService audit)
+    {
+        _db = db;
+        _audit = audit;
+    }
 
     public async Task<ApiResponse<JobExecutionDto>> TriggerAsync(Guid jobId, string triggeredBy, CancellationToken ct)
     {
@@ -38,6 +44,8 @@ public class ExecutionService
 
         _db.JobExecutions.Add(execution);
         await _db.SaveChangesAsync(ct);
+
+        await _audit.LogAsync(AuditableEntityType.Job, jobId, "Triggered", triggeredBy, new { executionId = execution.Id }, ct);
 
         return new ApiResponse<JobExecutionDto> { Data = MapToDto(execution) };
     }

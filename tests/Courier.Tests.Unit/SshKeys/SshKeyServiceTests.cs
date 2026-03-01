@@ -1,4 +1,5 @@
 using Courier.Domain.Encryption;
+using Courier.Features.AuditLog;
 using Courier.Features.SshKeys;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -45,7 +46,7 @@ public class SshKeyServiceTests
     public async Task Generate_Ed25519_ReturnsSuccessWithFingerprint()
     {
         using var db = CreateInMemoryContext();
-        var service = new SshKeyService(db, CreateMockEncryptor());
+        var service = new SshKeyService(db, CreateMockEncryptor(), new AuditService(db));
 
         var result = await service.GenerateAsync(MakeGenerateRequest());
 
@@ -63,7 +64,7 @@ public class SshKeyServiceTests
     public async Task Generate_Rsa2048_ReturnsSuccessWithSshRsaPrefix()
     {
         using var db = CreateInMemoryContext();
-        var service = new SshKeyService(db, CreateMockEncryptor());
+        var service = new SshKeyService(db, CreateMockEncryptor(), new AuditService(db));
 
         var result = await service.GenerateAsync(MakeGenerateRequest(keyType: "rsa_2048"));
 
@@ -76,7 +77,7 @@ public class SshKeyServiceTests
     public async Task Generate_Rsa4096_ReturnsSuccess()
     {
         using var db = CreateInMemoryContext();
-        var service = new SshKeyService(db, CreateMockEncryptor());
+        var service = new SshKeyService(db, CreateMockEncryptor(), new AuditService(db));
 
         var result = await service.GenerateAsync(MakeGenerateRequest(keyType: "rsa_4096"));
 
@@ -88,7 +89,7 @@ public class SshKeyServiceTests
     public async Task Generate_Ecdsa256_ReturnsSuccess()
     {
         using var db = CreateInMemoryContext();
-        var service = new SshKeyService(db, CreateMockEncryptor());
+        var service = new SshKeyService(db, CreateMockEncryptor(), new AuditService(db));
 
         var result = await service.GenerateAsync(MakeGenerateRequest(keyType: "ecdsa_256"));
 
@@ -102,7 +103,7 @@ public class SshKeyServiceTests
     {
         using var db = CreateInMemoryContext();
         var encryptor = CreateMockEncryptor();
-        var service = new SshKeyService(db, encryptor);
+        var service = new SshKeyService(db, encryptor, new AuditService(db));
 
         await service.GenerateAsync(MakeGenerateRequest());
 
@@ -114,7 +115,7 @@ public class SshKeyServiceTests
     {
         using var db = CreateInMemoryContext();
         var encryptor = CreateMockEncryptor();
-        var service = new SshKeyService(db, encryptor);
+        var service = new SshKeyService(db, encryptor, new AuditService(db));
 
         await service.GenerateAsync(MakeGenerateRequest(passphrase: "my-secret"));
 
@@ -125,7 +126,7 @@ public class SshKeyServiceTests
     public async Task GetById_ExistingKey_ReturnsKey()
     {
         using var db = CreateInMemoryContext();
-        var service = new SshKeyService(db, CreateMockEncryptor());
+        var service = new SshKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest("Find Me"));
 
         var result = await service.GetByIdAsync(created.Data!.Id);
@@ -138,7 +139,7 @@ public class SshKeyServiceTests
     public async Task GetById_NonExistent_ReturnsNotFound()
     {
         using var db = CreateInMemoryContext();
-        var service = new SshKeyService(db, CreateMockEncryptor());
+        var service = new SshKeyService(db, CreateMockEncryptor(), new AuditService(db));
 
         var result = await service.GetByIdAsync(Guid.NewGuid());
 
@@ -150,7 +151,7 @@ public class SshKeyServiceTests
     public async Task List_ReturnsAllKeys()
     {
         using var db = CreateInMemoryContext();
-        var service = new SshKeyService(db, CreateMockEncryptor());
+        var service = new SshKeyService(db, CreateMockEncryptor(), new AuditService(db));
         await service.GenerateAsync(MakeGenerateRequest("Key A"));
         await service.GenerateAsync(MakeGenerateRequest("Key B"));
 
@@ -164,7 +165,7 @@ public class SshKeyServiceTests
     public async Task List_FilterBySearch_MatchesName()
     {
         using var db = CreateInMemoryContext();
-        var service = new SshKeyService(db, CreateMockEncryptor());
+        var service = new SshKeyService(db, CreateMockEncryptor(), new AuditService(db));
         await service.GenerateAsync(MakeGenerateRequest("Alpha Key"));
         await service.GenerateAsync(MakeGenerateRequest("Beta Key"));
 
@@ -178,7 +179,7 @@ public class SshKeyServiceTests
     public async Task Update_ExistingKey_ReturnsUpdated()
     {
         using var db = CreateInMemoryContext();
-        var service = new SshKeyService(db, CreateMockEncryptor());
+        var service = new SshKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest("Old Name"));
 
         var result = await service.UpdateAsync(created.Data!.Id, new UpdateSshKeyRequest
@@ -196,7 +197,7 @@ public class SshKeyServiceTests
     public async Task Delete_ExistingKey_PurgesKeyMaterial()
     {
         using var db = CreateInMemoryContext();
-        var service = new SshKeyService(db, CreateMockEncryptor());
+        var service = new SshKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest("To Delete"));
 
         var result = await service.DeleteAsync(created.Data!.Id);
@@ -217,7 +218,7 @@ public class SshKeyServiceTests
     public async Task ExportPublicKey_ExistingKey_ReturnsOpenSshFormat()
     {
         using var db = CreateInMemoryContext();
-        var service = new SshKeyService(db, CreateMockEncryptor());
+        var service = new SshKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest());
 
         var result = await service.ExportPublicKeyAsync(created.Data!.Id);
@@ -230,7 +231,7 @@ public class SshKeyServiceTests
     public async Task Retire_ActiveKey_SetsRetired()
     {
         using var db = CreateInMemoryContext();
-        var service = new SshKeyService(db, CreateMockEncryptor());
+        var service = new SshKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest());
 
         var result = await service.RetireAsync(created.Data!.Id);
@@ -243,7 +244,7 @@ public class SshKeyServiceTests
     public async Task Activate_RetiredKey_SetsActive()
     {
         using var db = CreateInMemoryContext();
-        var service = new SshKeyService(db, CreateMockEncryptor());
+        var service = new SshKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest());
         await service.RetireAsync(created.Data!.Id);
 
@@ -257,7 +258,7 @@ public class SshKeyServiceTests
     public async Task Activate_AlreadyActive_ReturnsError()
     {
         using var db = CreateInMemoryContext();
-        var service = new SshKeyService(db, CreateMockEncryptor());
+        var service = new SshKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest());
 
         var result = await service.ActivateAsync(created.Data!.Id);
@@ -270,7 +271,7 @@ public class SshKeyServiceTests
     public async Task ExportPublicKey_RsaKey_ReturnsSshRsaFormat()
     {
         using var db = CreateInMemoryContext();
-        var service = new SshKeyService(db, CreateMockEncryptor());
+        var service = new SshKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest(keyType: "rsa_2048"));
 
         var result = await service.ExportPublicKeyAsync(created.Data!.Id);

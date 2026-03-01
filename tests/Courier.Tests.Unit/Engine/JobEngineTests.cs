@@ -1,6 +1,7 @@
 using Courier.Domain.Engine;
 using Courier.Domain.Entities;
 using Courier.Domain.Enums;
+using Courier.Features.AuditLog;
 using Courier.Features.Engine;
 using Courier.Features.Engine.Protocols;
 using Courier.Infrastructure.Data;
@@ -71,7 +72,7 @@ public class JobEngineTests
             .Returns(StepResult.Ok(bytesProcessed: 1024));
 
         var registry = new StepTypeRegistry([mockStep]);
-        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), NullLogger<JobEngine>.Instance);
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), NullLogger<JobEngine>.Instance, new AuditService(db));
 
         await engine.ExecuteAsync(execution.Id, CancellationToken.None);
 
@@ -95,7 +96,7 @@ public class JobEngineTests
             .Returns(StepResult.Fail("Disk full"));
 
         var registry = new StepTypeRegistry([mockStep]);
-        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), NullLogger<JobEngine>.Instance);
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), NullLogger<JobEngine>.Instance, new AuditService(db));
 
         await engine.ExecuteAsync(execution.Id, CancellationToken.None);
 
@@ -114,7 +115,7 @@ public class JobEngineTests
         var (job, step, execution) = SeedJobWithStep(db, typeKey: "nonexistent.step");
 
         var registry = new StepTypeRegistry([]);
-        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), NullLogger<JobEngine>.Instance);
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), NullLogger<JobEngine>.Instance, new AuditService(db));
 
         await engine.ExecuteAsync(execution.Id, CancellationToken.None);
 

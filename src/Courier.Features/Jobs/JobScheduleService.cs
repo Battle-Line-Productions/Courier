@@ -1,5 +1,7 @@
 using Courier.Domain.Common;
 using Courier.Domain.Entities;
+using Courier.Domain.Enums;
+using Courier.Features.AuditLog;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,10 +10,12 @@ namespace Courier.Features.Jobs;
 public class JobScheduleService
 {
     private readonly CourierDbContext _db;
+    private readonly AuditService _audit;
 
-    public JobScheduleService(CourierDbContext db)
+    public JobScheduleService(CourierDbContext db, AuditService audit)
     {
         _db = db;
+        _audit = audit;
     }
 
     public async Task<ApiResponse<List<JobScheduleDto>>> ListAsync(Guid jobId, CancellationToken ct = default)
@@ -49,6 +53,8 @@ public class JobScheduleService
         _db.JobSchedules.Add(schedule);
         await _db.SaveChangesAsync(ct);
 
+        await _audit.LogAsync(AuditableEntityType.Job, jobId, "ScheduleCreated", details: new { scheduleId = schedule.Id, schedule.ScheduleType, schedule.CronExpression }, ct: ct);
+
         return new ApiResponse<JobScheduleDto> { Data = MapToDto(schedule) };
     }
 
@@ -73,6 +79,8 @@ public class JobScheduleService
         schedule.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
 
+        await _audit.LogAsync(AuditableEntityType.Job, jobId, "ScheduleUpdated", details: new { scheduleId }, ct: ct);
+
         return new ApiResponse<JobScheduleDto> { Data = MapToDto(schedule) };
     }
 
@@ -87,6 +95,8 @@ public class JobScheduleService
 
         _db.JobSchedules.Remove(schedule);
         await _db.SaveChangesAsync(ct);
+
+        await _audit.LogAsync(AuditableEntityType.Job, jobId, "ScheduleDeleted", details: new { scheduleId }, ct: ct);
 
         return new ApiResponse();
     }

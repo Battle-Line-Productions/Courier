@@ -1,4 +1,5 @@
 using Courier.Domain.Encryption;
+using Courier.Features.AuditLog;
 using Courier.Features.Engine.Crypto;
 using Courier.Features.PgpKeys;
 using Courier.Infrastructure.Data;
@@ -47,7 +48,7 @@ public class PgpCryptoProviderTests : IDisposable
 
     private async Task<Guid> SeedGeneratedKey(CourierDbContext db, ICredentialEncryptor encryptor)
     {
-        var keyService = new PgpKeyService(db, encryptor);
+        var keyService = new PgpKeyService(db, encryptor, new AuditService(db));
         var result = await keyService.GenerateAsync(new GeneratePgpKeyRequest
         {
             Name = "Test Key",

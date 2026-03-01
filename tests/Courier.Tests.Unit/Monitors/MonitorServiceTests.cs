@@ -1,5 +1,6 @@
 using Courier.Domain.Common;
 using Courier.Domain.Entities;
+using Courier.Features.AuditLog;
 using Courier.Features.Monitors;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -47,7 +48,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var request = MakeCreateRequest([job.Id]);
 
         // Act
@@ -70,7 +71,7 @@ public class MonitorServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var request = MakeCreateRequest([Guid.NewGuid()]);
 
         // Act
@@ -88,7 +89,7 @@ public class MonitorServiceTests
         using var db = CreateInMemoryContext();
         var job1 = await SeedJobAsync(db, "Job 1");
         var job2 = await SeedJobAsync(db, "Job 2");
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var request = MakeCreateRequest([job1.Id, job2.Id]);
 
         // Act
@@ -105,7 +106,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var created = await service.CreateAsync(MakeCreateRequest([job.Id]));
 
         // Act
@@ -122,7 +123,7 @@ public class MonitorServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
 
         // Act
         var result = await service.GetByIdAsync(Guid.NewGuid());
@@ -138,7 +139,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
 
         await service.CreateAsync(MakeCreateRequest([job.Id]));
         await service.CreateAsync(new CreateMonitorRequest
@@ -165,7 +166,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
 
         var created = await service.CreateAsync(MakeCreateRequest([job.Id]));
         await service.PauseAsync(created.Data!.Id);
@@ -194,7 +195,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
 
         await service.CreateAsync(MakeCreateRequest([job.Id]));
         await service.CreateAsync(new CreateMonitorRequest
@@ -221,7 +222,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var created = await service.CreateAsync(MakeCreateRequest([job.Id]));
 
         // Act
@@ -244,7 +245,7 @@ public class MonitorServiceTests
         using var db = CreateInMemoryContext();
         var job1 = await SeedJobAsync(db, "Job 1");
         var job2 = await SeedJobAsync(db, "Job 2");
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var created = await service.CreateAsync(MakeCreateRequest([job1.Id]));
 
         // Act
@@ -264,7 +265,7 @@ public class MonitorServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
 
         // Act
         var result = await service.UpdateAsync(Guid.NewGuid(), new UpdateMonitorRequest { Name = "x" });
@@ -280,7 +281,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var created = await service.CreateAsync(MakeCreateRequest([job.Id]));
 
         // Act
@@ -301,7 +302,7 @@ public class MonitorServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
 
         // Act
         var result = await service.DeleteAsync(Guid.NewGuid());
@@ -317,7 +318,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var created = await service.CreateAsync(MakeCreateRequest([job.Id]));
         await service.PauseAsync(created.Data!.Id);
 
@@ -335,7 +336,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var created = await service.CreateAsync(MakeCreateRequest([job.Id]));
         await service.DisableAsync(created.Data!.Id);
 
@@ -353,7 +354,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var created = await service.CreateAsync(MakeCreateRequest([job.Id]));
 
         // Manually set to error state with failure count
@@ -377,7 +378,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var created = await service.CreateAsync(MakeCreateRequest([job.Id]));
 
         // Act
@@ -394,7 +395,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var created = await service.CreateAsync(MakeCreateRequest([job.Id]));
 
         // Act
@@ -411,7 +412,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var created = await service.CreateAsync(MakeCreateRequest([job.Id]));
         await service.DisableAsync(created.Data!.Id);
 
@@ -429,7 +430,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var created = await service.CreateAsync(MakeCreateRequest([job.Id]));
 
         // Act
@@ -446,7 +447,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var created = await service.CreateAsync(MakeCreateRequest([job.Id]));
         await service.PauseAsync(created.Data!.Id);
 
@@ -464,7 +465,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var created = await service.CreateAsync(MakeCreateRequest([job.Id]));
 
         var monitor = await db.FileMonitors.FindAsync(created.Data!.Id);
@@ -485,7 +486,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var created = await service.CreateAsync(MakeCreateRequest([job.Id]));
 
         var monitor = await db.FileMonitors.FindAsync(created.Data!.Id);
@@ -508,7 +509,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var created = await service.CreateAsync(MakeCreateRequest([job.Id]));
 
         // Act
@@ -524,7 +525,7 @@ public class MonitorServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
 
         // Act
         var result = await service.ListFileLogAsync(Guid.NewGuid());
@@ -540,7 +541,7 @@ public class MonitorServiceTests
         // Arrange
         using var db = CreateInMemoryContext();
         var job = await SeedJobAsync(db);
-        var service = new MonitorService(db);
+        var service = new MonitorService(db, new AuditService(db));
         var created = await service.CreateAsync(MakeCreateRequest([job.Id]));
 
         // Seed some file logs

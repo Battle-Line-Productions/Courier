@@ -11,6 +11,7 @@ using Courier.Features.Engine.Steps.Azure;
 using Courier.Features.Engine.Steps.FileOps;
 using Courier.Features.Engine.Steps.Transfer;
 using Courier.Features.Engine.Compression;
+using Courier.Features.AuditLog;
 using Courier.Features.AzureFunctions;
 using Courier.Features.Filesystem;
 using Courier.Features.Jobs;
@@ -98,6 +99,9 @@ public static class FeaturesServiceExtensions
 
         // Dashboard
         services.AddScoped<DashboardService>();
+
+        // Audit
+        services.AddScoped<AuditService>();
 
         // Encryption
         services.Configure<EncryptionSettings>(configuration.GetSection("Encryption"));

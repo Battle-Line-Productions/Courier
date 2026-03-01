@@ -29,6 +29,7 @@ import type {
   DashboardSummaryDto,
   RecentExecutionDto,
   ExpiringKeyDto,
+  AuditLogEntryDto,
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -385,6 +386,31 @@ class ApiClient {
   async browseFilesystem(path?: string): Promise<ApiResponse<BrowseResult>> {
     const params = path ? `?path=${encodeURIComponent(path)}` : "";
     return this.request(`/api/v1/filesystem/browse${params}`);
+  }
+
+  // Audit Log
+  async listAuditLog(
+    page = 1,
+    pageSize = 25,
+    filters?: { entityType?: string; operation?: string; performedBy?: string; from?: string; to?: string }
+  ): Promise<PagedApiResponse<AuditLogEntryDto>> {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (filters?.entityType) params.set("entityType", filters.entityType);
+    if (filters?.operation) params.set("operation", filters.operation);
+    if (filters?.performedBy) params.set("performedBy", filters.performedBy);
+    if (filters?.from) params.set("from", filters.from);
+    if (filters?.to) params.set("to", filters.to);
+    return this.request(`/api/v1/audit-log?${params}`);
+  }
+
+  async listAuditLogByEntity(
+    entityType: string,
+    entityId: string,
+    page = 1,
+    pageSize = 25
+  ): Promise<PagedApiResponse<AuditLogEntryDto>> {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    return this.request(`/api/v1/audit-log/entity/${entityType}/${entityId}?${params}`);
   }
 }
 

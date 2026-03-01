@@ -24,7 +24,7 @@ const navItems = [
   { label: "Connections", href: "/connections", icon: Cable, active: true },
   { label: "Keys", href: "/keys", icon: KeyRound, active: true },
   { label: "Monitors", href: "/monitors", icon: Eye, active: true },
-  { label: "Audit", href: "#", icon: FileText, active: false },
+  { label: "Audit", href: "/audit", icon: FileText, active: true },
 ];
 
 const bottomItems = [

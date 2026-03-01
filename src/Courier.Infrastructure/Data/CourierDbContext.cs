@@ -22,6 +22,7 @@ public class CourierDbContext : DbContext
     public DbSet<FileMonitor> FileMonitors => Set<FileMonitor>();
     public DbSet<MonitorJobBinding> MonitorJobBindings => Set<MonitorJobBinding>();
     public DbSet<MonitorFileLog> MonitorFileLogs => Set<MonitorFileLog>();
+    public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -332,6 +333,19 @@ public class CourierDbContext : DbContext
             entity.HasIndex(e => e.MonitorId);
             entity.HasIndex(e => new { e.MonitorId, e.FilePath });
             entity.HasIndex(e => e.TriggeredAt).IsDescending();
+        });
+
+        modelBuilder.Entity<AuditLogEntry>(entity =>
+        {
+            entity.ToTable("audit_log_entries");
+            entity.HasKey(e => new { e.Id, e.PerformedAt });
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EntityType).HasColumnName("entity_type").IsRequired();
+            entity.Property(e => e.EntityId).HasColumnName("entity_id");
+            entity.Property(e => e.Operation).HasColumnName("operation").IsRequired();
+            entity.Property(e => e.PerformedBy).HasColumnName("performed_by").IsRequired();
+            entity.Property(e => e.PerformedAt).HasColumnName("performed_at");
+            entity.Property(e => e.Details).HasColumnName("details").HasColumnType("jsonb");
         });
     }
 }

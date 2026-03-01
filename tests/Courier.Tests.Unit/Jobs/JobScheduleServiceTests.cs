@@ -1,5 +1,6 @@
 using Courier.Domain.Common;
 using Courier.Domain.Entities;
+using Courier.Features.AuditLog;
 using Courier.Features.Jobs;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -38,7 +39,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new JobScheduleService(db);
+        var service = new JobScheduleService(db, new AuditService(db));
 
         // Act
         var result = await service.ListAsync(Guid.NewGuid());
@@ -53,7 +54,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new JobScheduleService(db);
+        var service = new JobScheduleService(db, new AuditService(db));
         var job = await SeedJob(db);
 
         db.JobSchedules.Add(new JobSchedule
@@ -82,7 +83,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new JobScheduleService(db);
+        var service = new JobScheduleService(db, new AuditService(db));
         var job = await SeedJob(db);
 
         var request = new CreateJobScheduleRequest
@@ -109,7 +110,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new JobScheduleService(db);
+        var service = new JobScheduleService(db, new AuditService(db));
         var job = await SeedJob(db);
 
         var runAt = DateTimeOffset.UtcNow.AddHours(1);
@@ -134,7 +135,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new JobScheduleService(db);
+        var service = new JobScheduleService(db, new AuditService(db));
         var job = await SeedJob(db);
 
         var request = new CreateJobScheduleRequest
@@ -157,7 +158,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new JobScheduleService(db);
+        var service = new JobScheduleService(db, new AuditService(db));
 
         var request = new CreateJobScheduleRequest
         {
@@ -178,7 +179,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new JobScheduleService(db);
+        var service = new JobScheduleService(db, new AuditService(db));
         var job = await SeedJob(db);
 
         var schedule = new JobSchedule
@@ -207,7 +208,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new JobScheduleService(db);
+        var service = new JobScheduleService(db, new AuditService(db));
         var job = await SeedJob(db);
 
         var schedule = new JobSchedule
@@ -236,7 +237,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new JobScheduleService(db);
+        var service = new JobScheduleService(db, new AuditService(db));
 
         // Act
         var result = await service.UpdateAsync(Guid.NewGuid(), Guid.NewGuid(), new UpdateJobScheduleRequest { IsEnabled = true });
@@ -251,7 +252,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new JobScheduleService(db);
+        var service = new JobScheduleService(db, new AuditService(db));
         var job = await SeedJob(db);
 
         var schedule = new JobSchedule
@@ -280,7 +281,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new JobScheduleService(db);
+        var service = new JobScheduleService(db, new AuditService(db));
         var job = await SeedJob(db);
 
         var schedule = new JobSchedule
@@ -309,7 +310,7 @@ public class JobScheduleServiceTests
     {
         // Arrange
         using var db = CreateInMemoryContext();
-        var service = new JobScheduleService(db);
+        var service = new JobScheduleService(db, new AuditService(db));
 
         // Act
         var result = await service.DeleteAsync(Guid.NewGuid(), Guid.NewGuid());

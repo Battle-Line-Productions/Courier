@@ -3,6 +3,7 @@ using System.Text.Json;
 using Courier.Domain.Engine;
 using Courier.Domain.Entities;
 using Courier.Domain.Enums;
+using Courier.Features.AuditLog;
 using Courier.Features.Engine.Protocols;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -16,13 +17,15 @@ public class JobEngine
     private readonly StepTypeRegistry _registry;
     private readonly JobConnectionRegistry _connectionRegistry;
     private readonly ILogger<JobEngine> _logger;
+    private readonly AuditService _audit;
 
-    public JobEngine(CourierDbContext db, StepTypeRegistry registry, JobConnectionRegistry connectionRegistry, ILogger<JobEngine> logger)
+    public JobEngine(CourierDbContext db, StepTypeRegistry registry, JobConnectionRegistry connectionRegistry, ILogger<JobEngine> logger, AuditService audit)
     {
         _db = db;
         _registry = registry;
         _connectionRegistry = connectionRegistry;
         _logger = logger;
+        _audit = audit;
     }
 
     public async Task ExecuteAsync(Guid executionId, CancellationToken cancellationToken)
@@ -54,6 +57,8 @@ public class JobEngine
         var failurePolicy = ParseFailurePolicy(execution.Job.FailurePolicy);
         var context = new JobContext();
         var allSucceeded = true;
+
+        await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, "ExecutionStarted", details: new { jobId = execution.JobId }, ct: cancellationToken);
 
         try
         {
@@ -111,6 +116,8 @@ public class JobEngine
                     }
 
                     _logger.LogInformation("Step {StepName} completed in {DurationMs}ms", step.Name, sw.ElapsedMilliseconds);
+
+                    await _audit.LogAsync(AuditableEntityType.StepExecution, stepExecution.Id, "StepCompleted", details: new { stepType = step.TypeKey, durationMs = sw.ElapsedMilliseconds }, ct: cancellationToken);
                 }
                 else
                 {
@@ -120,6 +127,8 @@ public class JobEngine
                     stepExecution.ErrorStackTrace = result.ErrorStackTrace;
 
                     _logger.LogWarning("Step {StepName} failed: {Error}", step.Name, result.ErrorMessage);
+
+                    await _audit.LogAsync(AuditableEntityType.StepExecution, stepExecution.Id, "StepFailed", details: new { error = result.ErrorMessage, stepType = step.TypeKey }, ct: cancellationToken);
 
                     if (failurePolicy.Type == FailurePolicyType.SkipAndContinue)
                     {
@@ -140,6 +149,9 @@ public class JobEngine
             execution.CompletedAt = DateTime.UtcNow;
             execution.State = allSucceeded ? JobExecutionState.Completed : JobExecutionState.Failed;
             await _db.SaveChangesAsync(cancellationToken);
+
+            var executionOp = allSucceeded ? "ExecutionCompleted" : "ExecutionFailed";
+            await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, executionOp, details: new { jobId = execution.JobId, state = execution.State.ToString().ToLowerInvariant() }, ct: cancellationToken);
         }
         finally
         {

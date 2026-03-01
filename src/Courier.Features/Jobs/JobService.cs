@@ -1,5 +1,7 @@
 using Courier.Domain.Common;
 using Courier.Domain.Entities;
+using Courier.Domain.Enums;
+using Courier.Features.AuditLog;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,10 +10,12 @@ namespace Courier.Features.Jobs;
 public class JobService
 {
     private readonly CourierDbContext _db;
+    private readonly AuditService _audit;
 
-    public JobService(CourierDbContext db)
+    public JobService(CourierDbContext db, AuditService audit)
     {
         _db = db;
+        _audit = audit;
     }
 
     public async Task<ApiResponse<JobDto>> CreateAsync(CreateJobRequest request, CancellationToken ct = default)
@@ -27,6 +31,8 @@ public class JobService
 
         _db.Jobs.Add(job);
         await _db.SaveChangesAsync(ct);
+
+        await _audit.LogAsync(AuditableEntityType.Job, job.Id, "Created", details: new { job.Name, job.Description }, ct: ct);
 
         return new ApiResponse<JobDto> { Data = MapToDto(job) };
     }
@@ -86,6 +92,8 @@ public class JobService
 
         await _db.SaveChangesAsync(ct);
 
+        await _audit.LogAsync(AuditableEntityType.Job, id, "Updated", details: new { name, description }, ct: ct);
+
         return new ApiResponse<JobDto> { Data = MapToDto(job) };
     }
 
@@ -103,6 +111,8 @@ public class JobService
         job.DeletedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
+
+        await _audit.LogAsync(AuditableEntityType.Job, id, "Deleted", ct: ct);
 
         return new ApiResponse();
     }

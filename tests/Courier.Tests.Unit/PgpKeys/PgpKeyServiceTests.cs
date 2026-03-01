@@ -1,4 +1,5 @@
 using Courier.Domain.Encryption;
+using Courier.Features.AuditLog;
 using Courier.Features.PgpKeys;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -47,7 +48,7 @@ public class PgpKeyServiceTests
     public async Task Generate_Rsa2048_ReturnsSuccessWithFingerprint()
     {
         using var db = CreateInMemoryContext();
-        var service = new PgpKeyService(db, CreateMockEncryptor());
+        var service = new PgpKeyService(db, CreateMockEncryptor(), new AuditService(db));
 
         var result = await service.GenerateAsync(MakeGenerateRequest());
 
@@ -68,7 +69,7 @@ public class PgpKeyServiceTests
     {
         using var db = CreateInMemoryContext();
         var encryptor = CreateMockEncryptor();
-        var service = new PgpKeyService(db, encryptor);
+        var service = new PgpKeyService(db, encryptor, new AuditService(db));
 
         await service.GenerateAsync(MakeGenerateRequest());
 
@@ -81,7 +82,7 @@ public class PgpKeyServiceTests
     {
         using var db = CreateInMemoryContext();
         var encryptor = CreateMockEncryptor();
-        var service = new PgpKeyService(db, encryptor);
+        var service = new PgpKeyService(db, encryptor, new AuditService(db));
 
         await service.GenerateAsync(MakeGenerateRequest(passphrase: "my-secret"));
 
@@ -92,7 +93,7 @@ public class PgpKeyServiceTests
     public async Task Generate_WithExpiresInDays_SetsExpiresAt()
     {
         using var db = CreateInMemoryContext();
-        var service = new PgpKeyService(db, CreateMockEncryptor());
+        var service = new PgpKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var request = MakeGenerateRequest() with { ExpiresInDays = 365 };
 
         var result = await service.GenerateAsync(request);
@@ -105,7 +106,7 @@ public class PgpKeyServiceTests
     public async Task GetById_ExistingKey_ReturnsKey()
     {
         using var db = CreateInMemoryContext();
-        var service = new PgpKeyService(db, CreateMockEncryptor());
+        var service = new PgpKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest("Find Me"));
 
         var result = await service.GetByIdAsync(created.Data!.Id);
@@ -118,7 +119,7 @@ public class PgpKeyServiceTests
     public async Task GetById_NonExistent_ReturnsNotFound()
     {
         using var db = CreateInMemoryContext();
-        var service = new PgpKeyService(db, CreateMockEncryptor());
+        var service = new PgpKeyService(db, CreateMockEncryptor(), new AuditService(db));
 
         var result = await service.GetByIdAsync(Guid.NewGuid());
 
@@ -130,7 +131,7 @@ public class PgpKeyServiceTests
     public async Task List_ReturnsAllKeys()
     {
         using var db = CreateInMemoryContext();
-        var service = new PgpKeyService(db, CreateMockEncryptor());
+        var service = new PgpKeyService(db, CreateMockEncryptor(), new AuditService(db));
         await service.GenerateAsync(MakeGenerateRequest("Key A"));
         await service.GenerateAsync(MakeGenerateRequest("Key B"));
 
@@ -145,7 +146,7 @@ public class PgpKeyServiceTests
     public async Task List_FilterByStatus_ReturnsMatching()
     {
         using var db = CreateInMemoryContext();
-        var service = new PgpKeyService(db, CreateMockEncryptor());
+        var service = new PgpKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest("To Retire"));
         await service.RetireAsync(created.Data!.Id);
         await service.GenerateAsync(MakeGenerateRequest("Still Active"));
@@ -160,7 +161,7 @@ public class PgpKeyServiceTests
     public async Task List_FilterBySearch_MatchesNameOrFingerprint()
     {
         using var db = CreateInMemoryContext();
-        var service = new PgpKeyService(db, CreateMockEncryptor());
+        var service = new PgpKeyService(db, CreateMockEncryptor(), new AuditService(db));
         await service.GenerateAsync(MakeGenerateRequest("Alpha Key"));
         await service.GenerateAsync(MakeGenerateRequest("Beta Key"));
 
@@ -174,7 +175,7 @@ public class PgpKeyServiceTests
     public async Task Update_ExistingKey_ReturnsUpdated()
     {
         using var db = CreateInMemoryContext();
-        var service = new PgpKeyService(db, CreateMockEncryptor());
+        var service = new PgpKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest("Old Name"));
 
         var result = await service.UpdateAsync(created.Data!.Id, new UpdatePgpKeyRequest
@@ -194,7 +195,7 @@ public class PgpKeyServiceTests
     public async Task Delete_ExistingKey_PurgesKeyMaterial()
     {
         using var db = CreateInMemoryContext();
-        var service = new PgpKeyService(db, CreateMockEncryptor());
+        var service = new PgpKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest("To Delete"));
 
         var result = await service.DeleteAsync(created.Data!.Id);
@@ -216,7 +217,7 @@ public class PgpKeyServiceTests
     public async Task ExportPublicKey_ExistingKey_ReturnsArmoredData()
     {
         using var db = CreateInMemoryContext();
-        var service = new PgpKeyService(db, CreateMockEncryptor());
+        var service = new PgpKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest());
 
         var result = await service.ExportPublicKeyAsync(created.Data!.Id);
@@ -229,7 +230,7 @@ public class PgpKeyServiceTests
     public async Task Retire_ActiveKey_SetsRetired()
     {
         using var db = CreateInMemoryContext();
-        var service = new PgpKeyService(db, CreateMockEncryptor());
+        var service = new PgpKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest());
 
         var result = await service.RetireAsync(created.Data!.Id);
@@ -242,7 +243,7 @@ public class PgpKeyServiceTests
     public async Task Retire_AlreadyRetired_ReturnsError()
     {
         using var db = CreateInMemoryContext();
-        var service = new PgpKeyService(db, CreateMockEncryptor());
+        var service = new PgpKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest());
         await service.RetireAsync(created.Data!.Id);
 
@@ -256,7 +257,7 @@ public class PgpKeyServiceTests
     public async Task Revoke_ActiveKey_PurgesPrivateKey()
     {
         using var db = CreateInMemoryContext();
-        var service = new PgpKeyService(db, CreateMockEncryptor());
+        var service = new PgpKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest());
 
         var result = await service.RevokeAsync(created.Data!.Id);
@@ -276,7 +277,7 @@ public class PgpKeyServiceTests
     public async Task Activate_RetiredKey_SetsActive()
     {
         using var db = CreateInMemoryContext();
-        var service = new PgpKeyService(db, CreateMockEncryptor());
+        var service = new PgpKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest());
         await service.RetireAsync(created.Data!.Id);
 
@@ -290,7 +291,7 @@ public class PgpKeyServiceTests
     public async Task Activate_RevokedKey_ReturnsError()
     {
         using var db = CreateInMemoryContext();
-        var service = new PgpKeyService(db, CreateMockEncryptor());
+        var service = new PgpKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest());
         await service.RevokeAsync(created.Data!.Id);
 
@@ -304,7 +305,7 @@ public class PgpKeyServiceTests
     public async Task GetById_NeverReturnsKeyMaterial()
     {
         using var db = CreateInMemoryContext();
-        var service = new PgpKeyService(db, CreateMockEncryptor());
+        var service = new PgpKeyService(db, CreateMockEncryptor(), new AuditService(db));
         var created = await service.GenerateAsync(MakeGenerateRequest());
 
         var result = await service.GetByIdAsync(created.Data!.Id);
