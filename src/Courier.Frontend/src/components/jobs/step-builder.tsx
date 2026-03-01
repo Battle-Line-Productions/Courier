@@ -21,13 +21,62 @@ interface StepBuilderProps {
   onChange: (steps: StepFormData[]) => void;
 }
 
-const STEP_TYPES = [
-  { value: "file.copy", label: "File Copy" },
-  { value: "file.move", label: "File Move" },
-  { value: "file.zip", label: "File Zip (Compress)" },
-  { value: "file.unzip", label: "File Unzip (Extract)" },
-  { value: "file.delete", label: "File Delete" },
-  { value: "azure_function.execute", label: "Azure Function Execute" },
+const STEP_TYPE_GROUPS = [
+  {
+    label: "File Operations",
+    types: [
+      { value: "file.copy", label: "File Copy" },
+      { value: "file.move", label: "File Move" },
+      { value: "file.zip", label: "File Zip (Compress)" },
+      { value: "file.unzip", label: "File Unzip (Extract)" },
+      { value: "file.delete", label: "File Delete" },
+    ],
+  },
+  {
+    label: "SFTP",
+    types: [
+      { value: "sftp.upload", label: "SFTP Upload" },
+      { value: "sftp.download", label: "SFTP Download" },
+      { value: "sftp.list", label: "SFTP List" },
+      { value: "sftp.mkdir", label: "SFTP Create Directory" },
+      { value: "sftp.rmdir", label: "SFTP Remove Directory" },
+    ],
+  },
+  {
+    label: "FTP",
+    types: [
+      { value: "ftp.upload", label: "FTP Upload" },
+      { value: "ftp.download", label: "FTP Download" },
+      { value: "ftp.list", label: "FTP List" },
+      { value: "ftp.mkdir", label: "FTP Create Directory" },
+      { value: "ftp.rmdir", label: "FTP Remove Directory" },
+    ],
+  },
+  {
+    label: "FTPS",
+    types: [
+      { value: "ftps.upload", label: "FTPS Upload" },
+      { value: "ftps.download", label: "FTPS Download" },
+      { value: "ftps.list", label: "FTPS List" },
+      { value: "ftps.mkdir", label: "FTPS Create Directory" },
+      { value: "ftps.rmdir", label: "FTPS Remove Directory" },
+    ],
+  },
+  {
+    label: "PGP Crypto",
+    types: [
+      { value: "pgp.encrypt", label: "PGP Encrypt" },
+      { value: "pgp.decrypt", label: "PGP Decrypt" },
+      { value: "pgp.sign", label: "PGP Sign" },
+      { value: "pgp.verify", label: "PGP Verify" },
+    ],
+  },
+  {
+    label: "Azure",
+    types: [
+      { value: "azure_function.execute", label: "Azure Function Execute" },
+    ],
+  },
 ];
 
 function getStepSummary(step: StepFormData): string | null {
@@ -55,6 +104,25 @@ function getStepSummary(step: StepFormData): string | null {
   if (step.typeKey === "file.delete") {
     const path = config.path as string;
     return path || null;
+  }
+
+  // Transfer upload/download steps
+  const op = step.typeKey.split(".")[1];
+  if (op === "upload" || op === "download") {
+    const local = config.localPath as string;
+    const remote = config.remotePath as string;
+    if (local && remote) return op === "upload" ? `${local} \u2192 ${remote}` : `${remote} \u2192 ${local}`;
+    return remote || local || null;
+  }
+
+  // Transfer list/mkdir/rmdir
+  if (op === "list" || op === "mkdir" || op === "rmdir") {
+    return (config.remotePath as string) || null;
+  }
+
+  // PGP steps
+  if (step.typeKey.startsWith("pgp.")) {
+    return (config.inputPath as string) || null;
   }
 
   // File copy/move steps
@@ -107,6 +175,26 @@ export function StepBuilder({ steps, onChange }: StepBuilderProps) {
     } else {
       setDraft(updated);
     }
+  }
+
+  function renderTypeSelect(value: string, onChangeValue: (v: string) => void) {
+    return (
+      <select
+        value={value}
+        onChange={(e) => onChangeValue(e.target.value)}
+        className="rounded-md border bg-background px-3 py-1.5 text-sm"
+      >
+        {STEP_TYPE_GROUPS.map((group) => (
+          <optgroup key={group.label} label={group.label}>
+            {group.types.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+    );
   }
 
   return (
@@ -185,17 +273,7 @@ export function StepBuilder({ steps, onChange }: StepBuilderProps) {
                     <>
                       <div className="mt-2 grid gap-1.5">
                         <Label className="text-xs">Step Type</Label>
-                        <select
-                          value={step.typeKey}
-                          onChange={(e) => handleTypeChange(step, index, e.target.value)}
-                          className="rounded-md border bg-background px-3 py-1.5 text-sm"
-                        >
-                          {STEP_TYPES.map((t) => (
-                            <option key={t.value} value={t.value}>
-                              {t.label}
-                            </option>
-                          ))}
-                        </select>
+                        {renderTypeSelect(step.typeKey, (v) => handleTypeChange(step, index, v))}
                       </div>
                       <StepConfigForm
                         typeKey={step.typeKey}
@@ -267,17 +345,7 @@ export function StepBuilder({ steps, onChange }: StepBuilderProps) {
             </div>
             <div className="grid gap-1.5">
               <Label className="text-xs">Step Type</Label>
-              <select
-                value={draft.typeKey}
-                onChange={(e) => handleTypeChange(draft, null, e.target.value)}
-                className="rounded-md border bg-background px-3 py-1.5 text-sm"
-              >
-                {STEP_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
+              {renderTypeSelect(draft.typeKey, (v) => handleTypeChange(draft, null, v))}
             </div>
             <StepConfigForm
               typeKey={draft.typeKey}

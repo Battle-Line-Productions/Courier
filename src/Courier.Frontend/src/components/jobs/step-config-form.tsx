@@ -28,6 +28,37 @@ import type {
   FileUnzipStepConfig,
   FileDeleteStepConfig,
 } from "./compression-step-config";
+import {
+  TransferUploadForm,
+  parseTransferUploadConfig,
+  serializeTransferUploadConfig,
+  TransferDownloadForm,
+  parseTransferDownloadConfig,
+  serializeTransferDownloadConfig,
+  TransferListForm,
+  parseTransferListConfig,
+  serializeTransferListConfig,
+  TransferMkdirForm,
+  parseTransferMkdirConfig,
+  serializeTransferMkdirConfig,
+  TransferRmdirForm,
+  parseTransferRmdirConfig,
+  serializeTransferRmdirConfig,
+} from "./transfer-step-config";
+import {
+  PgpEncryptForm,
+  parsePgpEncryptConfig,
+  serializePgpEncryptConfig,
+  PgpDecryptForm,
+  parsePgpDecryptConfig,
+  serializePgpDecryptConfig,
+  PgpSignForm,
+  parsePgpSignConfig,
+  serializePgpSignConfig,
+  PgpVerifyForm,
+  parsePgpVerifyConfig,
+  serializePgpVerifyConfig,
+} from "./pgp-step-config";
 
 // --- File step config (file.copy, file.move) ---
 
@@ -141,8 +172,38 @@ export interface StepConfig {
   pollIntervalSec?: number;
   maxWaitSec?: number;
   initialDelaySec?: number;
+  // Transfer fields
+  localPath?: string;
+  remotePath?: string;
+  atomicUpload?: boolean;
+  atomicSuffix?: string;
+  resumePartial?: boolean;
+  filePattern?: string;
+  deleteAfterDownload?: boolean;
+  recursive?: boolean;
+  // PGP fields
+  inputPath?: string;
+  recipientKeyIds?: string[];
+  signingKeyId?: string;
+  outputFormat?: string;
+  privateKeyId?: string;
+  verifySignature?: boolean;
+  mode?: string;
+  signaturePath?: string;
+  signerKeyIds?: string[];
   // Raw JSON passthrough for unknown types
   [key: string]: unknown;
+}
+
+/** Returns the operation suffix from a typeKey: "sftp.upload" → "upload" */
+function operationOf(typeKey: string): string {
+  const parts = typeKey.split(".");
+  return parts[parts.length - 1];
+}
+
+/** Returns true if the typeKey is a transfer protocol step */
+function isTransferStep(typeKey: string): boolean {
+  return typeKey.startsWith("sftp.") || typeKey.startsWith("ftp.") || typeKey.startsWith("ftps.");
 }
 
 export function StepConfigForm({ typeKey, config, onChange }: StepConfigFormProps) {
@@ -230,6 +291,208 @@ export function StepConfigForm({ typeKey, config, onChange }: StepConfigFormProp
     );
   }
 
+  // Transfer steps (sftp/ftp/ftps)
+  if (isTransferStep(typeKey)) {
+    const op = operationOf(typeKey);
+
+    if (op === "upload") {
+      return (
+        <TransferUploadForm
+          typeKey={typeKey}
+          config={{
+            connectionId: (config.connectionId as string) ?? "",
+            localPath: (config.localPath as string) ?? "",
+            remotePath: (config.remotePath as string) ?? "",
+            atomicUpload: (config.atomicUpload as boolean) ?? false,
+            atomicSuffix: (config.atomicSuffix as string) ?? ".tmp",
+            resumePartial: (config.resumePartial as boolean) ?? false,
+          }}
+          onChange={(c) =>
+            onChange({
+              connectionId: c.connectionId,
+              localPath: c.localPath,
+              remotePath: c.remotePath,
+              atomicUpload: c.atomicUpload,
+              atomicSuffix: c.atomicSuffix,
+              resumePartial: c.resumePartial,
+            })
+          }
+        />
+      );
+    }
+
+    if (op === "download") {
+      return (
+        <TransferDownloadForm
+          typeKey={typeKey}
+          config={{
+            connectionId: (config.connectionId as string) ?? "",
+            remotePath: (config.remotePath as string) ?? "",
+            localPath: (config.localPath as string) ?? "",
+            filePattern: (config.filePattern as string) ?? "",
+            resumePartial: (config.resumePartial as boolean) ?? false,
+            deleteAfterDownload: (config.deleteAfterDownload as boolean) ?? false,
+          }}
+          onChange={(c) =>
+            onChange({
+              connectionId: c.connectionId,
+              remotePath: c.remotePath,
+              localPath: c.localPath,
+              filePattern: c.filePattern,
+              resumePartial: c.resumePartial,
+              deleteAfterDownload: c.deleteAfterDownload,
+            })
+          }
+        />
+      );
+    }
+
+    if (op === "list") {
+      return (
+        <TransferListForm
+          typeKey={typeKey}
+          config={{
+            connectionId: (config.connectionId as string) ?? "",
+            remotePath: (config.remotePath as string) ?? "",
+            filePattern: (config.filePattern as string) ?? "",
+          }}
+          onChange={(c) =>
+            onChange({
+              connectionId: c.connectionId,
+              remotePath: c.remotePath,
+              filePattern: c.filePattern,
+            })
+          }
+        />
+      );
+    }
+
+    if (op === "mkdir") {
+      return (
+        <TransferMkdirForm
+          typeKey={typeKey}
+          config={{
+            connectionId: (config.connectionId as string) ?? "",
+            remotePath: (config.remotePath as string) ?? "",
+          }}
+          onChange={(c) =>
+            onChange({
+              connectionId: c.connectionId,
+              remotePath: c.remotePath,
+            })
+          }
+        />
+      );
+    }
+
+    if (op === "rmdir") {
+      return (
+        <TransferRmdirForm
+          typeKey={typeKey}
+          config={{
+            connectionId: (config.connectionId as string) ?? "",
+            remotePath: (config.remotePath as string) ?? "",
+            recursive: (config.recursive as boolean) ?? false,
+          }}
+          onChange={(c) =>
+            onChange({
+              connectionId: c.connectionId,
+              remotePath: c.remotePath,
+              recursive: c.recursive,
+            })
+          }
+        />
+      );
+    }
+  }
+
+  // PGP steps
+  if (typeKey === "pgp.encrypt") {
+    return (
+      <PgpEncryptForm
+        config={{
+          inputPath: (config.inputPath as string) ?? "",
+          outputPath: (config.outputPath as string) ?? "",
+          recipientKeyIds: (config.recipientKeyIds as string[]) ?? [],
+          signingKeyId: (config.signingKeyId as string) ?? "",
+          outputFormat: (config.outputFormat as string) ?? "binary",
+        }}
+        onChange={(c) =>
+          onChange({
+            inputPath: c.inputPath,
+            outputPath: c.outputPath,
+            recipientKeyIds: c.recipientKeyIds,
+            signingKeyId: c.signingKeyId,
+            outputFormat: c.outputFormat,
+          })
+        }
+      />
+    );
+  }
+
+  if (typeKey === "pgp.decrypt") {
+    return (
+      <PgpDecryptForm
+        config={{
+          inputPath: (config.inputPath as string) ?? "",
+          outputPath: (config.outputPath as string) ?? "",
+          privateKeyId: (config.privateKeyId as string) ?? "",
+          verifySignature: (config.verifySignature as boolean) ?? false,
+        }}
+        onChange={(c) =>
+          onChange({
+            inputPath: c.inputPath,
+            outputPath: c.outputPath,
+            privateKeyId: c.privateKeyId,
+            verifySignature: c.verifySignature,
+          })
+        }
+      />
+    );
+  }
+
+  if (typeKey === "pgp.sign") {
+    return (
+      <PgpSignForm
+        config={{
+          inputPath: (config.inputPath as string) ?? "",
+          outputPath: (config.outputPath as string) ?? "",
+          signingKeyId: (config.signingKeyId as string) ?? "",
+          mode: (config.mode as string) ?? "detached",
+          outputFormat: (config.outputFormat as string) ?? "binary",
+        }}
+        onChange={(c) =>
+          onChange({
+            inputPath: c.inputPath,
+            outputPath: c.outputPath,
+            signingKeyId: c.signingKeyId,
+            mode: c.mode,
+            outputFormat: c.outputFormat,
+          })
+        }
+      />
+    );
+  }
+
+  if (typeKey === "pgp.verify") {
+    return (
+      <PgpVerifyForm
+        config={{
+          inputPath: (config.inputPath as string) ?? "",
+          signaturePath: (config.signaturePath as string) ?? "",
+          signerKeyIds: (config.signerKeyIds as string[]) ?? [],
+        }}
+        onChange={(c) =>
+          onChange({
+            inputPath: c.inputPath,
+            signaturePath: c.signaturePath,
+            signerKeyIds: c.signerKeyIds,
+          })
+        }
+      />
+    );
+  }
+
   // Default: file step config (file.copy, file.move)
   const fileConfig: FileStepConfig = {
     sourcePath: (config.sourcePath as string) ?? "",
@@ -289,6 +552,50 @@ export function parseStepConfig(configJson: string, typeKey?: string): StepConfi
     };
   }
 
+  // Transfer steps
+  if (typeKey && isTransferStep(typeKey)) {
+    const op = operationOf(typeKey);
+
+    if (op === "upload") {
+      const c = parseTransferUploadConfig(configJson);
+      return { connectionId: c.connectionId, localPath: c.localPath, remotePath: c.remotePath, atomicUpload: c.atomicUpload, atomicSuffix: c.atomicSuffix, resumePartial: c.resumePartial };
+    }
+    if (op === "download") {
+      const c = parseTransferDownloadConfig(configJson);
+      return { connectionId: c.connectionId, remotePath: c.remotePath, localPath: c.localPath, filePattern: c.filePattern, resumePartial: c.resumePartial, deleteAfterDownload: c.deleteAfterDownload };
+    }
+    if (op === "list") {
+      const c = parseTransferListConfig(configJson);
+      return { connectionId: c.connectionId, remotePath: c.remotePath, filePattern: c.filePattern };
+    }
+    if (op === "mkdir") {
+      const c = parseTransferMkdirConfig(configJson);
+      return { connectionId: c.connectionId, remotePath: c.remotePath };
+    }
+    if (op === "rmdir") {
+      const c = parseTransferRmdirConfig(configJson);
+      return { connectionId: c.connectionId, remotePath: c.remotePath, recursive: c.recursive };
+    }
+  }
+
+  // PGP steps
+  if (typeKey === "pgp.encrypt") {
+    const c = parsePgpEncryptConfig(configJson);
+    return { inputPath: c.inputPath, outputPath: c.outputPath, recipientKeyIds: c.recipientKeyIds, signingKeyId: c.signingKeyId, outputFormat: c.outputFormat };
+  }
+  if (typeKey === "pgp.decrypt") {
+    const c = parsePgpDecryptConfig(configJson);
+    return { inputPath: c.inputPath, outputPath: c.outputPath, privateKeyId: c.privateKeyId, verifySignature: c.verifySignature };
+  }
+  if (typeKey === "pgp.sign") {
+    const c = parsePgpSignConfig(configJson);
+    return { inputPath: c.inputPath, outputPath: c.outputPath, signingKeyId: c.signingKeyId, mode: c.mode, outputFormat: c.outputFormat };
+  }
+  if (typeKey === "pgp.verify") {
+    const c = parsePgpVerifyConfig(configJson);
+    return { inputPath: c.inputPath, signaturePath: c.signaturePath, signerKeyIds: c.signerKeyIds };
+  }
+
   // Default: file copy/move step
   try {
     const parsed = JSON.parse(configJson);
@@ -334,6 +641,87 @@ export function serializeStepConfig(config: StepConfig, typeKey?: string): strin
     return serializeFileDeleteConfig({
       path: (config.path as string) ?? "",
       failIfNotFound: (config.failIfNotFound as boolean) ?? false,
+    });
+  }
+
+  // Transfer steps
+  if (typeKey && isTransferStep(typeKey)) {
+    const op = operationOf(typeKey);
+
+    if (op === "upload") {
+      return serializeTransferUploadConfig({
+        connectionId: (config.connectionId as string) ?? "",
+        localPath: (config.localPath as string) ?? "",
+        remotePath: (config.remotePath as string) ?? "",
+        atomicUpload: (config.atomicUpload as boolean) ?? false,
+        atomicSuffix: (config.atomicSuffix as string) ?? ".tmp",
+        resumePartial: (config.resumePartial as boolean) ?? false,
+      });
+    }
+    if (op === "download") {
+      return serializeTransferDownloadConfig({
+        connectionId: (config.connectionId as string) ?? "",
+        remotePath: (config.remotePath as string) ?? "",
+        localPath: (config.localPath as string) ?? "",
+        filePattern: (config.filePattern as string) ?? "",
+        resumePartial: (config.resumePartial as boolean) ?? false,
+        deleteAfterDownload: (config.deleteAfterDownload as boolean) ?? false,
+      });
+    }
+    if (op === "list") {
+      return serializeTransferListConfig({
+        connectionId: (config.connectionId as string) ?? "",
+        remotePath: (config.remotePath as string) ?? "",
+        filePattern: (config.filePattern as string) ?? "",
+      });
+    }
+    if (op === "mkdir") {
+      return serializeTransferMkdirConfig({
+        connectionId: (config.connectionId as string) ?? "",
+        remotePath: (config.remotePath as string) ?? "",
+      });
+    }
+    if (op === "rmdir") {
+      return serializeTransferRmdirConfig({
+        connectionId: (config.connectionId as string) ?? "",
+        remotePath: (config.remotePath as string) ?? "",
+        recursive: (config.recursive as boolean) ?? false,
+      });
+    }
+  }
+
+  // PGP steps
+  if (typeKey === "pgp.encrypt") {
+    return serializePgpEncryptConfig({
+      inputPath: (config.inputPath as string) ?? "",
+      outputPath: (config.outputPath as string) ?? "",
+      recipientKeyIds: (config.recipientKeyIds as string[]) ?? [],
+      signingKeyId: (config.signingKeyId as string) ?? "",
+      outputFormat: (config.outputFormat as string) ?? "binary",
+    });
+  }
+  if (typeKey === "pgp.decrypt") {
+    return serializePgpDecryptConfig({
+      inputPath: (config.inputPath as string) ?? "",
+      outputPath: (config.outputPath as string) ?? "",
+      privateKeyId: (config.privateKeyId as string) ?? "",
+      verifySignature: (config.verifySignature as boolean) ?? false,
+    });
+  }
+  if (typeKey === "pgp.sign") {
+    return serializePgpSignConfig({
+      inputPath: (config.inputPath as string) ?? "",
+      outputPath: (config.outputPath as string) ?? "",
+      signingKeyId: (config.signingKeyId as string) ?? "",
+      mode: (config.mode as string) ?? "detached",
+      outputFormat: (config.outputFormat as string) ?? "binary",
+    });
+  }
+  if (typeKey === "pgp.verify") {
+    return serializePgpVerifyConfig({
+      inputPath: (config.inputPath as string) ?? "",
+      signaturePath: (config.signaturePath as string) ?? "",
+      signerKeyIds: (config.signerKeyIds as string[]) ?? [],
     });
   }
 
