@@ -2,7 +2,9 @@ using Courier.Domain.Common;
 using Courier.Domain.Encryption;
 using Courier.Domain.Entities;
 using Courier.Domain.Enums;
+using Courier.Domain.Protocols;
 using Courier.Features.AuditLog;
+using Courier.Features.Engine.Protocols;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,12 +15,14 @@ public class ConnectionService
     private readonly CourierDbContext _db;
     private readonly ICredentialEncryptor _encryptor;
     private readonly AuditService _audit;
+    private readonly ITransferClientFactory _clientFactory;
 
-    public ConnectionService(CourierDbContext db, ICredentialEncryptor encryptor, AuditService audit)
+    public ConnectionService(CourierDbContext db, ICredentialEncryptor encryptor, AuditService audit, ITransferClientFactory clientFactory)
     {
         _db = db;
         _encryptor = encryptor;
         _audit = audit;
+        _clientFactory = clientFactory;
     }
 
     public async Task<ApiResponse<ConnectionDto>> CreateAsync(CreateConnectionRequest request, CancellationToken ct = default)
@@ -208,6 +212,68 @@ public class ConnectionService
         return new ApiResponse();
     }
 
+    public async Task<ApiResponse<ConnectionTestDto>> TestConnectionAsync(Guid id, CancellationToken ct = default)
+    {
+        var connection = await _db.Connections.FirstOrDefaultAsync(c => c.Id == id, ct);
+
+        if (connection is null)
+        {
+            return new ApiResponse<ConnectionTestDto>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.ResourceNotFound, $"Connection with id '{id}' not found.")
+            };
+        }
+
+        if (connection.Protocol.Equals("azure_function", StringComparison.OrdinalIgnoreCase))
+        {
+            return new ApiResponse<ConnectionTestDto>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.InvalidProtocolConfig, "Azure Function connections cannot be tested directly.")
+            };
+        }
+
+        byte[]? decryptedPassword = null;
+        if (connection.PasswordEncrypted is not null)
+        {
+            var passwordStr = _encryptor.Decrypt(connection.PasswordEncrypted);
+            decryptedPassword = System.Text.Encoding.UTF8.GetBytes(passwordStr);
+        }
+
+        byte[]? sshPrivateKey = null;
+        if (connection.SshKeyId is not null)
+        {
+            var sshKey = await _db.SshKeys.FirstOrDefaultAsync(k => k.Id == connection.SshKeyId && !k.IsDeleted, ct);
+            if (sshKey?.PrivateKeyData is not null)
+            {
+                sshPrivateKey = sshKey.PrivateKeyData;
+            }
+        }
+
+        ConnectionTestResult result;
+        await using var client = _clientFactory.Create(connection, decryptedPassword, sshPrivateKey);
+        try
+        {
+            result = await client.TestAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            result = new ConnectionTestResult(
+                Success: false,
+                Latency: TimeSpan.Zero,
+                ServerBanner: null,
+                ErrorMessage: ex.Message,
+                SupportedAlgorithms: null,
+                TlsCertificate: null);
+        }
+
+        await _audit.LogAsync(
+            AuditableEntityType.Connection, id, "Tested",
+            details: new { result.Success, LatencyMs = result.Latency.TotalMilliseconds },
+            ct: ct);
+
+        return new ApiResponse<ConnectionTestDto> { Data = MapTestResultToDto(result) };
+    }
+
     private static int GetDefaultPort(string protocol) => protocol switch
     {
         "sftp" => 22,
@@ -247,5 +313,32 @@ public class ConnectionService
         Notes = c.Notes,
         CreatedAt = c.CreatedAt,
         UpdatedAt = c.UpdatedAt,
+    };
+
+    private static ConnectionTestDto MapTestResultToDto(ConnectionTestResult r) => new()
+    {
+        Connected = r.Success,
+        LatencyMs = Math.Round(r.Latency.TotalMilliseconds, 2),
+        ServerBanner = r.ServerBanner,
+        Error = r.ErrorMessage,
+        SupportedAlgorithms = r.SupportedAlgorithms is { } alg
+            ? new SshAlgorithmDto
+            {
+                Cipher = alg.Cipher,
+                Kex = alg.Kex,
+                Mac = alg.Mac,
+                HostKey = alg.HostKey,
+            }
+            : null,
+        TlsCertificate = r.TlsCertificate is { } cert
+            ? new TlsCertificateDto
+            {
+                Subject = cert.Subject,
+                Issuer = cert.Issuer,
+                ValidFrom = cert.ValidFrom,
+                ValidTo = cert.ValidTo,
+                Thumbprint = cert.Thumbprint,
+            }
+            : null,
     };
 }

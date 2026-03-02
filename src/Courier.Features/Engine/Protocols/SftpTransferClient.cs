@@ -314,20 +314,33 @@ public class SftpTransferClient : ITransferClient
     public async Task<ConnectionTestResult> TestAsync(CancellationToken ct)
     {
         var sw = Stopwatch.StartNew();
+        SshAlgorithmInfo? algorithms = null;
         try
         {
             if (!IsConnected)
                 await ConnectAsync(ct);
 
-            var items = await ListDirectoryAsync("/", ct);
             sw.Stop();
+
+            if (_client?.ConnectionInfo is { } connInfo)
+            {
+                algorithms = new SshAlgorithmInfo(
+                    Cipher: connInfo.Encryptions.Keys.ToList(),
+                    Kex: connInfo.KeyExchangeAlgorithms.Keys.ToList(),
+                    Mac: connInfo.HmacAlgorithms.Keys.ToList(),
+                    HostKey: connInfo.HostKeyAlgorithms.Keys.ToList());
+            }
+
+            // Verify we can list the root directory
+            await ListDirectoryAsync("/", ct);
 
             return new ConnectionTestResult(
                 Success: true,
                 Latency: sw.Elapsed,
                 ServerBanner: _client?.ConnectionInfo?.ServerVersion,
                 ErrorMessage: null,
-                SupportedAlgorithms: null);
+                SupportedAlgorithms: algorithms,
+                TlsCertificate: null);
         }
         catch (Exception ex)
         {
@@ -337,7 +350,8 @@ public class SftpTransferClient : ITransferClient
                 Latency: sw.Elapsed,
                 ServerBanner: null,
                 ErrorMessage: ex.Message,
-                SupportedAlgorithms: null);
+                SupportedAlgorithms: algorithms,
+                TlsCertificate: null);
         }
     }
 

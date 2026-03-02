@@ -14,6 +14,7 @@ public class FluentFtpTransferClient : ITransferClient
     private readonly byte[]? _decryptedPassword;
     private readonly FtpEncryptionMode _encryptionMode;
     private AsyncFtpClient? _client;
+    private TlsCertificateInfo? _tlsCertInfo;
 
     public FluentFtpTransferClient(Connection connection, byte[]? decryptedPassword, FtpEncryptionMode encryptionMode)
     {
@@ -87,6 +88,15 @@ public class FluentFtpTransferClient : ITransferClient
                     default:
                         e.Accept = false;
                         break;
+                }
+
+                if (e.Certificate is not null)
+                {
+                    using var cert2 = new X509Certificate2(e.Certificate);
+                    _tlsCertInfo = new TlsCertificateInfo(
+                        cert2.Subject, cert2.Issuer,
+                        cert2.NotBefore, cert2.NotAfter,
+                        Convert.ToHexString(SHA256.HashData(cert2.RawData)).ToLowerInvariant());
                 }
             };
         }
@@ -276,15 +286,18 @@ public class FluentFtpTransferClient : ITransferClient
             if (!IsConnected)
                 await ConnectAsync(ct);
 
-            var items = await ListDirectoryAsync("/", ct);
             sw.Stop();
+
+            // Verify we can list the root directory
+            await ListDirectoryAsync("/", ct);
 
             return new ConnectionTestResult(
                 Success: true,
                 Latency: sw.Elapsed,
                 ServerBanner: _client?.ServerType.ToString(),
                 ErrorMessage: null,
-                SupportedAlgorithms: null);
+                SupportedAlgorithms: null,
+                TlsCertificate: _tlsCertInfo);
         }
         catch (Exception ex)
         {
@@ -294,7 +307,8 @@ public class FluentFtpTransferClient : ITransferClient
                 Latency: sw.Elapsed,
                 ServerBanner: null,
                 ErrorMessage: ex.Message,
-                SupportedAlgorithms: null);
+                SupportedAlgorithms: null,
+                TlsCertificate: _tlsCertInfo);
         }
     }
 

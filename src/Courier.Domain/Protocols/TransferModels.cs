@@ -27,9 +27,23 @@ public record RemoteFileInfo(
     DateTime LastModified,
     bool IsDirectory);
 
+public record SshAlgorithmInfo(
+    IReadOnlyList<string> Cipher,
+    IReadOnlyList<string> Kex,
+    IReadOnlyList<string> Mac,
+    IReadOnlyList<string> HostKey);
+
+public record TlsCertificateInfo(
+    string Subject,
+    string Issuer,
+    DateTime ValidFrom,
+    DateTime ValidTo,
+    string Thumbprint);
+
 public record ConnectionTestResult(
     bool Success,
     TimeSpan Latency,
     string? ServerBanner,
     string? ErrorMessage,
-    IReadOnlyList<string>? SupportedAlgorithms);
+    SshAlgorithmInfo? SupportedAlgorithms,
+    TlsCertificateInfo? TlsCertificate);

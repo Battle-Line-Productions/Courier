@@ -32,6 +32,33 @@ public record ConnectionDto
     public DateTime UpdatedAt { get; init; }
 }
 
+public record ConnectionTestDto
+{
+    public bool Connected { get; init; }
+    public double LatencyMs { get; init; }
+    public string? ServerBanner { get; init; }
+    public SshAlgorithmDto? SupportedAlgorithms { get; init; }
+    public TlsCertificateDto? TlsCertificate { get; init; }
+    public string? Error { get; init; }
+}
+
+public record SshAlgorithmDto
+{
+    public IReadOnlyList<string> Cipher { get; init; } = [];
+    public IReadOnlyList<string> Kex { get; init; } = [];
+    public IReadOnlyList<string> Mac { get; init; } = [];
+    public IReadOnlyList<string> HostKey { get; init; } = [];
+}
+
+public record TlsCertificateDto
+{
+    public string Subject { get; init; } = string.Empty;
+    public string Issuer { get; init; } = string.Empty;
+    public DateTime ValidFrom { get; init; }
+    public DateTime ValidTo { get; init; }
+    public string Thumbprint { get; init; } = string.Empty;
+}
+
 public record CreateConnectionRequest
 {
     public required string Name { get; init; }

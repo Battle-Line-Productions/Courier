@@ -118,11 +118,20 @@ public class ConnectionsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/test")]
-    public ActionResult<ApiResponse> TestConnection(Guid id)
+    public async Task<ActionResult<ApiResponse<ConnectionTestDto>>> TestConnection(Guid id, CancellationToken ct)
     {
-        return StatusCode(501, new ApiResponse
+        var result = await _connectionService.TestConnectionAsync(id, ct);
+
+        if (!result.Success)
         {
-            Error = ErrorMessages.Create(ErrorCodes.InternalServerError, "Connection testing is not yet implemented.")
-        });
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ResourceNotFound => NotFound(result),
+                ErrorCodes.InvalidProtocolConfig => BadRequest(result),
+                _ => StatusCode(500, result)
+            };
+        }
+
+        return Ok(result);
     }
 }
