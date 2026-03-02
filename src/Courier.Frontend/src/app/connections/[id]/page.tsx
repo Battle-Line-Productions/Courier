@@ -1,15 +1,17 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { useConnection } from "@/lib/hooks/use-connections";
+import { useTestConnection } from "@/lib/hooks/use-connection-mutations";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { Pencil } from "lucide-react";
+import { Pencil, Plug, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import type { ConnectionTestDto } from "@/lib/types";
 
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -40,6 +42,8 @@ function parseProperties(props?: string): Record<string, string> {
 export default function ConnectionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data, isLoading } = useConnection(id);
+  const testMutation = useTestConnection();
+  const [testResult, setTestResult] = useState<ConnectionTestDto | null>(null);
 
   if (isLoading) {
     return (
@@ -60,6 +64,17 @@ export default function ConnectionDetailPage({ params }: { params: Promise<{ id:
   const isSftp = conn.protocol === "sftp";
   const isFtpOrFtps = conn.protocol === "ftp" || conn.protocol === "ftps";
   const azureProps = isAzureFunction ? parseProperties(conn.properties) : {};
+
+  const handleTestConnection = () => {
+    setTestResult(null);
+    testMutation.mutate(id, {
+      onSuccess: (response) => {
+        if (response.data) {
+          setTestResult(response.data);
+        }
+      },
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -82,15 +97,127 @@ export default function ConnectionDetailPage({ params }: { params: Promise<{ id:
             </span>
           </div>
         </div>
-        <Button variant="outline" asChild>
-          <Link href={`/connections/${id}/edit`}>
-            <Pencil className="mr-2 h-4 w-4" />
-            Edit
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          {!isAzureFunction && (
+            <Button
+              variant="outline"
+              onClick={handleTestConnection}
+              disabled={testMutation.isPending}
+            >
+              {testMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Plug className="mr-2 h-4 w-4" />
+              )}
+              Test Connection
+            </Button>
+          )}
+          <Button variant="outline" asChild>
+            <Link href={`/connections/${id}/edit`}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Separator />
+
+      {/* Test Connection Result */}
+      {testResult && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Test Result</CardTitle>
+              {testResult.connected ? (
+                <Badge variant="default" className="bg-green-600">
+                  <CheckCircle2 className="mr-1 h-3 w-3" />
+                  Connected
+                </Badge>
+              ) : (
+                <Badge variant="destructive">
+                  <XCircle className="mr-1 h-3 w-3" />
+                  Failed
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
+              <div>
+                <dt className="text-sm font-medium text-muted-foreground">Latency</dt>
+                <dd className="mt-0.5 font-mono text-sm">{testResult.latencyMs.toFixed(1)} ms</dd>
+              </div>
+              {testResult.serverBanner && (
+                <div className="col-span-2">
+                  <dt className="text-sm font-medium text-muted-foreground">Server Banner</dt>
+                  <dd className="mt-0.5 font-mono text-sm">{testResult.serverBanner}</dd>
+                </div>
+              )}
+              {testResult.error && (
+                <div className="col-span-full">
+                  <dt className="text-sm font-medium text-muted-foreground">Error</dt>
+                  <dd className="mt-0.5 text-sm text-destructive">{testResult.error}</dd>
+                </div>
+              )}
+            </dl>
+
+            {/* SSH Algorithm Details */}
+            {testResult.supportedAlgorithms && (
+              <div className="space-y-2 border-t pt-3">
+                <h4 className="text-sm font-medium">SSH Algorithms</h4>
+                <dl className="grid grid-cols-1 gap-y-2 sm:grid-cols-2">
+                  <div>
+                    <dt className="text-xs font-medium text-muted-foreground">Ciphers</dt>
+                    <dd className="mt-0.5 font-mono text-xs">{testResult.supportedAlgorithms.cipher.join(", ")}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-muted-foreground">Key Exchange</dt>
+                    <dd className="mt-0.5 font-mono text-xs">{testResult.supportedAlgorithms.kex.join(", ")}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-muted-foreground">MACs</dt>
+                    <dd className="mt-0.5 font-mono text-xs">{testResult.supportedAlgorithms.mac.join(", ")}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-muted-foreground">Host Key</dt>
+                    <dd className="mt-0.5 font-mono text-xs">{testResult.supportedAlgorithms.hostKey.join(", ")}</dd>
+                  </div>
+                </dl>
+              </div>
+            )}
+
+            {/* TLS Certificate Details */}
+            {testResult.tlsCertificate && (
+              <div className="space-y-2 border-t pt-3">
+                <h4 className="text-sm font-medium">TLS Certificate</h4>
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3">
+                  <div>
+                    <dt className="text-xs font-medium text-muted-foreground">Subject</dt>
+                    <dd className="mt-0.5 font-mono text-xs">{testResult.tlsCertificate.subject}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-muted-foreground">Issuer</dt>
+                    <dd className="mt-0.5 font-mono text-xs">{testResult.tlsCertificate.issuer}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-muted-foreground">Valid From</dt>
+                    <dd className="mt-0.5 text-xs">{new Date(testResult.tlsCertificate.validFrom).toLocaleDateString()}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-muted-foreground">Valid To</dt>
+                    <dd className="mt-0.5 text-xs">{new Date(testResult.tlsCertificate.validTo).toLocaleDateString()}</dd>
+                  </div>
+                  <div className="col-span-full">
+                    <dt className="text-xs font-medium text-muted-foreground">Thumbprint (SHA-256)</dt>
+                    <dd className="mt-0.5 font-mono text-xs break-all">{testResult.tlsCertificate.thumbprint}</dd>
+                  </div>
+                </dl>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Connection Info */}
       <Card>

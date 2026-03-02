@@ -13,6 +13,7 @@ import type {
   CreateJobScheduleRequest,
   UpdateJobScheduleRequest,
   ConnectionDto,
+  ConnectionTestDto,
   CreateConnectionRequest,
   UpdateConnectionRequest,
   MonitorDto,
@@ -174,7 +175,7 @@ class ApiClient {
     return this.request(`/api/v1/connections/${id}`, { method: "DELETE" });
   }
 
-  async testConnection(id: string): Promise<ApiResponse<void>> {
+  async testConnection(id: string): Promise<ApiResponse<ConnectionTestDto>> {
     return this.request(`/api/v1/connections/${id}/test`, { method: "POST" });
   }
 

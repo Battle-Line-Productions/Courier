@@ -237,6 +237,31 @@ export interface UpdateConnectionRequest {
   notes?: string;
 }
 
+// Connection test types
+export interface ConnectionTestDto {
+  connected: boolean;
+  latencyMs: number;
+  serverBanner?: string;
+  supportedAlgorithms?: SshAlgorithmDto;
+  tlsCertificate?: TlsCertificateDto;
+  error?: string;
+}
+
+export interface SshAlgorithmDto {
+  cipher: string[];
+  kex: string[];
+  mac: string[];
+  hostKey: string[];
+}
+
+export interface TlsCertificateDto {
+  subject: string;
+  issuer: string;
+  validFrom: string;
+  validTo: string;
+  thumbprint: string;
+}
+
 // Azure Function types
 export interface AzureFunctionTraceDto {
   timestamp: string;

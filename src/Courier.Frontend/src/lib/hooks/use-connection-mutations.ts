@@ -31,3 +31,9 @@ export function useDeleteConnection() {
     },
   });
 }
+
+export function useTestConnection() {
+  return useMutation({
+    mutationFn: (id: string) => api.testConnection(id),
+  });
+}
