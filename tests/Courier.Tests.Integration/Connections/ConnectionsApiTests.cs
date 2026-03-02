@@ -182,14 +182,30 @@ public class ConnectionsApiTests : IClassFixture<CourierApiFactory>
     }
 
     [Fact]
-    public async Task TestConnection_ReturnsNotImplemented()
+    public async Task TestConnection_NonExistentId_ReturnsNotFound()
     {
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/connections", MakeSftpRequest("Test Stub"));
+        var response = await _client.PostAsync($"/api/v1/connections/{Guid.NewGuid()}/test", null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task TestConnection_SftpConnection_ReturnsTestResult()
+    {
+        // No real SFTP server → Connected=false, but response shape is correct
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/connections", MakeSftpRequest("Test Connection"));
         var created = await createResponse.Content.ReadFromJsonAsync<ApiResponse<ConnectionDto>>();
 
         var response = await _client.PostAsync($"/api/v1/connections/{created!.Data!.Id}/test", null);
 
-        ((int)response.StatusCode).ShouldBe(501);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<ConnectionTestDto>>();
+        body.ShouldNotBeNull();
+        body.Success.ShouldBeTrue();
+        body.Data.ShouldNotBeNull();
+        body.Data!.Connected.ShouldBeFalse(); // no real server
+        body.Data.Error.ShouldNotBeNullOrEmpty();
     }
 
     [Fact]
