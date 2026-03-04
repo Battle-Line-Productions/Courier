@@ -41,6 +41,9 @@ builder.Services.AddHostedService<JobQueueProcessor>();
 // Monitor polling service
 builder.Services.AddHostedService<MonitorPollingService>();
 
+// Partition maintenance (weekly, pre-creates monthly partitions)
+builder.Services.AddHostedService<PartitionMaintenanceService>();
+
 // Quartz.NET persistent store
 builder.Services.AddQuartz(q =>
 {

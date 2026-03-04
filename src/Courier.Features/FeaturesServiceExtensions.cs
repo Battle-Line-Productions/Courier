@@ -136,6 +136,10 @@ public static class FeaturesServiceExtensions
         services.Configure<EncryptionSettings>(configuration.GetSection("Encryption"));
         services.AddSingleton<ICredentialEncryptor, AesGcmCredentialEncryptor>();
 
+        // Health checks
+        services.AddHealthChecks()
+            .AddCheck<PartitionHealthCheck>("partitions", tags: ["partitions"]);
+
         return services;
     }
 }

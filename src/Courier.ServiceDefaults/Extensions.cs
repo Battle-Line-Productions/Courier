@@ -90,6 +90,12 @@ public static class Extensions
             Predicate = _ => true
         });
 
+        // Partition health: /health/partitions — verifies monthly partitions exist
+        app.MapHealthChecks("/health/partitions", new HealthCheckOptions
+        {
+            Predicate = check => check.Tags.Contains("partitions")
+        });
+
         return app;
     }
 }

@@ -5,6 +5,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Courier.Tests.Unit" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Courier.Domain\Courier.Domain.csproj" />
     <ProjectReference Include="..\Courier.Infrastructure\Courier.Infrastructure.csproj" />
     <ProjectReference Include="..\Courier.Migrations\Courier.Migrations.csproj" />
