@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useJobExecutions, useExecution } from "@/lib/hooks/use-job-executions";
+import { usePauseExecution, useResumeExecution, useCancelExecution } from "@/lib/hooks/use-job-mutations";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Terminal } from "lucide-react";
+import { ChevronDown, ChevronRight, Terminal, Pause, Play, XCircle } from "lucide-react";
 import { AzureFunctionTraceViewer } from "@/components/azure-function-trace-viewer";
 import type { JobExecutionDto, StepExecutionDto } from "@/lib/types";
 
@@ -113,11 +114,21 @@ function ExecutionRow({
   onToggle: () => void;
   isLatest: boolean;
 }) {
-  const isRunning =
-    execution.state === "queued" || execution.state === "running";
+  const isActive =
+    execution.state === "queued" || execution.state === "running" || execution.state === "paused";
 
-  const { data: liveData } = useExecution(execution.id, isRunning || expanded);
+  const { data: liveData } = useExecution(execution.id, isActive || expanded);
   const liveExecution = liveData?.data ?? execution;
+
+  const pauseMutation = usePauseExecution();
+  const resumeMutation = useResumeExecution();
+  const cancelMutation = useCancelExecution();
+  const [cancelReason, setCancelReason] = useState("");
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  const canPause = liveExecution.state === "running";
+  const canResume = liveExecution.state === "paused";
+  const canCancel = ["running", "paused", "queued"].includes(liveExecution.state);
 
   return (
     <Card>
@@ -132,7 +143,7 @@ function ExecutionRow({
           ) : (
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
           )}
-          <StatusBadge state={liveExecution.state} pulse={isRunning} />
+          <StatusBadge state={liveExecution.state} pulse={liveExecution.state === "running"} />
           <span className="text-sm font-medium">
             {isLatest ? "Latest" : `#${index}`}
           </span>
@@ -160,9 +171,91 @@ function ExecutionRow({
                 State: {liveExecution.state}
                 {liveExecution.queuedAt && ` \u00b7 Queued: ${timeAgo(liveExecution.queuedAt)}`}
                 {liveExecution.startedAt && ` \u00b7 Started: ${timeAgo(liveExecution.startedAt)}`}
+                {liveExecution.pausedAt && ` \u00b7 Paused: ${timeAgo(liveExecution.pausedAt)}`}
+                {liveExecution.cancelledAt && ` \u00b7 Cancelled: ${timeAgo(liveExecution.cancelledAt)}`}
                 {liveExecution.completedAt && ` \u00b7 Completed: ${timeAgo(liveExecution.completedAt)}`}
               </p>
+              {liveExecution.cancelReason && (
+                <p className="text-xs text-destructive">Reason: {liveExecution.cancelReason}</p>
+              )}
             </div>
+
+            {/* Execution Control Actions */}
+            {(canPause || canResume || canCancel) && (
+              <div className="mt-3 flex items-center gap-2">
+                {canPause && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => pauseMutation.mutate(liveExecution.id)}
+                    disabled={pauseMutation.isPending}
+                  >
+                    <Pause className="mr-1.5 h-3.5 w-3.5" />
+                    {pauseMutation.isPending ? "Pausing..." : "Pause"}
+                  </Button>
+                )}
+                {canResume && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => resumeMutation.mutate(liveExecution.id)}
+                    disabled={resumeMutation.isPending}
+                  >
+                    <Play className="mr-1.5 h-3.5 w-3.5" />
+                    {resumeMutation.isPending ? "Resuming..." : "Resume"}
+                  </Button>
+                )}
+                {canCancel && !showCancelConfirm && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setShowCancelConfirm(true)}
+                  >
+                    <XCircle className="mr-1.5 h-3.5 w-3.5" />
+                    Cancel
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* Cancel Confirmation */}
+            {showCancelConfirm && (
+              <div className="mt-3 rounded-md border border-destructive/20 bg-destructive/5 p-3 space-y-2">
+                <p className="text-sm font-medium">Cancel this execution?</p>
+                <input
+                  type="text"
+                  placeholder="Reason (optional)"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="w-full rounded-md border px-3 py-1.5 text-sm bg-background"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      cancelMutation.mutate(
+                        { executionId: liveExecution.id, reason: cancelReason || undefined },
+                        { onSuccess: () => setShowCancelConfirm(false) }
+                      );
+                    }}
+                    disabled={cancelMutation.isPending}
+                  >
+                    {cancelMutation.isPending ? "Cancelling..." : "Confirm Cancel"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowCancelConfirm(false);
+                      setCancelReason("");
+                    }}
+                  >
+                    Keep Running
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Step Executions */}
             {liveExecution.stepExecutions && liveExecution.stepExecutions.length > 0 && (

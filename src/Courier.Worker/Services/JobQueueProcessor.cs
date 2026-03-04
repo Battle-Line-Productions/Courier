@@ -1,4 +1,5 @@
 using Courier.Domain.Enums;
+using Courier.Features.Chains;
 using Courier.Features.Engine;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -66,5 +67,9 @@ public class JobQueueProcessor : BackgroundService
 
         var engine = scope.ServiceProvider.GetRequiredService<JobEngine>();
         await engine.ExecuteAsync(execution.Id, ct);
+
+        // After job completes, evaluate chain progress if this execution is part of a chain
+        var orchestrator = scope.ServiceProvider.GetRequiredService<ChainOrchestrator>();
+        await orchestrator.EvaluateChainProgressAsync(execution.Id, ct);
     }
 }

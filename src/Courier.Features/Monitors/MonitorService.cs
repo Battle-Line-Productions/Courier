@@ -3,6 +3,7 @@ using Courier.Domain.Entities;
 using Courier.Domain.Engine;
 using Courier.Domain.Enums;
 using Courier.Features.AuditLog;
+using Courier.Features.Tags;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -81,7 +82,9 @@ public class MonitorService
             };
         }
 
-        return new ApiResponse<MonitorDto> { Data = MapToDto(monitor) };
+        var dto = MapToDto(monitor);
+        dto = dto with { Tags = await TagHelper.GetTagsForEntityAsync(_db, "file_monitor", id, ct) };
+        return new ApiResponse<MonitorDto> { Data = dto };
     }
 
     public async Task<PagedApiResponse<MonitorDto>> ListAsync(
@@ -89,6 +92,7 @@ public class MonitorService
         int pageSize = 25,
         string? search = null,
         string? state = null,
+        string? tag = null,
         CancellationToken ct = default)
     {
         pageSize = Math.Clamp(pageSize, 1, 100);
@@ -107,6 +111,16 @@ public class MonitorService
         if (!string.IsNullOrWhiteSpace(state))
             query = query.Where(m => m.State == state);
 
+        if (!string.IsNullOrWhiteSpace(tag))
+        {
+            var tagName = tag.ToLower();
+            query = query.Where(e => _db.EntityTags
+                .Any(et => et.EntityType == "file_monitor"
+                        && et.EntityId == e.Id
+                        && et.Tag.Name.ToLower() == tagName
+                        && !et.Tag.IsDeleted));
+        }
+
         query = query.OrderByDescending(m => m.CreatedAt);
 
         var totalCount = await query.CountAsync(ct);
@@ -117,9 +131,14 @@ public class MonitorService
             .Take(pageSize)
             .ToListAsync(ct);
 
+        var dtos = items.Select(MapToDto).ToList();
+        var entityIds = dtos.Select(i => i.Id).ToList();
+        var tagMap = await TagHelper.GetTagsForEntitiesAsync(_db, "file_monitor", entityIds, ct);
+        dtos = dtos.Select(i => i with { Tags = tagMap.GetValueOrDefault(i.Id, []) }).ToList();
+
         return new PagedApiResponse<MonitorDto>
         {
-            Data = items.Select(MapToDto).ToList(),
+            Data = dtos,
             Pagination = new PaginationMeta(page, pageSize, totalCount, totalPages)
         };
     }

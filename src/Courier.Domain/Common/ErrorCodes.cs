@@ -20,6 +20,11 @@ public static class ErrorCodes
     public const int InvalidCronExpression = 2021;
     public const int ScheduleJobMismatch = 2023;
 
+    // Execution Control (2040-2049)
+    public const int ExecutionCannotBePaused = 2040;
+    public const int ExecutionCannotBeResumed = 2041;
+    public const int ExecutionCannotBeCancelled = 2042;
+
     // Connections (3000-3999)
     public const int ConnectionTestFailed = 3000;
     public const int AuthenticationFailed = 3001;
@@ -79,6 +84,31 @@ public static class ErrorCodes
     public const int MonitorAlreadyActive = 7002;
     public const int InvalidWatchTarget = 7003;
     public const int InvalidPollingInterval = 7004;
+
+    // Chains & Dependencies (2050-2069)
+    public const int ChainNotFound = 2050;
+    public const int ChainNotEnabled = 2051;
+    public const int ChainHasNoMembers = 2052;
+    public const int CircularDependency = 2053;
+    public const int SelfDependency = 2054;
+    public const int DuplicateDependency = 2055;
+    public const int ChainMemberJobNotFound = 2056;
+    public const int ChainExecutionNotFound = 2057;
+    public const int DependencyNotFound = 2058;
+
+    // Tags (7100-7199)
+    public const int DuplicateTagName = 7100;
+    public const int InvalidTagEntityType = 7101;
+    public const int TagEntityNotFound = 7102;
+
+    // Notifications (7200-7299)
+    public const int NotificationRuleNotFound = 7200;
+    public const int DuplicateNotificationRuleName = 7201;
+    public const int InvalidNotificationChannel = 7202;
+    public const int InvalidNotificationEntityType = 7203;
+    public const int NotificationDispatchFailed = 7204;
+    public const int InvalidChannelConfig = 7205;
+    public const int NotificationTestFailed = 7206;
 }
 
 public static class ErrorMessages
@@ -99,6 +129,9 @@ public static class ErrorMessages
         [ErrorCodes.ScheduleNotFound] = "Schedule not found",
         [ErrorCodes.InvalidCronExpression] = "Invalid cron expression",
         [ErrorCodes.ScheduleJobMismatch] = "Schedule does not belong to this job",
+        [ErrorCodes.ExecutionCannotBePaused] = "Execution cannot be paused",
+        [ErrorCodes.ExecutionCannotBeResumed] = "Execution cannot be resumed",
+        [ErrorCodes.ExecutionCannotBeCancelled] = "Execution cannot be cancelled",
         [ErrorCodes.ConnectionTestFailed] = "Connection test failed",
         [ErrorCodes.AuthenticationFailed] = "Authentication failed",
         [ErrorCodes.HostKeyMismatch] = "Host key mismatch",
@@ -145,6 +178,18 @@ public static class ErrorMessages
         [ErrorCodes.MonitorAlreadyActive] = "Monitor already active",
         [ErrorCodes.InvalidWatchTarget] = "Invalid watch target",
         [ErrorCodes.InvalidPollingInterval] = "Invalid polling interval",
+        [ErrorCodes.ChainNotFound] = "Chain not found",
+        [ErrorCodes.ChainNotEnabled] = "Chain not enabled",
+        [ErrorCodes.ChainHasNoMembers] = "Chain has no members",
+        [ErrorCodes.CircularDependency] = "Circular dependency detected",
+        [ErrorCodes.SelfDependency] = "Self-dependency not allowed",
+        [ErrorCodes.DuplicateDependency] = "Duplicate dependency",
+        [ErrorCodes.ChainMemberJobNotFound] = "Chain member job not found",
+        [ErrorCodes.ChainExecutionNotFound] = "Chain execution not found",
+        [ErrorCodes.DependencyNotFound] = "Dependency not found",
+        [ErrorCodes.DuplicateTagName] = "Duplicate tag name",
+        [ErrorCodes.InvalidTagEntityType] = "Invalid entity type for tagging",
+        [ErrorCodes.TagEntityNotFound] = "Tagged entity not found",
     };
 
     public static ApiError Create(int code, string message, IReadOnlyList<FieldError>? details = null)

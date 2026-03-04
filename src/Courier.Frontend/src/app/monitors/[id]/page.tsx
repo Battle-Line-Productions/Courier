@@ -17,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { FileLogTable } from "@/components/monitors/file-log-table";
+import { TagPicker } from "@/components/tags/tag-picker";
 import { Pencil, Play, Pause, Ban, AlertTriangle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -171,6 +172,16 @@ export default function MonitorDetailPage({ params }: { params: Promise<{ id: st
           </Button>
         </div>
       </div>
+
+      {/* Tags */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Tags</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TagPicker entityType="monitor" entityId={id} currentTags={monitor.tags} />
+        </CardContent>
+      </Card>
 
       <Separator />
 

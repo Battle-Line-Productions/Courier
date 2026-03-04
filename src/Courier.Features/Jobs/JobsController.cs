@@ -12,6 +12,7 @@ public class JobsController : ControllerBase
     private readonly JobStepService _stepService;
     private readonly ExecutionService _executionService;
     private readonly JobScheduleService _scheduleService;
+    private readonly JobDependencyService _dependencyService;
     private readonly IValidator<CreateJobRequest> _validator;
 
     public JobsController(
@@ -19,12 +20,14 @@ public class JobsController : ControllerBase
         JobStepService stepService,
         ExecutionService executionService,
         JobScheduleService scheduleService,
+        JobDependencyService dependencyService,
         IValidator<CreateJobRequest> validator)
     {
         _jobService = jobService;
         _stepService = stepService;
         _executionService = executionService;
         _scheduleService = scheduleService;
+        _dependencyService = dependencyService;
         _validator = validator;
     }
 
@@ -65,9 +68,10 @@ public class JobsController : ControllerBase
     public async Task<ActionResult<PagedApiResponse<JobDto>>> List(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
+        [FromQuery] string? tag = null,
         CancellationToken ct = default)
     {
-        var result = await _jobService.ListAsync(page, pageSize, ct);
+        var result = await _jobService.ListAsync(page, pageSize, tag, ct);
         return Ok(result);
     }
 
@@ -215,6 +219,67 @@ public class JobsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("executions/{executionId:guid}/pause")]
+    public async Task<ActionResult<ApiResponse<JobExecutionDto>>> PauseExecution(
+        Guid executionId,
+        CancellationToken ct)
+    {
+        var result = await _executionService.PauseExecutionAsync(executionId, "system", ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ExecutionNotFound => NotFound(result),
+                ErrorCodes.ExecutionCannotBePaused => Conflict(result),
+                _ => StatusCode(500, result)
+            };
+        }
+
+        return Ok(result);
+    }
+
+    [HttpPost("executions/{executionId:guid}/resume")]
+    public async Task<ActionResult<ApiResponse<JobExecutionDto>>> ResumeExecution(
+        Guid executionId,
+        CancellationToken ct)
+    {
+        var result = await _executionService.ResumeExecutionAsync(executionId, "system", ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ExecutionNotFound => NotFound(result),
+                ErrorCodes.ExecutionCannotBeResumed => Conflict(result),
+                _ => StatusCode(500, result)
+            };
+        }
+
+        return Ok(result);
+    }
+
+    [HttpPost("executions/{executionId:guid}/cancel")]
+    public async Task<ActionResult<ApiResponse<JobExecutionDto>>> CancelExecution(
+        Guid executionId,
+        [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] CancelExecutionRequest? request,
+        CancellationToken ct)
+    {
+        var result = await _executionService.CancelExecutionAsync(executionId, "system", request?.Reason, ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ExecutionNotFound => NotFound(result),
+                ErrorCodes.ExecutionCannotBeCancelled => Conflict(result),
+                _ => StatusCode(500, result)
+            };
+        }
+
+        return Ok(result);
+    }
+
     [HttpGet("{jobId:guid}/schedules")]
     public async Task<ActionResult<ApiResponse<List<JobScheduleDto>>>> ListSchedules(
         Guid jobId,
@@ -312,6 +377,58 @@ public class JobsController : ControllerBase
             {
                 ErrorCodes.ScheduleNotFound => NotFound(result),
                 ErrorCodes.ScheduleJobMismatch => BadRequest(result),
+                _ => StatusCode(500, result)
+            };
+        }
+
+        return Ok(result);
+    }
+
+    [HttpGet("{jobId:guid}/dependencies")]
+    public async Task<ActionResult<ApiResponse<List<JobDependencyDto>>>> ListDependencies(
+        Guid jobId,
+        CancellationToken ct)
+    {
+        var result = await _dependencyService.ListDependenciesAsync(jobId, ct);
+        return Ok(result);
+    }
+
+    [HttpPost("{jobId:guid}/dependencies")]
+    public async Task<ActionResult<ApiResponse<JobDependencyDto>>> AddDependency(
+        Guid jobId,
+        [FromBody] AddJobDependencyRequest request,
+        CancellationToken ct)
+    {
+        var result = await _dependencyService.AddDependencyAsync(jobId, request.UpstreamJobId, request.RunOnFailure, ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ResourceNotFound => NotFound(result),
+                ErrorCodes.SelfDependency => BadRequest(result),
+                ErrorCodes.DuplicateDependency => Conflict(result),
+                ErrorCodes.CircularDependency => BadRequest(result),
+                _ => StatusCode(500, result)
+            };
+        }
+
+        return Created($"/api/v1/jobs/{jobId}/dependencies/{result.Data!.Id}", result);
+    }
+
+    [HttpDelete("{jobId:guid}/dependencies/{depId:guid}")]
+    public async Task<ActionResult<ApiResponse>> RemoveDependency(
+        Guid jobId,
+        Guid depId,
+        CancellationToken ct)
+    {
+        var result = await _dependencyService.RemoveDependencyAsync(jobId, depId, ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.DependencyNotFound => NotFound(result),
                 _ => StatusCode(500, result)
             };
         }

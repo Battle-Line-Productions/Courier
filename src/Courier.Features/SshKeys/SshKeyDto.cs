@@ -1,3 +1,5 @@
+using Courier.Features.Tags;
+
 namespace Courier.Features.SshKeys;
 
 public record SshKeyDto
@@ -13,6 +15,7 @@ public record SshKeyDto
     public string? CreatedBy { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
+    public List<TagSummaryDto> Tags { get; init; } = [];
 }
 
 public record GenerateSshKeyRequest

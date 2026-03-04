@@ -3,6 +3,7 @@ using Courier.Domain.Encryption;
 using Courier.Domain.Entities;
 using Courier.Domain.Enums;
 using Courier.Features.AuditLog;
+using Courier.Features.Tags;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Org.BouncyCastle.Bcpg;
@@ -203,7 +204,9 @@ public class PgpKeyService
             };
         }
 
-        return new ApiResponse<PgpKeyDto> { Data = MapToDto(key) };
+        var dto = MapToDto(key);
+        dto = dto with { Tags = await TagHelper.GetTagsForEntityAsync(_db, "pgp_key", id, ct) };
+        return new ApiResponse<PgpKeyDto> { Data = dto };
     }
 
     public async Task<PagedApiResponse<PgpKeyDto>> ListAsync(
@@ -213,6 +216,7 @@ public class PgpKeyService
         string? status = null,
         string? keyType = null,
         string? algorithm = null,
+        string? tag = null,
         CancellationToken ct = default)
     {
         pageSize = Math.Clamp(pageSize, 1, 100);
@@ -236,6 +240,16 @@ public class PgpKeyService
         if (!string.IsNullOrWhiteSpace(algorithm))
             query = query.Where(k => k.Algorithm == algorithm);
 
+        if (!string.IsNullOrWhiteSpace(tag))
+        {
+            var tagName = tag.ToLower();
+            query = query.Where(e => _db.EntityTags
+                .Any(et => et.EntityType == "pgp_key"
+                        && et.EntityId == e.Id
+                        && et.Tag.Name.ToLower() == tagName
+                        && !et.Tag.IsDeleted));
+        }
+
         query = query.OrderByDescending(k => k.CreatedAt);
 
         var totalCount = await query.CountAsync(ct);
@@ -246,6 +260,10 @@ public class PgpKeyService
             .Take(pageSize)
             .Select(k => MapToDto(k))
             .ToListAsync(ct);
+
+        var entityIds = items.Select(i => i.Id).ToList();
+        var tagMap = await TagHelper.GetTagsForEntitiesAsync(_db, "pgp_key", entityIds, ct);
+        items = items.Select(i => i with { Tags = tagMap.GetValueOrDefault(i.Id, []) }).ToList();
 
         return new PagedApiResponse<PgpKeyDto>
         {

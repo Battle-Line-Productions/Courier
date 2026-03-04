@@ -5,6 +5,7 @@ using Courier.Domain.Entities;
 using Courier.Domain.Enums;
 using Courier.Features.AuditLog;
 using Courier.Features.Engine.Protocols;
+using Courier.Features.Notifications;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -18,14 +19,16 @@ public class JobEngine
     private readonly JobConnectionRegistry _connectionRegistry;
     private readonly ILogger<JobEngine> _logger;
     private readonly AuditService _audit;
+    private readonly NotificationDispatcher _dispatcher;
 
-    public JobEngine(CourierDbContext db, StepTypeRegistry registry, JobConnectionRegistry connectionRegistry, ILogger<JobEngine> logger, AuditService audit)
+    public JobEngine(CourierDbContext db, StepTypeRegistry registry, JobConnectionRegistry connectionRegistry, ILogger<JobEngine> logger, AuditService audit, NotificationDispatcher dispatcher)
     {
         _db = db;
         _registry = registry;
         _connectionRegistry = connectionRegistry;
         _logger = logger;
         _audit = audit;
+        _dispatcher = dispatcher;
     }
 
     public async Task ExecuteAsync(Guid executionId, CancellationToken cancellationToken)
@@ -58,12 +61,70 @@ public class JobEngine
         var context = new JobContext();
         var allSucceeded = true;
 
-        await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, "ExecutionStarted", details: new { jobId = execution.JobId }, ct: cancellationToken);
+        // Load existing step executions for resume detection
+        var existingStepExecutions = await _db.StepExecutions
+            .Where(se => se.JobExecutionId == execution.Id)
+            .ToListAsync(cancellationToken);
+
+        // Determine starting step for resumed executions
+        var isResumed = existingStepExecutions.Any(s => s.State == StepExecutionState.Completed);
+        var stepsToExecute = steps;
+
+        if (isResumed)
+        {
+            var lastCompletedOrder = existingStepExecutions
+                .Where(s => s.State == StepExecutionState.Completed)
+                .Max(s => s.StepOrder);
+
+            stepsToExecute = steps.Where(s => s.StepOrder > lastCompletedOrder).ToList();
+
+            // Restore context from snapshot
+            if (!string.IsNullOrEmpty(execution.ContextSnapshot) && execution.ContextSnapshot != "{}")
+            {
+                var savedContext = JsonSerializer.Deserialize<Dictionary<string, object>>(execution.ContextSnapshot);
+                if (savedContext != null)
+                    context = JobContext.Restore(savedContext);
+            }
+
+            _logger.LogInformation("Resuming execution {ExecutionId} from step order {StartFrom}", executionId, lastCompletedOrder + 1);
+        }
+
+        await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, isResumed ? "ExecutionResumed" : "ExecutionStarted", details: new { jobId = execution.JobId }, ct: cancellationToken);
 
         try
         {
-            foreach (var step in steps)
+            foreach (var step in stepsToExecute)
             {
+                // Check for control signals before each step
+                var signal = await CheckControlSignalAsync(execution.Id, cancellationToken);
+
+                if (signal == "paused")
+                {
+                    execution.State = JobExecutionState.Paused;
+                    execution.PausedAt = DateTime.UtcNow;
+                    execution.RequestedState = null;
+                    execution.ContextSnapshot = JsonSerializer.Serialize(context.Snapshot());
+                    await _db.SaveChangesAsync(cancellationToken);
+
+                    _logger.LogInformation("Execution {ExecutionId} paused before step {StepName}", executionId, step.Name);
+                    await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, "ExecutionPaused", details: new { beforeStep = step.Name }, ct: cancellationToken);
+                    return;
+                }
+
+                if (signal == "cancelled")
+                {
+                    execution.State = JobExecutionState.Cancelled;
+                    execution.CancelledAt = DateTime.UtcNow;
+                    execution.CompletedAt = DateTime.UtcNow;
+                    execution.RequestedState = null;
+                    await _db.SaveChangesAsync(cancellationToken);
+
+                    _logger.LogInformation("Execution {ExecutionId} cancelled before step {StepName}", executionId, step.Name);
+                    await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, "ExecutionCancelled", details: new { beforeStep = step.Name }, ct: cancellationToken);
+                    await DispatchJobNotificationAsync(execution, "job_cancelled", cancellationToken);
+                    return;
+                }
+
                 var stepExecution = new StepExecution
                 {
                     Id = Guid.NewGuid(),
@@ -130,6 +191,9 @@ public class JobEngine
 
                     await _audit.LogAsync(AuditableEntityType.StepExecution, stepExecution.Id, "StepFailed", details: new { error = result.ErrorMessage, stepType = step.TypeKey }, ct: cancellationToken);
 
+                    if (failurePolicy.Type != FailurePolicyType.SkipAndContinue)
+                        await DispatchJobNotificationAsync(execution, "step_failed", cancellationToken, new Dictionary<string, object> { ["stepName"] = step.Name, ["error"] = result.ErrorMessage ?? "" });
+
                     if (failurePolicy.Type == FailurePolicyType.SkipAndContinue)
                     {
                         _logger.LogInformation("Failure policy is SkipAndContinue. Continuing to next step.");
@@ -152,6 +216,9 @@ public class JobEngine
 
             var executionOp = allSucceeded ? "ExecutionCompleted" : "ExecutionFailed";
             await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, executionOp, details: new { jobId = execution.JobId, state = execution.State.ToString().ToLowerInvariant() }, ct: cancellationToken);
+
+            var notifEventType = allSucceeded ? "job_completed" : "job_failed";
+            await DispatchJobNotificationAsync(execution, notifEventType, cancellationToken);
         }
         finally
         {
@@ -159,6 +226,50 @@ public class JobEngine
         }
 
         _logger.LogInformation("JobExecution {ExecutionId} finished with state {State}", executionId, execution.State);
+    }
+
+    private async Task DispatchJobNotificationAsync(JobExecution execution, string eventType, CancellationToken ct, Dictionary<string, object>? extraContext = null)
+    {
+        try
+        {
+            var context = new Dictionary<string, object>
+            {
+                ["executionId"] = execution.Id,
+                ["state"] = execution.State.ToString().ToLowerInvariant(),
+            };
+
+            if (extraContext is not null)
+            {
+                foreach (var kvp in extraContext)
+                    context[kvp.Key] = kvp.Value;
+            }
+
+            var notificationEvent = new NotificationEvent
+            {
+                EventType = eventType,
+                EntityType = "job",
+                EntityId = execution.JobId,
+                EntityName = execution.Job?.Name,
+                Context = context,
+            };
+
+            await _dispatcher.DispatchAsync(notificationEvent, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to dispatch notification for execution {ExecutionId}", execution.Id);
+        }
+    }
+
+    private async Task<string?> CheckControlSignalAsync(Guid executionId, CancellationToken ct)
+    {
+        // Read fresh from DB to pick up API-written signals
+        var requestedState = await _db.JobExecutions
+            .Where(e => e.Id == executionId)
+            .Select(e => e.RequestedState)
+            .FirstOrDefaultAsync(ct);
+
+        return requestedState;
     }
 
     private static FailurePolicy ParseFailurePolicy(string json)

@@ -49,9 +49,10 @@ public class ConnectionsController : ControllerBase
         [FromQuery] string? protocol = null,
         [FromQuery] string? group = null,
         [FromQuery] string? status = null,
+        [FromQuery] string? tag = null,
         CancellationToken ct = default)
     {
-        var result = await _connectionService.ListAsync(page, pageSize, search, protocol, group, status, ct);
+        var result = await _connectionService.ListAsync(page, pageSize, search, protocol, group, status, tag, ct);
         return Ok(result);
     }
 

@@ -1,3 +1,5 @@
+using Courier.Features.Tags;
+
 namespace Courier.Features.Monitors;
 
 public record MonitorDto
@@ -18,6 +20,7 @@ public record MonitorDto
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
     public List<MonitorJobBindingDto> Bindings { get; init; } = [];
+    public List<TagSummaryDto> Tags { get; init; } = [];
 }
 
 public record MonitorJobBindingDto

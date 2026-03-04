@@ -1,3 +1,5 @@
+using Courier.Features.Tags;
+
 namespace Courier.Features.Jobs;
 
 public record CreateJobRequest
@@ -21,4 +23,5 @@ public record JobDto
     public bool IsEnabled { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
+    public List<TagSummaryDto> Tags { get; init; } = [];
 }

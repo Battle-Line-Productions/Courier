@@ -16,6 +16,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { useDeletePgpKey, useRetirePgpKey, useRevokePgpKey, useActivatePgpKey } from "@/lib/hooks/use-pgp-key-mutations";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { TagBadge } from "@/components/tags/tag-badge";
 import type { PgpKeyDto } from "@/lib/types";
 import Link from "next/link";
 
@@ -78,6 +79,7 @@ export function PgpKeyTable({ keys }: PgpKeyTableProps) {
             <TableHead>Type</TableHead>
             <TableHead>Fingerprint</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Tags</TableHead>
             <TableHead>Expires</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="w-10" />
@@ -109,6 +111,13 @@ export function PgpKeyTable({ keys }: PgpKeyTableProps) {
               </TableCell>
               <TableCell>
                 <StatusBadge state={key.status} />
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {key.tags?.map((tag) => (
+                    <TagBadge key={tag.name} name={tag.name} color={tag.color} />
+                  ))}
+                </div>
               </TableCell>
               <TableCell className="text-muted-foreground text-sm">
                 {key.expiresAt ? new Date(key.expiresAt).toLocaleDateString() : "\u2014"}

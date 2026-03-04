@@ -5,6 +5,7 @@ using Courier.Domain.Encryption;
 using Courier.Domain.Entities;
 using Courier.Domain.Enums;
 using Courier.Features.AuditLog;
+using Courier.Features.Tags;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -146,7 +147,9 @@ public class SshKeyService
             };
         }
 
-        return new ApiResponse<SshKeyDto> { Data = MapToDto(key) };
+        var dto = MapToDto(key);
+        dto = dto with { Tags = await TagHelper.GetTagsForEntityAsync(_db, "ssh_key", id, ct) };
+        return new ApiResponse<SshKeyDto> { Data = dto };
     }
 
     public async Task<PagedApiResponse<SshKeyDto>> ListAsync(
@@ -155,6 +158,7 @@ public class SshKeyService
         string? search = null,
         string? status = null,
         string? keyType = null,
+        string? tag = null,
         CancellationToken ct = default)
     {
         pageSize = Math.Clamp(pageSize, 1, 100);
@@ -175,6 +179,16 @@ public class SshKeyService
         if (!string.IsNullOrWhiteSpace(keyType))
             query = query.Where(k => k.KeyType == keyType);
 
+        if (!string.IsNullOrWhiteSpace(tag))
+        {
+            var tagName = tag.ToLower();
+            query = query.Where(e => _db.EntityTags
+                .Any(et => et.EntityType == "ssh_key"
+                        && et.EntityId == e.Id
+                        && et.Tag.Name.ToLower() == tagName
+                        && !et.Tag.IsDeleted));
+        }
+
         query = query.OrderByDescending(k => k.CreatedAt);
 
         var totalCount = await query.CountAsync(ct);
@@ -185,6 +199,10 @@ public class SshKeyService
             .Take(pageSize)
             .Select(k => MapToDto(k))
             .ToListAsync(ct);
+
+        var entityIds = items.Select(i => i.Id).ToList();
+        var tagMap = await TagHelper.GetTagsForEntitiesAsync(_db, "ssh_key", entityIds, ct);
+        items = items.Select(i => i with { Tags = tagMap.GetValueOrDefault(i.Id, []) }).ToList();
 
         return new PagedApiResponse<SshKeyDto>
         {

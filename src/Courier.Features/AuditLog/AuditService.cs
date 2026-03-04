@@ -20,6 +20,10 @@ public class AuditService
         [AuditableEntityType.PgpKey] = "pgp_key",
         [AuditableEntityType.SshKey] = "ssh_key",
         [AuditableEntityType.FileMonitor] = "file_monitor",
+        [AuditableEntityType.Tag] = "tag",
+        [AuditableEntityType.Chain] = "chain",
+        [AuditableEntityType.ChainExecution] = "chain_execution",
+        [AuditableEntityType.NotificationRule] = "notification_rule",
     };
 
     public AuditService(CourierDbContext db)

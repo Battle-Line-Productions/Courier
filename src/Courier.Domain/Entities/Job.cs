@@ -16,4 +16,6 @@ public class Job
     public List<JobStep> Steps { get; set; } = [];
     public List<JobExecution> Executions { get; set; } = [];
     public List<JobSchedule> Schedules { get; set; } = [];
+    public List<JobDependency> UpstreamDependencies { get; set; } = [];
+    public List<JobDependency> DownstreamDependencies { get; set; } = [];
 }

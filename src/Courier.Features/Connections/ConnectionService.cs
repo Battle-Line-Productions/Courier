@@ -5,6 +5,7 @@ using Courier.Domain.Enums;
 using Courier.Domain.Protocols;
 using Courier.Features.AuditLog;
 using Courier.Features.Engine.Protocols;
+using Courier.Features.Tags;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -80,7 +81,9 @@ public class ConnectionService
             };
         }
 
-        return new ApiResponse<ConnectionDto> { Data = MapToDto(connection) };
+        var dto = MapToDto(connection);
+        dto = dto with { Tags = await TagHelper.GetTagsForEntityAsync(_db, "connection", id, ct) };
+        return new ApiResponse<ConnectionDto> { Data = dto };
     }
 
     public async Task<PagedApiResponse<ConnectionDto>> ListAsync(
@@ -90,6 +93,7 @@ public class ConnectionService
         string? protocol = null,
         string? group = null,
         string? status = null,
+        string? tag = null,
         CancellationToken ct = default)
     {
         pageSize = Math.Clamp(pageSize, 1, 100);
@@ -112,6 +116,16 @@ public class ConnectionService
         if (!string.IsNullOrWhiteSpace(status))
             query = query.Where(c => c.Status == status);
 
+        if (!string.IsNullOrWhiteSpace(tag))
+        {
+            var tagName = tag.ToLower();
+            query = query.Where(e => _db.EntityTags
+                .Any(et => et.EntityType == "connection"
+                        && et.EntityId == e.Id
+                        && et.Tag.Name.ToLower() == tagName
+                        && !et.Tag.IsDeleted));
+        }
+
         query = query.OrderByDescending(c => c.CreatedAt);
 
         var totalCount = await query.CountAsync(ct);
@@ -122,6 +136,10 @@ public class ConnectionService
             .Take(pageSize)
             .Select(c => MapToDto(c))
             .ToListAsync(ct);
+
+        var entityIds = items.Select(i => i.Id).ToList();
+        var tagMap = await TagHelper.GetTagsForEntitiesAsync(_db, "connection", entityIds, ct);
+        items = items.Select(i => i with { Tags = tagMap.GetValueOrDefault(i.Id, []) }).ToList();
 
         return new PagedApiResponse<ConnectionDto>
         {

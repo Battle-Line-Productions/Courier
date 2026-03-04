@@ -8,5 +8,9 @@ public enum AuditableEntityType
     Connection,
     PgpKey,
     SshKey,
-    FileMonitor
+    FileMonitor,
+    Tag,
+    Chain,
+    ChainExecution,
+    NotificationRule
 }

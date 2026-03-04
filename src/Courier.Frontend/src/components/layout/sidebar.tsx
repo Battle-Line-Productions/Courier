@@ -13,6 +13,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Package,
+  Tag,
+  Link2,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -21,9 +24,12 @@ import { Button } from "@/components/ui/button";
 const navItems = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard, active: true, exact: true },
   { label: "Jobs", href: "/jobs", icon: Briefcase, active: true },
+  { label: "Chains", href: "/chains", icon: Link2, active: true },
   { label: "Connections", href: "/connections", icon: Cable, active: true },
   { label: "Keys", href: "/keys", icon: KeyRound, active: true },
   { label: "Monitors", href: "/monitors", icon: Eye, active: true },
+  { label: "Tags", href: "/tags", icon: Tag, active: true },
+  { label: "Notifications", href: "/notifications", icon: Bell, active: true },
   { label: "Audit", href: "/audit", icon: FileText, active: true },
 ];
 

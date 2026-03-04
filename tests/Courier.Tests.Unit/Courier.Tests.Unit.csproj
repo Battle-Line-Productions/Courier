@@ -9,6 +9,7 @@
     <ProjectReference Include="..\..\src\Courier.Domain\Courier.Domain.csproj" />
     <ProjectReference Include="..\..\src\Courier.Features\Courier.Features.csproj" />
     <ProjectReference Include="..\..\src\Courier.Infrastructure\Courier.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Courier.Worker\Courier.Worker.csproj" />
   </ItemGroup>
 
   <ItemGroup>

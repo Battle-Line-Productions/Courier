@@ -1,3 +1,5 @@
+using Courier.Features.Tags;
+
 namespace Courier.Features.PgpKeys;
 
 public record PgpKeyDto
@@ -18,6 +20,7 @@ public record PgpKeyDto
     public string? Notes { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
+    public List<TagSummaryDto> Tags { get; init; } = [];
 }
 
 public record GeneratePgpKeyRequest

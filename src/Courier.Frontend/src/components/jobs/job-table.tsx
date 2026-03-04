@@ -22,6 +22,7 @@ import { Eye, MoreHorizontal, Pencil, Play, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useDeleteJob, useTriggerJob } from "@/lib/hooks/use-job-mutations";
 import { toast } from "sonner";
+import { TagBadge } from "@/components/tags/tag-badge";
 import type { JobDto } from "@/lib/types";
 
 function timeAgo(dateStr: string): string {
@@ -67,6 +68,7 @@ export function JobTable({ jobs }: JobTableProps) {
             <TableHead>Description</TableHead>
             <TableHead>Version</TableHead>
             <TableHead>Enabled</TableHead>
+            <TableHead>Tags</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="w-10" />
           </TableRow>
@@ -95,6 +97,13 @@ export function JobTable({ jobs }: JobTableProps) {
                 <Badge variant={job.isEnabled ? "default" : "secondary"}>
                   {job.isEnabled ? "Yes" : "No"}
                 </Badge>
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {job.tags?.map((tag) => (
+                    <TagBadge key={tag.name} name={tag.name} color={tag.color} />
+                  ))}
+                </div>
               </TableCell>
               <TableCell className="text-muted-foreground text-sm">
                 {timeAgo(job.createdAt)}

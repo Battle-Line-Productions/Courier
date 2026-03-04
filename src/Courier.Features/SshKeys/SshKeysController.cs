@@ -27,9 +27,10 @@ public class SshKeysController : ControllerBase
         [FromQuery] string? search = null,
         [FromQuery] string? status = null,
         [FromQuery] string? keyType = null,
+        [FromQuery] string? tag = null,
         CancellationToken ct = default)
     {
-        var result = await _sshKeyService.ListAsync(page, pageSize, search, status, keyType, ct);
+        var result = await _sshKeyService.ListAsync(page, pageSize, search, status, keyType, tag, ct);
         return Ok(result);
     }
 

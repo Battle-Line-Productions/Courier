@@ -57,9 +57,10 @@ public class MonitorsController : ControllerBase
         [FromQuery] int pageSize = 25,
         [FromQuery] string? search = null,
         [FromQuery] string? state = null,
+        [FromQuery] string? tag = null,
         CancellationToken ct = default)
     {
-        var result = await _monitorService.ListAsync(page, pageSize, search, state, ct);
+        var result = await _monitorService.ListAsync(page, pageSize, search, state, tag, ct);
         return Ok(result);
     }
 

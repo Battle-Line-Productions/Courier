@@ -29,6 +29,7 @@ import {
   useAcknowledgeMonitorError,
 } from "@/lib/hooks/use-monitor-mutations";
 import { toast } from "sonner";
+import { TagBadge } from "@/components/tags/tag-badge";
 import type { MonitorDto } from "@/lib/types";
 import Link from "next/link";
 
@@ -103,6 +104,7 @@ export function MonitorTable({ monitors }: MonitorTableProps) {
             <TableHead>State</TableHead>
             <TableHead>Interval</TableHead>
             <TableHead>Bound Jobs</TableHead>
+            <TableHead>Tags</TableHead>
             <TableHead>Last Polled</TableHead>
             <TableHead className="w-10" />
           </TableRow>
@@ -129,6 +131,13 @@ export function MonitorTable({ monitors }: MonitorTableProps) {
               </TableCell>
               <TableCell className="text-muted-foreground text-sm">
                 {monitor.bindings.length}
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {monitor.tags?.map((tag) => (
+                    <TagBadge key={tag.name} name={tag.name} color={tag.color} />
+                  ))}
+                </div>
               </TableCell>
               <TableCell className="text-muted-foreground text-sm">
                 {monitor.lastPolledAt ? timeAgo(monitor.lastPolledAt) : "Never"}

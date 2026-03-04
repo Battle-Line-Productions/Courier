@@ -40,6 +40,7 @@ export interface JobDto {
   description?: string;
   currentVersion: number;
   isEnabled: boolean;
+  tags?: TagSummaryDto[];
   createdAt: string;
   updatedAt: string;
 }
@@ -62,6 +63,11 @@ export interface JobExecutionDto {
   queuedAt?: string;
   startedAt?: string;
   completedAt?: string;
+  pausedAt?: string;
+  pausedBy?: string;
+  cancelledAt?: string;
+  cancelledBy?: string;
+  cancelReason?: string;
   createdAt: string;
   stepExecutions?: StepExecutionDto[];
 }
@@ -180,6 +186,7 @@ export interface ConnectionDto {
   status: string;
   fipsOverride: boolean;
   notes?: string;
+  tags?: TagSummaryDto[];
   createdAt: string;
   updatedAt: string;
 }
@@ -284,6 +291,7 @@ export interface MonitorDto {
   consecutiveFailureCount: number;
   state: string;
   lastPolledAt?: string;
+  tags?: TagSummaryDto[];
   createdAt: string;
   updatedAt: string;
   bindings: MonitorJobBindingDto[];
@@ -388,6 +396,7 @@ export interface PgpKeyDto {
   successorKeyId?: string;
   createdBy?: string;
   notes?: string;
+  tags?: TagSummaryDto[];
   createdAt: string;
   updatedAt: string;
 }
@@ -425,6 +434,7 @@ export interface SshKeyDto {
   hasPrivateKey: boolean;
   notes?: string;
   createdBy?: string;
+  tags?: TagSummaryDto[];
   createdAt: string;
   updatedAt: string;
 }
@@ -464,4 +474,180 @@ export interface AuditLogFilter {
   performedBy?: string;
   from?: string;
   to?: string;
+}
+
+// Tags
+export interface TagDto {
+  id: string;
+  name: string;
+  color?: string;
+  category?: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TagSummaryDto {
+  name: string;
+  color?: string;
+}
+
+export interface CreateTagRequest {
+  name: string;
+  color?: string;
+  category?: string;
+  description?: string;
+}
+
+export interface UpdateTagRequest {
+  name: string;
+  color?: string;
+  category?: string;
+  description?: string;
+}
+
+export interface TagAssignment {
+  tagId: string;
+  entityType: string;
+  entityId: string;
+}
+
+export interface BulkTagAssignmentRequest {
+  assignments: TagAssignment[];
+}
+
+export interface TagEntityDto {
+  entityId: string;
+  entityType: string;
+}
+
+// Chains
+export interface JobChainDto {
+  id: string;
+  name: string;
+  description?: string;
+  isEnabled: boolean;
+  members: JobChainMemberDto[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface JobChainMemberDto {
+  id: string;
+  jobId: string;
+  jobName: string;
+  executionOrder: number;
+  dependsOnMemberId?: string;
+  runOnUpstreamFailure: boolean;
+}
+
+export interface ChainExecutionDto {
+  id: string;
+  chainId: string;
+  state: string;
+  triggeredBy: string;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  jobExecutions: ChainJobExecutionDto[];
+}
+
+export interface ChainJobExecutionDto {
+  id: string;
+  jobId: string;
+  jobName: string;
+  state: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export interface CreateChainRequest {
+  name: string;
+  description?: string;
+}
+
+export interface UpdateChainRequest {
+  name: string;
+  description?: string;
+}
+
+export interface ChainMemberInput {
+  jobId: string;
+  executionOrder: number;
+  dependsOnMemberIndex?: number;
+  runOnUpstreamFailure?: boolean;
+}
+
+export interface ReplaceChainMembersRequest {
+  members: ChainMemberInput[];
+}
+
+export interface TriggerChainRequest {
+  triggeredBy: string;
+}
+
+// Job Dependencies
+export interface JobDependencyDto {
+  id: string;
+  upstreamJobId: string;
+  upstreamJobName: string;
+  downstreamJobId: string;
+  runOnFailure: boolean;
+}
+
+export interface AddJobDependencyRequest {
+  upstreamJobId: string;
+  runOnFailure?: boolean;
+}
+
+// Notifications
+export interface NotificationRuleDto {
+  id: string;
+  name: string;
+  description?: string;
+  entityType: string;
+  entityId?: string;
+  eventTypes: string[];
+  channel: string;
+  channelConfig: Record<string, unknown>;
+  isEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateNotificationRuleRequest {
+  name: string;
+  description?: string;
+  entityType: string;
+  entityId?: string;
+  eventTypes: string[];
+  channel: string;
+  channelConfig: Record<string, unknown>;
+  isEnabled?: boolean;
+}
+
+export interface UpdateNotificationRuleRequest {
+  name: string;
+  description?: string;
+  entityType: string;
+  entityId?: string;
+  eventTypes: string[];
+  channel: string;
+  channelConfig: Record<string, unknown>;
+  isEnabled: boolean;
+}
+
+export interface NotificationLogDto {
+  id: string;
+  notificationRuleId: string;
+  ruleName?: string;
+  eventType: string;
+  entityType: string;
+  entityId: string;
+  channel: string;
+  recipient: string;
+  payload: Record<string, unknown>;
+  success: boolean;
+  errorMessage?: string;
+  sentAt: string;
 }

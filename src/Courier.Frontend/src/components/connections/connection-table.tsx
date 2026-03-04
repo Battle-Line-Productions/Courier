@@ -23,6 +23,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useDeleteConnection } from "@/lib/hooks/use-connection-mutations";
 import { toast } from "sonner";
+import { TagBadge } from "@/components/tags/tag-badge";
 import type { ConnectionDto } from "@/lib/types";
 import Link from "next/link";
 
@@ -69,6 +70,7 @@ export function ConnectionTable({ connections }: ConnectionTableProps) {
             <TableHead>Protocol</TableHead>
             <TableHead>Host</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Tags</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="w-10" />
           </TableRow>
@@ -97,6 +99,13 @@ export function ConnectionTable({ connections }: ConnectionTableProps) {
               </TableCell>
               <TableCell>
                 <StatusBadge state={conn.status} />
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {conn.tags?.map((tag) => (
+                    <TagBadge key={tag.name} name={tag.name} color={tag.color} />
+                  ))}
+                </div>
               </TableCell>
               <TableCell className="text-muted-foreground text-sm">
                 {timeAgo(conn.createdAt)}

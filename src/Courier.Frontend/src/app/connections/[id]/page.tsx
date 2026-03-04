@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { TagPicker } from "@/components/tags/tag-picker";
 import { Pencil, Plug, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import type { ConnectionTestDto } from "@/lib/types";
 
@@ -120,6 +121,16 @@ export default function ConnectionDetailPage({ params }: { params: Promise<{ id:
           </Button>
         </div>
       </div>
+
+      {/* Tags */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Tags</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TagPicker entityType="connection" entityId={id} currentTags={conn.tags} />
+        </CardContent>
+      </Card>
 
       <Separator />
 

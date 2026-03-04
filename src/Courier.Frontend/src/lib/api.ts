@@ -31,6 +31,23 @@ import type {
   RecentExecutionDto,
   ExpiringKeyDto,
   AuditLogEntryDto,
+  TagDto,
+  TagEntityDto,
+  CreateTagRequest,
+  UpdateTagRequest,
+  BulkTagAssignmentRequest,
+  JobChainDto,
+  ChainExecutionDto,
+  CreateChainRequest,
+  UpdateChainRequest,
+  ReplaceChainMembersRequest,
+  TriggerChainRequest,
+  JobDependencyDto,
+  AddJobDependencyRequest,
+  NotificationRuleDto,
+  CreateNotificationRuleRequest,
+  UpdateNotificationRuleRequest,
+  NotificationLogDto,
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -62,8 +79,10 @@ class ApiClient {
   }
 
   // Jobs
-  async listJobs(page = 1, pageSize = 10): Promise<PagedApiResponse<JobDto>> {
-    return this.request(`/api/v1/jobs?page=${page}&pageSize=${pageSize}`);
+  async listJobs(page = 1, pageSize = 10, filters?: { tag?: string }): Promise<PagedApiResponse<JobDto>> {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (filters?.tag) params.set("tag", filters.tag);
+    return this.request(`/api/v1/jobs?${params}`);
   }
 
   async getJob(id: string): Promise<ApiResponse<JobDto>> {
@@ -116,6 +135,25 @@ class ApiClient {
     });
   }
 
+  async pauseExecution(executionId: string): Promise<ApiResponse<JobExecutionDto>> {
+    return this.request(`/api/v1/jobs/executions/${executionId}/pause`, {
+      method: "POST",
+    });
+  }
+
+  async resumeExecution(executionId: string): Promise<ApiResponse<JobExecutionDto>> {
+    return this.request(`/api/v1/jobs/executions/${executionId}/resume`, {
+      method: "POST",
+    });
+  }
+
+  async cancelExecution(executionId: string, reason?: string): Promise<ApiResponse<JobExecutionDto>> {
+    return this.request(`/api/v1/jobs/executions/${executionId}/cancel`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
+  }
+
   // Schedules
   async listSchedules(jobId: string): Promise<ApiResponse<JobScheduleDto[]>> {
     return this.request(`/api/v1/jobs/${jobId}/schedules`);
@@ -143,13 +181,14 @@ class ApiClient {
   async listConnections(
     page = 1,
     pageSize = 10,
-    filters?: { search?: string; protocol?: string; group?: string; status?: string }
+    filters?: { search?: string; protocol?: string; group?: string; status?: string; tag?: string }
   ): Promise<PagedApiResponse<ConnectionDto>> {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (filters?.search) params.set("search", filters.search);
     if (filters?.protocol) params.set("protocol", filters.protocol);
     if (filters?.group) params.set("group", filters.group);
     if (filters?.status) params.set("status", filters.status);
+    if (filters?.tag) params.set("tag", filters.tag);
     return this.request(`/api/v1/connections?${params}`);
   }
 
@@ -183,13 +222,14 @@ class ApiClient {
   async listPgpKeys(
     page = 1,
     pageSize = 10,
-    filters?: { search?: string; status?: string; keyType?: string; algorithm?: string }
+    filters?: { search?: string; status?: string; keyType?: string; algorithm?: string; tag?: string }
   ): Promise<PagedApiResponse<PgpKeyDto>> {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (filters?.search) params.set("search", filters.search);
     if (filters?.status) params.set("status", filters.status);
     if (filters?.keyType) params.set("keyType", filters.keyType);
     if (filters?.algorithm) params.set("algorithm", filters.algorithm);
+    if (filters?.tag) params.set("tag", filters.tag);
     return this.request(`/api/v1/pgp-keys?${params}`);
   }
 
@@ -247,12 +287,13 @@ class ApiClient {
   async listSshKeys(
     page = 1,
     pageSize = 10,
-    filters?: { search?: string; status?: string; keyType?: string }
+    filters?: { search?: string; status?: string; keyType?: string; tag?: string }
   ): Promise<PagedApiResponse<SshKeyDto>> {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (filters?.search) params.set("search", filters.search);
     if (filters?.status) params.set("status", filters.status);
     if (filters?.keyType) params.set("keyType", filters.keyType);
+    if (filters?.tag) params.set("tag", filters.tag);
     return this.request(`/api/v1/ssh-keys?${params}`);
   }
 
@@ -306,11 +347,12 @@ class ApiClient {
   async listMonitors(
     page = 1,
     pageSize = 10,
-    filters?: { search?: string; state?: string }
+    filters?: { search?: string; state?: string; tag?: string }
   ): Promise<PagedApiResponse<MonitorDto>> {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (filters?.search) params.set("search", filters.search);
     if (filters?.state) params.set("state", filters.state);
+    if (filters?.tag) params.set("tag", filters.tag);
     return this.request(`/api/v1/monitors?${params}`);
   }
 
@@ -412,6 +454,202 @@ class ApiClient {
   ): Promise<PagedApiResponse<AuditLogEntryDto>> {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     return this.request(`/api/v1/audit-log/entity/${entityType}/${entityId}?${params}`);
+  }
+
+  // Tags
+  async listTags(params?: { page?: number; pageSize?: number; search?: string; category?: string }): Promise<PagedApiResponse<TagDto>> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set("page", String(params.page));
+    if (params?.pageSize) searchParams.set("pageSize", String(params.pageSize));
+    if (params?.search) searchParams.set("search", params.search);
+    if (params?.category) searchParams.set("category", params.category);
+    return this.request(`/api/v1/tags?${searchParams}`);
+  }
+
+  async getTag(id: string): Promise<ApiResponse<TagDto>> {
+    return this.request(`/api/v1/tags/${id}`);
+  }
+
+  async createTag(data: CreateTagRequest): Promise<ApiResponse<TagDto>> {
+    return this.request("/api/v1/tags", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateTag(id: string, data: UpdateTagRequest): Promise<ApiResponse<TagDto>> {
+    return this.request(`/api/v1/tags/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteTag(id: string): Promise<ApiResponse<void>> {
+    return this.request(`/api/v1/tags/${id}`, { method: "DELETE" });
+  }
+
+  async listTagEntities(id: string, params?: { entityType?: string; page?: number; pageSize?: number }): Promise<PagedApiResponse<TagEntityDto>> {
+    const searchParams = new URLSearchParams();
+    if (params?.entityType) searchParams.set("entityType", params.entityType);
+    if (params?.page) searchParams.set("page", String(params.page));
+    if (params?.pageSize) searchParams.set("pageSize", String(params.pageSize));
+    return this.request(`/api/v1/tags/${id}/entities?${searchParams}`);
+  }
+
+  async assignTags(data: BulkTagAssignmentRequest): Promise<ApiResponse<void>> {
+    return this.request("/api/v1/tags/assign", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async unassignTags(data: BulkTagAssignmentRequest): Promise<ApiResponse<void>> {
+    return this.request("/api/v1/tags/unassign", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Chains
+  async listChains(page = 1, pageSize = 10): Promise<PagedApiResponse<JobChainDto>> {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    return this.request(`/api/v1/chains?${params}`);
+  }
+
+  async getChain(id: string): Promise<ApiResponse<JobChainDto>> {
+    return this.request(`/api/v1/chains/${id}`);
+  }
+
+  async createChain(data: CreateChainRequest): Promise<ApiResponse<JobChainDto>> {
+    return this.request("/api/v1/chains", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateChain(id: string, data: UpdateChainRequest): Promise<ApiResponse<JobChainDto>> {
+    return this.request(`/api/v1/chains/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteChain(id: string): Promise<ApiResponse<void>> {
+    return this.request(`/api/v1/chains/${id}`, { method: "DELETE" });
+  }
+
+  async setChainEnabled(id: string, enabled: boolean): Promise<ApiResponse<JobChainDto>> {
+    return this.request(`/api/v1/chains/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ name: "", isEnabled: enabled }),
+    });
+  }
+
+  async replaceChainMembers(chainId: string, data: ReplaceChainMembersRequest): Promise<ApiResponse<JobChainDto>> {
+    return this.request(`/api/v1/chains/${chainId}/members`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async triggerChain(chainId: string, data: TriggerChainRequest = { triggeredBy: "ui" }): Promise<ApiResponse<ChainExecutionDto>> {
+    return this.request(`/api/v1/chains/${chainId}/execute`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async listChainExecutions(chainId: string, page = 1, pageSize = 10): Promise<PagedApiResponse<ChainExecutionDto>> {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    return this.request(`/api/v1/chains/${chainId}/executions?${params}`);
+  }
+
+  async getChainExecution(chainId: string, executionId: string): Promise<ApiResponse<ChainExecutionDto>> {
+    return this.request(`/api/v1/chains/${chainId}/executions/${executionId}`);
+  }
+
+  // Job Dependencies
+  async listJobDependencies(jobId: string): Promise<ApiResponse<JobDependencyDto[]>> {
+    return this.request(`/api/v1/jobs/${jobId}/dependencies`);
+  }
+
+  async addJobDependency(jobId: string, data: AddJobDependencyRequest): Promise<ApiResponse<JobDependencyDto>> {
+    return this.request(`/api/v1/jobs/${jobId}/dependencies`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async removeJobDependency(jobId: string, dependencyId: string): Promise<ApiResponse<void>> {
+    return this.request(`/api/v1/jobs/${jobId}/dependencies/${dependencyId}`, { method: "DELETE" });
+  }
+
+  // Notification Rules
+  async listNotificationRules(params?: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    entityType?: string;
+    channel?: string;
+    isEnabled?: boolean;
+  }): Promise<PagedApiResponse<NotificationRuleDto>> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set("page", params.page.toString());
+    if (params?.pageSize) searchParams.set("pageSize", params.pageSize.toString());
+    if (params?.search) searchParams.set("search", params.search);
+    if (params?.entityType) searchParams.set("entityType", params.entityType);
+    if (params?.channel) searchParams.set("channel", params.channel);
+    if (params?.isEnabled !== undefined) searchParams.set("isEnabled", params.isEnabled.toString());
+    const qs = searchParams.toString();
+    return this.request(`/api/v1/notification-rules${qs ? `?${qs}` : ""}`);
+  }
+
+  async getNotificationRule(id: string): Promise<ApiResponse<NotificationRuleDto>> {
+    return this.request(`/api/v1/notification-rules/${id}`);
+  }
+
+  async createNotificationRule(data: CreateNotificationRuleRequest): Promise<ApiResponse<NotificationRuleDto>> {
+    return this.request("/api/v1/notification-rules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateNotificationRule(id: string, data: UpdateNotificationRuleRequest): Promise<ApiResponse<NotificationRuleDto>> {
+    return this.request(`/api/v1/notification-rules/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteNotificationRule(id: string): Promise<ApiResponse<void>> {
+    return this.request(`/api/v1/notification-rules/${id}`, { method: "DELETE" });
+  }
+
+  async testNotificationRule(id: string): Promise<ApiResponse<{ sent: boolean }>> {
+    return this.request(`/api/v1/notification-rules/${id}/test`, { method: "POST" });
+  }
+
+  // Notification Logs
+  async listNotificationLogs(params?: {
+    page?: number;
+    pageSize?: number;
+    ruleId?: string;
+    entityType?: string;
+    entityId?: string;
+    success?: boolean;
+  }): Promise<PagedApiResponse<NotificationLogDto>> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set("page", params.page.toString());
+    if (params?.pageSize) searchParams.set("pageSize", params.pageSize.toString());
+    if (params?.ruleId) searchParams.set("ruleId", params.ruleId);
+    if (params?.entityType) searchParams.set("entityType", params.entityType);
+    if (params?.entityId) searchParams.set("entityId", params.entityId);
+    if (params?.success !== undefined) searchParams.set("success", params.success.toString());
+    const qs = searchParams.toString();
+    return this.request(`/api/v1/notification-logs${qs ? `?${qs}` : ""}`);
   }
 }
 

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TagPicker } from "@/components/tags/tag-picker";
 import { Pencil } from "lucide-react";
 
 function timeAgo(dateStr: string): string {
@@ -91,6 +92,16 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
           />
         </div>
       </div>
+
+      {/* Tags */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Tags</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TagPicker entityType="job" entityId={id} currentTags={job.tags} />
+        </CardContent>
+      </Card>
 
       <Separator />
 

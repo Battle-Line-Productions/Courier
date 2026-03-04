@@ -1,4 +1,5 @@
 using Courier.Domain.Common;
+using Courier.Domain.Engine;
 using Courier.Domain.Entities;
 using Courier.Domain.Enums;
 using Courier.Features.AuditLog;
@@ -87,6 +88,81 @@ public class ExecutionService
         };
     }
 
+    public async Task<ApiResponse<JobExecutionDto>> PauseExecutionAsync(Guid executionId, string pausedBy, CancellationToken ct)
+    {
+        var execution = await _db.JobExecutions.FirstOrDefaultAsync(e => e.Id == executionId, ct);
+        if (execution is null)
+            return new ApiResponse<JobExecutionDto> { Error = ErrorMessages.Create(ErrorCodes.ExecutionNotFound, $"Execution '{executionId}' not found.") };
+
+        if (execution.State != JobExecutionState.Running)
+            return new ApiResponse<JobExecutionDto> { Error = ErrorMessages.Create(ErrorCodes.ExecutionCannotBePaused, $"Execution is '{execution.State.ToString().ToLowerInvariant()}', only running executions can be paused.") };
+
+        execution.RequestedState = "paused";
+        execution.PausedBy = pausedBy;
+        await _db.SaveChangesAsync(ct);
+
+        await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, "PauseRequested", pausedBy, ct: ct);
+
+        return new ApiResponse<JobExecutionDto> { Data = MapToDto(execution) };
+    }
+
+    public async Task<ApiResponse<JobExecutionDto>> ResumeExecutionAsync(Guid executionId, string resumedBy, CancellationToken ct)
+    {
+        var execution = await _db.JobExecutions.FirstOrDefaultAsync(e => e.Id == executionId, ct);
+        if (execution is null)
+            return new ApiResponse<JobExecutionDto> { Error = ErrorMessages.Create(ErrorCodes.ExecutionNotFound, $"Execution '{executionId}' not found.") };
+
+        if (execution.State != JobExecutionState.Paused)
+            return new ApiResponse<JobExecutionDto> { Error = ErrorMessages.Create(ErrorCodes.ExecutionCannotBeResumed, $"Execution is '{execution.State.ToString().ToLowerInvariant()}', only paused executions can be resumed.") };
+
+        execution.State = JobStateMachine.Transition(JobExecutionState.Paused, JobExecutionState.Queued);
+        execution.RequestedState = null;
+        execution.PausedAt = null;
+        execution.PausedBy = null;
+        execution.QueuedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, "Resumed", resumedBy, ct: ct);
+
+        return new ApiResponse<JobExecutionDto> { Data = MapToDto(execution) };
+    }
+
+    public async Task<ApiResponse<JobExecutionDto>> CancelExecutionAsync(Guid executionId, string cancelledBy, string? reason, CancellationToken ct)
+    {
+        var execution = await _db.JobExecutions.FirstOrDefaultAsync(e => e.Id == executionId, ct);
+        if (execution is null)
+            return new ApiResponse<JobExecutionDto> { Error = ErrorMessages.Create(ErrorCodes.ExecutionNotFound, $"Execution '{executionId}' not found.") };
+
+        if (!JobStateMachine.CanTransition(execution.State, JobExecutionState.Cancelled))
+            return new ApiResponse<JobExecutionDto> { Error = ErrorMessages.Create(ErrorCodes.ExecutionCannotBeCancelled, $"Execution is '{execution.State.ToString().ToLowerInvariant()}', it cannot be cancelled.") };
+
+        if (execution.State == JobExecutionState.Running)
+        {
+            // Signal the engine to cancel — it will acknowledge between steps
+            execution.RequestedState = "cancelled";
+            execution.CancelledBy = cancelledBy;
+            execution.CancelReason = reason;
+            await _db.SaveChangesAsync(ct);
+
+            await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, "CancelRequested", cancelledBy, new { reason }, ct);
+        }
+        else
+        {
+            // Queued or Paused — transition directly
+            execution.State = JobStateMachine.Transition(execution.State, JobExecutionState.Cancelled);
+            execution.CancelledAt = DateTime.UtcNow;
+            execution.CancelledBy = cancelledBy;
+            execution.CancelReason = reason;
+            execution.CompletedAt = DateTime.UtcNow;
+            execution.RequestedState = null;
+            await _db.SaveChangesAsync(ct);
+
+            await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, "Cancelled", cancelledBy, new { reason }, ct);
+        }
+
+        return new ApiResponse<JobExecutionDto> { Data = MapToDto(execution) };
+    }
+
     private static JobExecutionDto MapToDto(JobExecution e, bool includeSteps = false) => new()
     {
         Id = e.Id,
@@ -96,6 +172,11 @@ public class ExecutionService
         QueuedAt = e.QueuedAt,
         StartedAt = e.StartedAt,
         CompletedAt = e.CompletedAt,
+        PausedAt = e.PausedAt,
+        PausedBy = e.PausedBy,
+        CancelledAt = e.CancelledAt,
+        CancelledBy = e.CancelledBy,
+        CancelReason = e.CancelReason,
         CreatedAt = e.CreatedAt,
         StepExecutions = includeSteps && e.StepExecutions.Count > 0
             ? e.StepExecutions.OrderBy(se => se.StepOrder).Select(MapStepToDto).ToList()

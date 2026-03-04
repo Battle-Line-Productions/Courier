@@ -15,3 +15,10 @@ export function useJob(id: string) {
     enabled: !!id,
   });
 }
+
+export function useAllJobs() {
+  return useQuery({
+    queryKey: ["jobs", "all"],
+    queryFn: () => api.listJobs(1, 200),
+  });
+}

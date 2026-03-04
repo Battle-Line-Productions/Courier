@@ -23,6 +23,14 @@ public class CourierDbContext : DbContext
     public DbSet<MonitorJobBinding> MonitorJobBindings => Set<MonitorJobBinding>();
     public DbSet<MonitorFileLog> MonitorFileLogs => Set<MonitorFileLog>();
     public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
+    public DbSet<Tag> Tags => Set<Tag>();
+    public DbSet<EntityTag> EntityTags => Set<EntityTag>();
+    public DbSet<JobChain> JobChains => Set<JobChain>();
+    public DbSet<JobChainMember> JobChainMembers => Set<JobChainMember>();
+    public DbSet<ChainExecution> ChainExecutions => Set<ChainExecution>();
+    public DbSet<JobDependency> JobDependencies => Set<JobDependency>();
+    public DbSet<NotificationRule> NotificationRules => Set<NotificationRule>();
+    public DbSet<NotificationLog> NotificationLogs => Set<NotificationLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -107,10 +115,19 @@ public class CourierDbContext : DbContext
             entity.Property(e => e.QueuedAt).HasColumnName("queued_at");
             entity.Property(e => e.StartedAt).HasColumnName("started_at");
             entity.Property(e => e.CompletedAt).HasColumnName("completed_at");
+            entity.Property(e => e.PausedAt).HasColumnName("paused_at");
+            entity.Property(e => e.PausedBy).HasColumnName("paused_by");
+            entity.Property(e => e.CancelledAt).HasColumnName("cancelled_at");
+            entity.Property(e => e.CancelledBy).HasColumnName("cancelled_by");
+            entity.Property(e => e.CancelReason).HasColumnName("cancel_reason");
+            entity.Property(e => e.RequestedState).HasColumnName("requested_state");
             entity.Property(e => e.ContextSnapshot).HasColumnName("context_snapshot").HasColumnType("jsonb");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
 
+            entity.Property(e => e.ChainExecutionId).HasColumnName("chain_execution_id");
+
             entity.HasOne(e => e.Job).WithMany(j => j.Executions).HasForeignKey(e => e.JobId);
+            entity.HasOne(e => e.ChainExecution).WithMany(ce => ce.JobExecutions).HasForeignKey(e => e.ChainExecutionId);
         });
 
         modelBuilder.Entity<StepExecution>(entity =>
@@ -346,6 +363,157 @@ public class CourierDbContext : DbContext
             entity.Property(e => e.PerformedBy).HasColumnName("performed_by").IsRequired();
             entity.Property(e => e.PerformedAt).HasColumnName("performed_at");
             entity.Property(e => e.Details).HasColumnName("details").HasColumnType("jsonb");
+        });
+
+        modelBuilder.Entity<Tag>(entity =>
+        {
+            entity.ToTable("tags");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Name).HasColumnName("name").IsRequired();
+            entity.Property(e => e.Color).HasColumnName("color");
+            entity.Property(e => e.Category).HasColumnName("category");
+            entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+
+            entity.HasIndex(e => e.Name).HasFilter("NOT is_deleted");
+            entity.HasIndex(e => e.Category).HasFilter("NOT is_deleted AND category IS NOT NULL");
+        });
+
+        modelBuilder.Entity<EntityTag>(entity =>
+        {
+            entity.ToTable("entity_tags");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.TagId).HasColumnName("tag_id");
+            entity.Property(e => e.EntityType).HasColumnName("entity_type").IsRequired();
+            entity.Property(e => e.EntityId).HasColumnName("entity_id");
+
+            entity.HasOne(e => e.Tag).WithMany().HasForeignKey(e => e.TagId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => new { e.TagId, e.EntityType, e.EntityId }).IsUnique();
+            entity.HasIndex(e => new { e.EntityType, e.EntityId });
+        });
+
+        modelBuilder.Entity<JobChain>(entity =>
+        {
+            entity.ToTable("job_chains");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Name).HasColumnName("name").IsRequired();
+            entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.IsEnabled).HasColumnName("is_enabled").HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+
+            entity.HasIndex(e => e.Name).HasFilter("NOT is_deleted");
+        });
+
+        modelBuilder.Entity<JobChainMember>(entity =>
+        {
+            entity.ToTable("job_chain_members");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ChainId).HasColumnName("chain_id");
+            entity.Property(e => e.JobId).HasColumnName("job_id");
+            entity.Property(e => e.ExecutionOrder).HasColumnName("execution_order");
+            entity.Property(e => e.DependsOnMemberId).HasColumnName("depends_on_member_id");
+            entity.Property(e => e.RunOnUpstreamFailure).HasColumnName("run_on_upstream_failure").HasDefaultValue(false);
+
+            entity.HasOne(e => e.Chain).WithMany(c => c.Members).HasForeignKey(e => e.ChainId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Job).WithMany().HasForeignKey(e => e.JobId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.DependsOnMember).WithMany().HasForeignKey(e => e.DependsOnMemberId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(e => new { e.ChainId, e.ExecutionOrder }).IsUnique();
+            entity.HasIndex(e => e.JobId);
+        });
+
+        modelBuilder.Entity<ChainExecution>(entity =>
+        {
+            entity.ToTable("chain_executions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ChainId).HasColumnName("chain_id");
+            entity.Property(e => e.TriggeredBy).HasColumnName("triggered_by").IsRequired();
+            entity.Property(e => e.State).HasColumnName("state")
+                .HasConversion(
+                    v => v.ToString().ToLowerInvariant(),
+                    v => Enum.Parse<ChainExecutionState>(v, true));
+            entity.Property(e => e.StartedAt).HasColumnName("started_at");
+            entity.Property(e => e.CompletedAt).HasColumnName("completed_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+
+            entity.HasOne(e => e.Chain).WithMany(c => c.Executions).HasForeignKey(e => e.ChainId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => new { e.ChainId, e.CreatedAt }).IsDescending(false, true);
+            entity.HasIndex(e => e.State);
+        });
+
+        modelBuilder.Entity<JobDependency>(entity =>
+        {
+            entity.ToTable("job_dependencies");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UpstreamJobId).HasColumnName("upstream_job_id");
+            entity.Property(e => e.DownstreamJobId).HasColumnName("downstream_job_id");
+            entity.Property(e => e.RunOnFailure).HasColumnName("run_on_failure").HasDefaultValue(false);
+
+            entity.HasOne(e => e.UpstreamJob).WithMany(j => j.DownstreamDependencies).HasForeignKey(e => e.UpstreamJobId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.DownstreamJob).WithMany(j => j.UpstreamDependencies).HasForeignKey(e => e.DownstreamJobId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => new { e.UpstreamJobId, e.DownstreamJobId }).IsUnique();
+            entity.HasIndex(e => e.DownstreamJobId);
+        });
+
+        modelBuilder.Entity<NotificationRule>(entity =>
+        {
+            entity.ToTable("notification_rules");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Name).HasColumnName("name").IsRequired();
+            entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.EntityType).HasColumnName("entity_type").IsRequired();
+            entity.Property(e => e.EntityId).HasColumnName("entity_id");
+            entity.Property(e => e.EventTypes).HasColumnName("event_types").HasColumnType("jsonb");
+            entity.Property(e => e.Channel).HasColumnName("channel").IsRequired();
+            entity.Property(e => e.ChannelConfig).HasColumnName("channel_config").HasColumnType("jsonb");
+            entity.Property(e => e.IsEnabled).HasColumnName("is_enabled").HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+
+            entity.HasIndex(e => e.Name).HasFilter("NOT is_deleted");
+            entity.HasIndex(e => new { e.EntityType, e.EntityId }).HasFilter("NOT is_deleted AND is_enabled");
+        });
+
+        modelBuilder.Entity<NotificationLog>(entity =>
+        {
+            entity.ToTable("notification_logs");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.NotificationRuleId).HasColumnName("notification_rule_id");
+            entity.Property(e => e.EventType).HasColumnName("event_type").IsRequired();
+            entity.Property(e => e.EntityType).HasColumnName("entity_type").IsRequired();
+            entity.Property(e => e.EntityId).HasColumnName("entity_id");
+            entity.Property(e => e.Channel).HasColumnName("channel").IsRequired();
+            entity.Property(e => e.Recipient).HasColumnName("recipient").IsRequired();
+            entity.Property(e => e.Payload).HasColumnName("payload").HasColumnType("jsonb");
+            entity.Property(e => e.Success).HasColumnName("success");
+            entity.Property(e => e.ErrorMessage).HasColumnName("error_message");
+            entity.Property(e => e.SentAt).HasColumnName("sent_at");
+
+            entity.HasOne(e => e.NotificationRule).WithMany().HasForeignKey(e => e.NotificationRuleId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => e.NotificationRuleId);
+            entity.HasIndex(e => new { e.EntityType, e.EntityId });
+            entity.HasIndex(e => e.SentAt).IsDescending();
         });
     }
 }

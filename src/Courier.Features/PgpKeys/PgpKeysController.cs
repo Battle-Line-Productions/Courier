@@ -28,9 +28,10 @@ public class PgpKeysController : ControllerBase
         [FromQuery] string? status = null,
         [FromQuery] string? keyType = null,
         [FromQuery] string? algorithm = null,
+        [FromQuery] string? tag = null,
         CancellationToken ct = default)
     {
-        var result = await _pgpKeyService.ListAsync(page, pageSize, search, status, keyType, algorithm, ct);
+        var result = await _pgpKeyService.ListAsync(page, pageSize, search, status, keyType, algorithm, tag, ct);
         return Ok(result);
     }
 

@@ -1,0 +1,30 @@
+using Courier.Domain.Common;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Courier.Features.Notifications;
+
+[ApiController]
+[Route("api/v1/notification-logs")]
+public class NotificationLogsController : ControllerBase
+{
+    private readonly NotificationLogService _logService;
+
+    public NotificationLogsController(NotificationLogService logService)
+    {
+        _logService = logService;
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<PagedApiResponse<NotificationLogDto>>> List(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        [FromQuery] Guid? ruleId = null,
+        [FromQuery] string? entityType = null,
+        [FromQuery] Guid? entityId = null,
+        [FromQuery] bool? success = null,
+        CancellationToken ct = default)
+    {
+        var result = await _logService.ListAsync(page, pageSize, ruleId, entityType, entityId, success, ct);
+        return Ok(result);
+    }
+}

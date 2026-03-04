@@ -18,6 +18,10 @@ using Courier.Features.Jobs;
 using Courier.Features.Monitors;
 using Courier.Features.PgpKeys;
 using Courier.Features.SshKeys;
+using Courier.Features.Chains;
+using Courier.Features.Tags;
+using Courier.Features.Notifications;
+using Courier.Features.Notifications.Channels;
 using Courier.Infrastructure.Encryption;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
@@ -102,6 +106,24 @@ public static class FeaturesServiceExtensions
 
         // Audit
         services.AddScoped<AuditService>();
+
+        // Tags
+        services.AddScoped<TagService>();
+
+        // Chains & Dependencies
+        services.AddScoped<ChainService>();
+        services.AddScoped<ChainExecutionService>();
+        services.AddScoped<ChainOrchestrator>();
+        services.AddScoped<JobDependencyService>();
+
+        // Notifications
+        services.AddScoped<NotificationRuleService>();
+        services.AddScoped<NotificationLogService>();
+        services.AddScoped<NotificationDispatcher>();
+        services.AddScoped<INotificationChannel, WebhookNotificationChannel>();
+        services.AddScoped<INotificationChannel, EmailNotificationChannel>();
+        services.Configure<SmtpSettings>(configuration.GetSection("Smtp"));
+        services.AddHttpClient("Webhooks");
 
         // Encryption
         services.Configure<EncryptionSettings>(configuration.GetSection("Encryption"));

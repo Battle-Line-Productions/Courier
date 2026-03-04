@@ -9,7 +9,7 @@ public static class JobStateMachine
         [JobExecutionState.Created]   = [JobExecutionState.Queued],
         [JobExecutionState.Queued]    = [JobExecutionState.Running, JobExecutionState.Cancelled],
         [JobExecutionState.Running]   = [JobExecutionState.Completed, JobExecutionState.Failed, JobExecutionState.Paused, JobExecutionState.Cancelled],
-        [JobExecutionState.Paused]    = [JobExecutionState.Running, JobExecutionState.Cancelled],
+        [JobExecutionState.Paused]    = [JobExecutionState.Running, JobExecutionState.Cancelled, JobExecutionState.Queued],
         [JobExecutionState.Completed] = [],
         [JobExecutionState.Failed]    = [],
         [JobExecutionState.Cancelled] = [],

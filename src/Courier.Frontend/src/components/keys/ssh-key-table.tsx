@@ -16,6 +16,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { useDeleteSshKey, useRetireSshKey, useActivateSshKey } from "@/lib/hooks/use-ssh-key-mutations";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { TagBadge } from "@/components/tags/tag-badge";
 import type { SshKeyDto } from "@/lib/types";
 import Link from "next/link";
 
@@ -76,6 +77,7 @@ export function SshKeyTable({ keys }: SshKeyTableProps) {
             <TableHead>Type</TableHead>
             <TableHead>Fingerprint</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Tags</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="w-10" />
           </TableRow>
@@ -101,6 +103,13 @@ export function SshKeyTable({ keys }: SshKeyTableProps) {
               </TableCell>
               <TableCell>
                 <StatusBadge state={key.status} />
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {key.tags?.map((tag) => (
+                    <TagBadge key={tag.name} name={tag.name} color={tag.color} />
+                  ))}
+                </div>
               </TableCell>
               <TableCell className="text-muted-foreground text-sm">
                 {timeAgo(key.createdAt)}

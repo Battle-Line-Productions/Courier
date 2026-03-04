@@ -2,6 +2,7 @@ using Courier.Domain.Common;
 using Courier.Domain.Entities;
 using Courier.Domain.Enums;
 using Courier.Features.AuditLog;
+using Courier.Features.Tags;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -49,15 +50,29 @@ public class JobService
             };
         }
 
-        return new ApiResponse<JobDto> { Data = MapToDto(job) };
+        var dto = MapToDto(job);
+        dto = dto with { Tags = await TagHelper.GetTagsForEntityAsync(_db, "job", id, ct) };
+        return new ApiResponse<JobDto> { Data = dto };
     }
 
-    public async Task<PagedApiResponse<JobDto>> ListAsync(int page = 1, int pageSize = 25, CancellationToken ct = default)
+    public async Task<PagedApiResponse<JobDto>> ListAsync(int page = 1, int pageSize = 25, string? tag = null, CancellationToken ct = default)
     {
         pageSize = Math.Clamp(pageSize, 1, 100);
         page = Math.Max(page, 1);
 
-        var query = _db.Jobs.OrderByDescending(j => j.CreatedAt);
+        var query = _db.Jobs.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(tag))
+        {
+            var tagName = tag.ToLower();
+            query = query.Where(e => _db.EntityTags
+                .Any(et => et.EntityType == "job"
+                        && et.EntityId == e.Id
+                        && et.Tag.Name.ToLower() == tagName
+                        && !et.Tag.IsDeleted));
+        }
+
+        query = query.OrderByDescending(j => j.CreatedAt);
 
         var totalCount = await query.CountAsync(ct);
         var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
@@ -67,6 +82,10 @@ public class JobService
             .Take(pageSize)
             .Select(j => MapToDto(j))
             .ToListAsync(ct);
+
+        var entityIds = items.Select(i => i.Id).ToList();
+        var tagMap = await TagHelper.GetTagsForEntitiesAsync(_db, "job", entityIds, ct);
+        items = items.Select(i => i with { Tags = tagMap.GetValueOrDefault(i.Id, []) }).ToList();
 
         return new PagedApiResponse<JobDto>
         {

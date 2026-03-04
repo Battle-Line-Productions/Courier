@@ -14,8 +14,18 @@ public record JobExecutionDto
     public DateTime? QueuedAt { get; init; }
     public DateTime? StartedAt { get; init; }
     public DateTime? CompletedAt { get; init; }
+    public DateTime? PausedAt { get; init; }
+    public string? PausedBy { get; init; }
+    public DateTime? CancelledAt { get; init; }
+    public string? CancelledBy { get; init; }
+    public string? CancelReason { get; init; }
     public DateTime CreatedAt { get; init; }
     public List<StepExecutionDto>? StepExecutions { get; init; }
+}
+
+public record CancelExecutionRequest
+{
+    public string? Reason { get; init; }
 }
 
 public record StepExecutionDto

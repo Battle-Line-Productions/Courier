@@ -1,3 +1,5 @@
+using Courier.Features.Tags;
+
 namespace Courier.Features.Connections;
 
 public record ConnectionDto
@@ -30,6 +32,7 @@ public record ConnectionDto
     public string? Notes { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
+    public List<TagSummaryDto> Tags { get; init; } = [];
 }
 
 public record ConnectionTestDto

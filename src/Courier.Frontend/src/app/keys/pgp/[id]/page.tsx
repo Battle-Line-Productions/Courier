@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { TagPicker } from "@/components/tags/tag-picker";
 import { Pencil } from "lucide-react";
 
 function timeAgo(dateStr: string): string {
@@ -69,6 +70,14 @@ export default function PgpKeyDetailPage({ params }: { params: Promise<{ id: str
           </Link>
         </Button>
       </div>
+
+      {/* Tags */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">Tags</CardTitle></CardHeader>
+        <CardContent>
+          <TagPicker entityType="pgp_key" entityId={id} currentTags={key.tags} />
+        </CardContent>
+      </Card>
 
       <Separator />
 

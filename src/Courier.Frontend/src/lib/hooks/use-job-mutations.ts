@@ -51,3 +51,37 @@ export function useTriggerJob(jobId: string) {
     },
   });
 }
+
+export function usePauseExecution() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (executionId: string) => api.pauseExecution(executionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["executions"] });
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
+}
+
+export function useResumeExecution() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (executionId: string) => api.resumeExecution(executionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["executions"] });
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
+}
+
+export function useCancelExecution() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ executionId, reason }: { executionId: string; reason?: string }) =>
+      api.cancelExecution(executionId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["executions"] });
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
+}
