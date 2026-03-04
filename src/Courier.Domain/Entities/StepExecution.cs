@@ -17,6 +17,7 @@ public class StepExecution
     public string? ErrorMessage { get; set; }
     public string? ErrorStackTrace { get; set; }
     public int RetryAttempt { get; set; }
+    public int? IterationIndex { get; set; }
     public DateTime CreatedAt { get; set; }
 
     public JobExecution JobExecution { get; set; } = null!;

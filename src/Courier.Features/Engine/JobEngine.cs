@@ -31,6 +31,18 @@ public class JobEngine
         _dispatcher = dispatcher;
     }
 
+    private enum FlowSignal { Continue, Abort, Halt }
+
+    private sealed class ExecutionRun
+    {
+        public required JobExecution Execution { get; init; }
+        public required List<JobStep> Steps { get; init; }
+        public required JobContext Context { get; init; }
+        public required FailurePolicy FailurePolicy { get; init; }
+        public required HashSet<int> CompletedStepOrders { get; init; }
+        public bool AllSucceeded { get; set; } = true;
+    }
+
     public async Task ExecuteAsync(Guid executionId, CancellationToken cancellationToken)
     {
         var execution = await _db.JobExecutions
@@ -59,25 +71,22 @@ public class JobEngine
 
         var failurePolicy = ParseFailurePolicy(execution.Job.FailurePolicy);
         var context = new JobContext();
-        var allSucceeded = true;
 
         // Load existing step executions for resume detection
         var existingStepExecutions = await _db.StepExecutions
             .Where(se => se.JobExecutionId == execution.Id)
             .ToListAsync(cancellationToken);
 
-        // Determine starting step for resumed executions
         var isResumed = existingStepExecutions.Any(s => s.State == StepExecutionState.Completed);
-        var stepsToExecute = steps;
+
+        // Completed root-level step orders (non-iteration steps only)
+        var completedStepOrders = existingStepExecutions
+            .Where(s => s.State == StepExecutionState.Completed && s.IterationIndex == null)
+            .Select(s => s.StepOrder)
+            .ToHashSet();
 
         if (isResumed)
         {
-            var lastCompletedOrder = existingStepExecutions
-                .Where(s => s.State == StepExecutionState.Completed)
-                .Max(s => s.StepOrder);
-
-            stepsToExecute = steps.Where(s => s.StepOrder > lastCompletedOrder).ToList();
-
             // Restore context from snapshot
             if (!string.IsNullOrEmpty(execution.ContextSnapshot) && execution.ContextSnapshot != "{}")
             {
@@ -86,139 +95,56 @@ public class JobEngine
                     context = JobContext.Restore(savedContext);
             }
 
-            _logger.LogInformation("Resuming execution {ExecutionId} from step order {StartFrom}", executionId, lastCompletedOrder + 1);
+            _logger.LogInformation("Resuming execution {ExecutionId} with {CompletedCount} completed steps",
+                executionId, completedStepOrders.Count);
         }
 
-        await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, isResumed ? "ExecutionResumed" : "ExecutionStarted", details: new { jobId = execution.JobId }, ct: cancellationToken);
+        // Parse steps into execution tree
+        List<ExecutionNode> executionPlan;
+        try
+        {
+            executionPlan = ExecutionPlanParser.Parse(steps);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Failed to parse execution plan for job {JobId}", execution.JobId);
+            execution.State = JobExecutionState.Failed;
+            execution.CompletedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        var run = new ExecutionRun
+        {
+            Execution = execution,
+            Steps = steps,
+            Context = context,
+            FailurePolicy = failurePolicy,
+            CompletedStepOrders = completedStepOrders,
+        };
+
+        await _audit.LogAsync(AuditableEntityType.JobExecution, executionId,
+            isResumed ? "ExecutionResumed" : "ExecutionStarted",
+            details: new { jobId = execution.JobId }, ct: cancellationToken);
 
         try
         {
-            foreach (var step in stepsToExecute)
+            var signal = await ExecuteNodesAsync(executionPlan, run, skipCompleted: isResumed, cancellationToken);
+
+            if (signal != FlowSignal.Halt)
             {
-                // Check for control signals before each step
-                var signal = await CheckControlSignalAsync(execution.Id, cancellationToken);
-
-                if (signal == "paused")
-                {
-                    execution.State = JobExecutionState.Paused;
-                    execution.PausedAt = DateTime.UtcNow;
-                    execution.RequestedState = null;
-                    execution.ContextSnapshot = JsonSerializer.Serialize(context.Snapshot());
-                    await _db.SaveChangesAsync(cancellationToken);
-
-                    _logger.LogInformation("Execution {ExecutionId} paused before step {StepName}", executionId, step.Name);
-                    await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, "ExecutionPaused", details: new { beforeStep = step.Name }, ct: cancellationToken);
-                    return;
-                }
-
-                if (signal == "cancelled")
-                {
-                    execution.State = JobExecutionState.Cancelled;
-                    execution.CancelledAt = DateTime.UtcNow;
-                    execution.CompletedAt = DateTime.UtcNow;
-                    execution.RequestedState = null;
-                    await _db.SaveChangesAsync(cancellationToken);
-
-                    _logger.LogInformation("Execution {ExecutionId} cancelled before step {StepName}", executionId, step.Name);
-                    await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, "ExecutionCancelled", details: new { beforeStep = step.Name }, ct: cancellationToken);
-                    await DispatchJobNotificationAsync(execution, "job_cancelled", cancellationToken);
-                    return;
-                }
-
-                var stepExecution = new StepExecution
-                {
-                    Id = Guid.NewGuid(),
-                    JobExecutionId = execution.Id,
-                    JobStepId = step.Id,
-                    StepOrder = step.StepOrder,
-                    State = StepExecutionState.Running,
-                    StartedAt = DateTime.UtcNow,
-                    CreatedAt = DateTime.UtcNow,
-                };
-                _db.StepExecutions.Add(stepExecution);
+                execution.CompletedAt = DateTime.UtcNow;
+                execution.State = run.AllSucceeded ? JobExecutionState.Completed : JobExecutionState.Failed;
                 await _db.SaveChangesAsync(cancellationToken);
 
-                var sw = Stopwatch.StartNew();
-                StepResult result;
+                var executionOp = run.AllSucceeded ? "ExecutionCompleted" : "ExecutionFailed";
+                await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, executionOp,
+                    details: new { jobId = execution.JobId, state = execution.State.ToString().ToLowerInvariant() },
+                    ct: cancellationToken);
 
-                try
-                {
-                    var handler = _registry.Resolve(step.TypeKey);
-                    var config = new StepConfiguration(step.Configuration);
-
-                    using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                    timeoutCts.CancelAfter(TimeSpan.FromSeconds(step.TimeoutSeconds));
-
-                    result = await handler.ExecuteAsync(config, context, timeoutCts.Token);
-                }
-                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-                {
-                    result = StepResult.Fail($"Step '{step.Name}' timed out after {step.TimeoutSeconds}s");
-                }
-                catch (Exception ex)
-                {
-                    result = StepResult.Fail(ex.Message, ex.StackTrace);
-                }
-
-                sw.Stop();
-                stepExecution.DurationMs = sw.ElapsedMilliseconds;
-
-                if (result.Success)
-                {
-                    stepExecution.State = StepExecutionState.Completed;
-                    stepExecution.CompletedAt = DateTime.UtcNow;
-                    stepExecution.BytesProcessed = result.BytesProcessed;
-
-                    if (result.Outputs is not null)
-                    {
-                        stepExecution.OutputData = JsonSerializer.Serialize(result.Outputs);
-                        foreach (var kvp in result.Outputs)
-                            context.Set($"{step.StepOrder}.{kvp.Key}", kvp.Value);
-                    }
-
-                    _logger.LogInformation("Step {StepName} completed in {DurationMs}ms", step.Name, sw.ElapsedMilliseconds);
-
-                    await _audit.LogAsync(AuditableEntityType.StepExecution, stepExecution.Id, "StepCompleted", details: new { stepType = step.TypeKey, durationMs = sw.ElapsedMilliseconds }, ct: cancellationToken);
-                }
-                else
-                {
-                    stepExecution.State = StepExecutionState.Failed;
-                    stepExecution.CompletedAt = DateTime.UtcNow;
-                    stepExecution.ErrorMessage = result.ErrorMessage;
-                    stepExecution.ErrorStackTrace = result.ErrorStackTrace;
-
-                    _logger.LogWarning("Step {StepName} failed: {Error}", step.Name, result.ErrorMessage);
-
-                    await _audit.LogAsync(AuditableEntityType.StepExecution, stepExecution.Id, "StepFailed", details: new { error = result.ErrorMessage, stepType = step.TypeKey }, ct: cancellationToken);
-
-                    if (failurePolicy.Type != FailurePolicyType.SkipAndContinue)
-                        await DispatchJobNotificationAsync(execution, "step_failed", cancellationToken, new Dictionary<string, object> { ["stepName"] = step.Name, ["error"] = result.ErrorMessage ?? "" });
-
-                    if (failurePolicy.Type == FailurePolicyType.SkipAndContinue)
-                    {
-                        _logger.LogInformation("Failure policy is SkipAndContinue. Continuing to next step.");
-                        await _db.SaveChangesAsync(cancellationToken);
-                        continue;
-                    }
-
-                    allSucceeded = false;
-                    await _db.SaveChangesAsync(cancellationToken);
-                    break;
-                }
-
-                execution.ContextSnapshot = JsonSerializer.Serialize(context.Snapshot());
-                await _db.SaveChangesAsync(cancellationToken);
+                var notifEventType = run.AllSucceeded ? "job_completed" : "job_failed";
+                await DispatchJobNotificationAsync(execution, notifEventType, cancellationToken);
             }
-
-            execution.CompletedAt = DateTime.UtcNow;
-            execution.State = allSucceeded ? JobExecutionState.Completed : JobExecutionState.Failed;
-            await _db.SaveChangesAsync(cancellationToken);
-
-            var executionOp = allSucceeded ? "ExecutionCompleted" : "ExecutionFailed";
-            await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, executionOp, details: new { jobId = execution.JobId, state = execution.State.ToString().ToLowerInvariant() }, ct: cancellationToken);
-
-            var notifEventType = allSucceeded ? "job_completed" : "job_failed";
-            await DispatchJobNotificationAsync(execution, notifEventType, cancellationToken);
         }
         finally
         {
@@ -226,6 +152,275 @@ public class JobEngine
         }
 
         _logger.LogInformation("JobExecution {ExecutionId} finished with state {State}", executionId, execution.State);
+    }
+
+    private async Task<FlowSignal> ExecuteNodesAsync(
+        List<ExecutionNode> nodes, ExecutionRun run, bool skipCompleted, CancellationToken ct)
+    {
+        var skipping = skipCompleted;
+
+        foreach (var node in nodes)
+        {
+            // When resuming, skip contiguous prefix of completed root-level steps
+            if (skipping && node is StepNode sn &&
+                run.CompletedStepOrders.Contains(run.Steps[sn.StepIndex].StepOrder))
+            {
+                _logger.LogInformation("Skipping completed step '{StepName}' (order {Order})",
+                    run.Steps[sn.StepIndex].Name, run.Steps[sn.StepIndex].StepOrder);
+                continue;
+            }
+
+            skipping = false;
+
+            var signal = node switch
+            {
+                StepNode stepNode => await ExecuteStepAsync(stepNode, run, ct),
+                ForEachNode foreachNode => await ExecuteForEachAsync(foreachNode, run, ct),
+                IfElseNode ifElseNode => await ExecuteIfElseAsync(ifElseNode, run, ct),
+                _ => throw new InvalidOperationException($"Unknown execution node type: {node.GetType().Name}")
+            };
+
+            if (signal != FlowSignal.Continue)
+                return signal;
+        }
+
+        return FlowSignal.Continue;
+    }
+
+    private async Task<FlowSignal> ExecuteStepAsync(StepNode node, ExecutionRun run, CancellationToken ct)
+    {
+        var step = run.Steps[node.StepIndex];
+
+        // Check for control signals before each step
+        var signal = await CheckControlSignalAsync(run.Execution.Id, ct);
+
+        if (signal == "paused")
+        {
+            run.Execution.State = JobExecutionState.Paused;
+            run.Execution.PausedAt = DateTime.UtcNow;
+            run.Execution.RequestedState = null;
+            run.Execution.ContextSnapshot = JsonSerializer.Serialize(run.Context.Snapshot());
+            await _db.SaveChangesAsync(ct);
+
+            _logger.LogInformation("Execution {ExecutionId} paused before step {StepName}", run.Execution.Id, step.Name);
+            await _audit.LogAsync(AuditableEntityType.JobExecution, run.Execution.Id, "ExecutionPaused",
+                details: new { beforeStep = step.Name }, ct: ct);
+            return FlowSignal.Halt;
+        }
+
+        if (signal == "cancelled")
+        {
+            run.Execution.State = JobExecutionState.Cancelled;
+            run.Execution.CancelledAt = DateTime.UtcNow;
+            run.Execution.CompletedAt = DateTime.UtcNow;
+            run.Execution.RequestedState = null;
+            await _db.SaveChangesAsync(ct);
+
+            _logger.LogInformation("Execution {ExecutionId} cancelled before step {StepName}", run.Execution.Id, step.Name);
+            await _audit.LogAsync(AuditableEntityType.JobExecution, run.Execution.Id, "ExecutionCancelled",
+                details: new { beforeStep = step.Name }, ct: ct);
+            await DispatchJobNotificationAsync(run.Execution, "job_cancelled", ct);
+            return FlowSignal.Halt;
+        }
+
+        var stepExecution = new StepExecution
+        {
+            Id = Guid.NewGuid(),
+            JobExecutionId = run.Execution.Id,
+            JobStepId = step.Id,
+            StepOrder = step.StepOrder,
+            State = StepExecutionState.Running,
+            StartedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            IterationIndex = run.Context.CurrentIterationIndex,
+        };
+        _db.StepExecutions.Add(stepExecution);
+        await _db.SaveChangesAsync(ct);
+
+        var sw = Stopwatch.StartNew();
+        StepResult result;
+
+        try
+        {
+            var handler = _registry.Resolve(step.TypeKey);
+            var config = new StepConfiguration(step.Configuration);
+
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(step.TimeoutSeconds));
+
+            result = await handler.ExecuteAsync(config, run.Context, timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            result = StepResult.Fail($"Step '{step.Name}' timed out after {step.TimeoutSeconds}s");
+        }
+        catch (Exception ex)
+        {
+            result = StepResult.Fail(ex.Message, ex.StackTrace);
+        }
+
+        sw.Stop();
+        stepExecution.DurationMs = sw.ElapsedMilliseconds;
+
+        if (result.Success)
+        {
+            stepExecution.State = StepExecutionState.Completed;
+            stepExecution.CompletedAt = DateTime.UtcNow;
+            stepExecution.BytesProcessed = result.BytesProcessed;
+
+            if (result.Outputs is not null)
+            {
+                stepExecution.OutputData = JsonSerializer.Serialize(result.Outputs);
+                foreach (var kvp in result.Outputs)
+                    run.Context.Set($"{step.StepOrder}.{kvp.Key}", kvp.Value);
+            }
+
+            _logger.LogInformation("Step {StepName} completed in {DurationMs}ms", step.Name, sw.ElapsedMilliseconds);
+
+            await _audit.LogAsync(AuditableEntityType.StepExecution, stepExecution.Id, "StepCompleted",
+                details: new { stepType = step.TypeKey, durationMs = sw.ElapsedMilliseconds }, ct: ct);
+
+            run.Execution.ContextSnapshot = JsonSerializer.Serialize(run.Context.Snapshot());
+            await _db.SaveChangesAsync(ct);
+            return FlowSignal.Continue;
+        }
+
+        // Step failed
+        stepExecution.State = StepExecutionState.Failed;
+        stepExecution.CompletedAt = DateTime.UtcNow;
+        stepExecution.ErrorMessage = result.ErrorMessage;
+        stepExecution.ErrorStackTrace = result.ErrorStackTrace;
+
+        _logger.LogWarning("Step {StepName} failed: {Error}", step.Name, result.ErrorMessage);
+
+        await _audit.LogAsync(AuditableEntityType.StepExecution, stepExecution.Id, "StepFailed",
+            details: new { error = result.ErrorMessage, stepType = step.TypeKey }, ct: ct);
+
+        if (run.FailurePolicy.Type != FailurePolicyType.SkipAndContinue)
+            await DispatchJobNotificationAsync(run.Execution, "step_failed", ct,
+                new Dictionary<string, object> { ["stepName"] = step.Name, ["error"] = result.ErrorMessage ?? "" });
+
+        if (run.FailurePolicy.Type == FailurePolicyType.SkipAndContinue)
+        {
+            _logger.LogInformation("Failure policy is SkipAndContinue. Continuing to next step.");
+            await _db.SaveChangesAsync(ct);
+            return FlowSignal.Continue;
+        }
+
+        run.AllSucceeded = false;
+        await _db.SaveChangesAsync(ct);
+        return FlowSignal.Abort;
+    }
+
+    private async Task<FlowSignal> ExecuteForEachAsync(ForEachNode node, ExecutionRun run, CancellationToken ct)
+    {
+        var step = run.Steps[node.StepIndex];
+        var config = new StepConfiguration(step.Configuration);
+
+        List<JsonElement> items;
+        try
+        {
+            items = ResolveForEachSource(config, run.Context);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ForEach step '{StepName}' failed to resolve source", step.Name);
+            run.AllSucceeded = false;
+            return FlowSignal.Abort;
+        }
+
+        if (items.Count == 0)
+        {
+            _logger.LogInformation("ForEach step '{StepName}' has empty collection, skipping body", step.Name);
+            return FlowSignal.Continue;
+        }
+
+        _logger.LogInformation("ForEach step '{StepName}' iterating over {Count} items", step.Name, items.Count);
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            run.Context.PushLoopScope(items[i], i, items.Count);
+
+            try
+            {
+                var signal = await ExecuteNodesAsync(node.Body, run, skipCompleted: false, ct);
+                if (signal != FlowSignal.Continue)
+                    return signal;
+            }
+            finally
+            {
+                run.Context.PopLoopScope();
+            }
+        }
+
+        _logger.LogInformation("ForEach step '{StepName}' completed {Count} iterations", step.Name, items.Count);
+        return FlowSignal.Continue;
+    }
+
+    private async Task<FlowSignal> ExecuteIfElseAsync(IfElseNode node, ExecutionRun run, CancellationToken ct)
+    {
+        var step = run.Steps[node.StepIndex];
+        var config = new StepConfiguration(step.Configuration);
+
+        var left = ContextResolver.Resolve(config.GetString("left"), run.Context);
+        var op = config.GetString("operator");
+        var right = config.Has("right")
+            ? ContextResolver.Resolve(config.GetString("right"), run.Context)
+            : null;
+
+        var conditionResult = ConditionEvaluator.Evaluate(left, op, right);
+
+        _logger.LogInformation("Condition '{Left}' {Operator} '{Right}' evaluated to {Result}",
+            left, op, right ?? "(none)", conditionResult);
+
+        var branch = conditionResult ? node.ThenBranch : node.ElseBranch;
+        if (branch is null || branch.Count == 0)
+            return FlowSignal.Continue;
+
+        return await ExecuteNodesAsync(branch, run, skipCompleted: false, ct);
+    }
+
+    private static List<JsonElement> ResolveForEachSource(StepConfiguration config, JobContext context)
+    {
+        var sourceRef = config.GetString("source");
+
+        if (sourceRef.StartsWith("context:"))
+        {
+            var key = sourceRef["context:".Length..];
+
+            // Try as JsonElement array
+            if (context.TryGet<JsonElement>(key, out var jsonEl) && jsonEl.ValueKind == JsonValueKind.Array)
+                return [.. jsonEl.EnumerateArray()];
+
+            // Try as string containing JSON array
+            if (context.TryGet<string>(key, out var strVal) && strVal is not null)
+            {
+                using var doc = JsonDocument.Parse(strVal);
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                    return [.. doc.RootElement.Clone().EnumerateArray()];
+            }
+
+            // Try as object and serialize to JSON
+            if (context.TryGet<object>(key, out var objVal) && objVal is not null)
+            {
+                if (objVal is JsonElement objJsonEl && objJsonEl.ValueKind == JsonValueKind.Array)
+                    return [.. objJsonEl.EnumerateArray()];
+
+                var json = JsonSerializer.Serialize(objVal);
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                    return [.. doc.RootElement.Clone().EnumerateArray()];
+            }
+
+            throw new InvalidOperationException($"ForEach source context reference '{key}' not found or not an array");
+        }
+
+        // Literal JSON array
+        using var literal = JsonDocument.Parse(sourceRef);
+        if (literal.RootElement.ValueKind == JsonValueKind.Array)
+            return [.. literal.RootElement.Clone().EnumerateArray()];
+
+        throw new InvalidOperationException("ForEach source must be a JSON array");
     }
 
     private async Task DispatchJobNotificationAsync(JobExecution execution, string eventType, CancellationToken ct, Dictionary<string, object>? extraContext = null)

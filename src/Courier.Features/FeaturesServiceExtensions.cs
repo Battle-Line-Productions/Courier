@@ -9,6 +9,7 @@ using Courier.Features.Engine.Steps;
 using Courier.Features.Engine.Steps.Crypto;
 using Courier.Features.Engine.Steps.Azure;
 using Courier.Features.Engine.Steps.FileOps;
+using Courier.Features.Engine.Steps.Flow;
 using Courier.Features.Engine.Steps.Transfer;
 using Courier.Features.Engine.Compression;
 using Courier.Features.AuditLog;
@@ -75,6 +76,12 @@ public static class FeaturesServiceExtensions
         services.AddScoped<IJobStep, FtpsMkdirStep>();
         services.AddScoped<IJobStep, FtpsRmdirStep>();
         services.AddScoped<IJobStep, FtpsListStep>();
+
+        // Flow control step handlers (4)
+        services.AddScoped<IJobStep, FlowForEachStep>();
+        services.AddScoped<IJobStep, FlowIfStep>();
+        services.AddScoped<IJobStep, FlowElseStep>();
+        services.AddScoped<IJobStep, FlowEndStep>();
 
         // Crypto step handlers (4)
         services.AddScoped<IJobStep, PgpEncryptStep>();
