@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const ENTITY_TYPES = [
-  { value: "", label: "All Types" },
+  { value: "all", label: "All Types" },
   { value: "job", label: "Job" },
   { value: "job_execution", label: "Job Execution" },
   { value: "step_execution", label: "Step Execution" },
@@ -52,9 +52,9 @@ export default function AuditPage() {
 
       <div className="flex flex-wrap gap-3">
         <Select
-          value={entityType}
+          value={entityType || "all"}
           onValueChange={(v) => {
-            setEntityType(v);
+            setEntityType(v === "all" ? "" : v);
             setPage(1);
           }}
         >
