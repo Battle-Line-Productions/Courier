@@ -150,6 +150,7 @@ public class CourierDbContext : DbContext
             entity.Property(e => e.ErrorMessage).HasColumnName("error_message");
             entity.Property(e => e.ErrorStackTrace).HasColumnName("error_stack_trace");
             entity.Property(e => e.RetryAttempt).HasColumnName("retry_attempt");
+            entity.Property(e => e.IterationIndex).HasColumnName("iteration_index");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
 
             entity.HasOne(e => e.JobExecution).WithMany(je => je.StepExecutions).HasForeignKey(e => e.JobExecutionId);

@@ -58,16 +58,7 @@ public abstract class TransferStepBase : IJobStep
     }
 
     protected static string ResolveContextRef(string value, JobContext context)
-    {
-        if (value.StartsWith("context:"))
-        {
-            var key = value["context:".Length..];
-            return context.TryGet<string>(key, out var resolved) && resolved is not null
-                ? resolved
-                : throw new InvalidOperationException($"Context reference '{key}' not found");
-        }
-        return value;
-    }
+        => ContextResolver.Resolve(value, context);
 
     protected StepResult ValidateRequired(StepConfiguration config, params string[] keys)
     {

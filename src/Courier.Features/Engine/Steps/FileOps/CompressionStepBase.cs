@@ -17,16 +17,7 @@ public abstract class CompressionStepBase : IJobStep
     public abstract Task<StepResult> ValidateAsync(StepConfiguration config);
 
     protected static string ResolveContextRef(string value, JobContext context)
-    {
-        if (value.StartsWith("context:"))
-        {
-            var key = value["context:".Length..];
-            return context.TryGet<string>(key, out var resolved) && resolved is not null
-                ? resolved
-                : throw new InvalidOperationException($"Context reference '{key}' not found");
-        }
-        return value;
-    }
+        => ContextResolver.Resolve(value, context);
 
     protected static string[] ResolveSourcePaths(StepConfiguration config, JobContext context)
     {

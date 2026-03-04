@@ -1963,6 +1963,101 @@ In V1, these events are used only for the audit log. In V2, subscribers can be r
 
 Not in V1 scope, but the `IJobStep` interface includes `ValidateAsync` specifically to support a future dry-run mode. A dry run would execute `ValidateAsync` on each step (testing connections, verifying paths, checking key availability) without performing actual transfers. This can be implemented in V2 without modifying the step interface.
 
+### 5.20 Control Flow (If/Else + ForEach)
+
+The job engine supports branching and iteration through four special step types that use the existing flat step model with explicit block markers.
+
+#### 5.20.1 Control Flow Step Types
+
+| Step Type | Purpose | Required Config |
+|-----------|---------|-----------------|
+| `flow.foreach` | Iterate over a collection | `source` — context reference or JSON array |
+| `flow.if` | Conditional branch | `left`, `operator`, `right` (right optional for `exists`) |
+| `flow.else` | Alternate branch (must follow `flow.if` body) | none |
+| `flow.end` | Closes a `flow.foreach` or `flow.if` block | none |
+
+#### 5.20.2 Block Structure
+
+Control flow steps are regular entries in the flat step list. Blocks are delimited by `flow.foreach`/`flow.if` at the start and `flow.end` at the end. The engine parses the flat list into a tree before execution.
+
+```
+Step 0: sftp.list         { "connection_id": "...", "remote_path": "/incoming" }
+Step 1: flow.foreach      { "source": "context:0.file_list" }
+Step 2:   sftp.download   { "connection_id": "...", "remote_path": "context:loop.current_item.name" }
+Step 3:   flow.if         { "left": "context:loop.current_item.size", "operator": "greater_than", "right": "1048576" }
+Step 4:     pgp.encrypt   { "input_path": "context:2.downloaded_file", "recipient_key_ids": ["..."] }
+Step 5:   flow.else
+Step 6:     file.copy     { "source_path": "context:2.downloaded_file", "destination_path": "/archive/" }
+Step 7:   flow.end        {}   ← closes flow.if
+Step 8: flow.end          {}   ← closes flow.foreach
+Step 9: file.delete       { "path": "/staging/*" }
+```
+
+The `ExecutionPlanParser` converts this flat list into a tree:
+
+```
+Root (Sequence)
+  ├── StepNode(sftp.list)
+  ├── ForEachNode(flow.foreach)
+  │     └── Body:
+  │           ├── StepNode(sftp.download)
+  │           └── IfElseNode(flow.if)
+  │                 ├── Then: StepNode(pgp.encrypt)
+  │                 └── Else: StepNode(file.copy)
+  └── StepNode(file.delete)
+```
+
+**Parsing rules:**
+- Every `flow.foreach` and `flow.if` must have a matching `flow.end`
+- `flow.else` can only appear inside a `flow.if` block (at most once)
+- Blocks can be nested (foreach inside foreach, if inside foreach, etc.)
+- Malformed block structure causes the parser to throw before execution begins
+
+#### 5.20.3 Loop Context Variables
+
+When iterating inside a `flow.foreach`, the engine injects magic context keys:
+
+| Key | Value |
+|-----|-------|
+| `loop.current_item` | The current item from the collection (JsonElement) |
+| `loop.current_item.{prop}` | Property access on the current item (for objects) |
+| `loop.index` | Zero-based iteration index |
+
+These are injected directly into the `JobContext` data dictionary, so existing `context:` resolution works unchanged. Step handlers don't need any modifications to work inside loops.
+
+**Nested loops:** Inner loops shadow `loop.current_item` and `loop.index`. Outer loop values are preserved at `loop.{depth}.current_item` and `loop.{depth}.index` (zero-based depth), and restored when the inner loop exits.
+
+#### 5.20.4 Condition Operators
+
+The `flow.if` step evaluates `left {operator} right` using string comparison (case-insensitive) with numeric fallback for comparison operators.
+
+| Operator | Behavior |
+|----------|----------|
+| `equals` | Case-insensitive string equality |
+| `not_equals` | Negation of equals |
+| `contains` | Left contains right (case-insensitive) |
+| `greater_than` | Decimal comparison (string fallback if non-numeric) |
+| `less_than` | Decimal comparison (string fallback if non-numeric) |
+| `exists` | True if left is non-null and non-empty (right is ignored) |
+| `regex` | Right is a regex pattern matched against left |
+
+Both `left` and `right` support `context:` references, which are resolved before evaluation.
+
+#### 5.20.5 Edge Cases
+
+| Scenario | Behavior |
+|----------|----------|
+| Empty collection in foreach | Body skipped entirely. Execution continues with next step after `flow.end`. |
+| Step outputs inside loops | Keyed as `"{stepOrder}.{key}"` — each iteration overwrites previous. Last iteration's values persist after loop. |
+| Pause mid-loop | Pause checked before each step including inside loops. On resume, containing foreach restarts from iteration 0 with restored context. |
+| Failure + Stop policy | Job fails immediately; abort signal propagates up through the loop. |
+| Failure + SkipAndContinue | Failed step skipped; iteration continues with next step in body. |
+| Malformed block structure | Parser throws descriptive error; job fails before execution begins. |
+
+#### 5.20.6 Step Executions for Loop Bodies
+
+Steps executed inside a `flow.foreach` record their `iteration_index` in the `step_executions` table. This allows tracking which iteration produced which output or error. Non-loop steps have `iteration_index = NULL`.
+
 ---
 
 ## 6. Connection & Protocol Layer

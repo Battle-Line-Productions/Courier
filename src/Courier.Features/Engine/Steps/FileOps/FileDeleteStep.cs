@@ -11,15 +11,7 @@ public class FileDeleteStep : IJobStep
         JobContext context,
         CancellationToken cancellationToken)
     {
-        var path = config.GetString("path");
-        if (path.StartsWith("context:"))
-        {
-            var key = path["context:".Length..];
-            if (context.TryGet<string>(key, out var resolved) && resolved is not null)
-                path = resolved;
-            else
-                throw new InvalidOperationException($"Context reference '{key}' not found");
-        }
+        var path = ContextResolver.Resolve(config.GetString("path"), context);
 
         var failIfNotFound = config.GetBoolOrDefault("fail_if_not_found", false);
         var existed = System.IO.File.Exists(path);
