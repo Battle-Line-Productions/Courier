@@ -77,10 +77,35 @@ const STEP_TYPE_GROUPS = [
       { value: "azure_function.execute", label: "Azure Function Execute" },
     ],
   },
+  {
+    label: "Flow Control",
+    types: [
+      { value: "flow.foreach", label: "For Each (Loop)" },
+      { value: "flow.if", label: "If (Condition)" },
+      { value: "flow.else", label: "Else" },
+      { value: "flow.end", label: "End Block" },
+    ],
+  },
 ];
 
 function getStepSummary(step: StepFormData): string | null {
   const config = parseStepConfig(step.configuration, step.typeKey);
+
+  if (step.typeKey === "flow.foreach") {
+    return (config.source as string) || null;
+  }
+
+  if (step.typeKey === "flow.if") {
+    const left = config.left as string;
+    const op = config.operator as string;
+    const right = config.right as string;
+    if (left && op) return right ? `${left} ${op} ${right}` : `${left} ${op}`;
+    return null;
+  }
+
+  if (step.typeKey === "flow.else" || step.typeKey === "flow.end") {
+    return null;
+  }
 
   if (step.typeKey === "azure_function.execute") {
     const fn = config.functionName as string;

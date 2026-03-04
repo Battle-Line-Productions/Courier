@@ -191,6 +191,11 @@ export interface StepConfig {
   mode?: string;
   signaturePath?: string;
   signerKeyIds?: string[];
+  // Flow control fields
+  source?: string;
+  left?: string;
+  operator?: string;
+  right?: string;
   // Raw JSON passthrough for unknown types
   [key: string]: unknown;
 }
@@ -493,6 +498,78 @@ export function StepConfigForm({ typeKey, config, onChange }: StepConfigFormProp
     );
   }
 
+  // Flow control steps
+  if (typeKey === "flow.foreach") {
+    return (
+      <div className="grid gap-3 pt-2">
+        <div className="grid gap-1.5">
+          <Label className="text-xs">Source</Label>
+          <Input
+            placeholder="context:0.file_list"
+            value={(config.source as string) ?? ""}
+            onChange={(e) => onChange({ source: e.target.value })}
+          />
+          <p className="text-xs text-muted-foreground">
+            Context reference to an array to iterate over (e.g., context:0.file_list)
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (typeKey === "flow.if") {
+    return (
+      <div className="grid gap-3 pt-2">
+        <div className="grid gap-1.5">
+          <Label className="text-xs">Left Value</Label>
+          <Input
+            placeholder="context:loop.current_item.size"
+            value={(config.left as string) ?? ""}
+            onChange={(e) => onChange({ ...config, left: e.target.value })}
+          />
+        </div>
+        <div className="grid gap-1.5">
+          <Label className="text-xs">Operator</Label>
+          <select
+            value={(config.operator as string) ?? "equals"}
+            onChange={(e) => onChange({ ...config, operator: e.target.value })}
+            className="rounded-md border bg-background px-3 py-1.5 text-sm"
+          >
+            <option value="equals">Equals</option>
+            <option value="not_equals">Not Equals</option>
+            <option value="contains">Contains</option>
+            <option value="greater_than">Greater Than</option>
+            <option value="less_than">Less Than</option>
+            <option value="exists">Exists</option>
+            <option value="regex">Regex</option>
+          </select>
+        </div>
+        <div className="grid gap-1.5">
+          <Label className="text-xs">Right Value</Label>
+          <Input
+            placeholder="1048576"
+            value={(config.right as string) ?? ""}
+            onChange={(e) => onChange({ ...config, right: e.target.value })}
+            disabled={(config.operator as string) === "exists"}
+          />
+          {(config.operator as string) === "exists" && (
+            <p className="text-xs text-muted-foreground">
+              Not needed for &quot;exists&quot; operator
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (typeKey === "flow.else" || typeKey === "flow.end") {
+    return (
+      <p className="pt-2 text-xs text-muted-foreground">
+        No configuration needed for this step type.
+      </p>
+    );
+  }
+
   // Default: file step config (file.copy, file.move)
   const fileConfig: FileStepConfig = {
     sourcePath: (config.sourcePath as string) ?? "",
@@ -576,6 +653,27 @@ export function parseStepConfig(configJson: string, typeKey?: string): StepConfi
       const c = parseTransferRmdirConfig(configJson);
       return { connectionId: c.connectionId, remotePath: c.remotePath, recursive: c.recursive };
     }
+  }
+
+  // Flow control steps
+  if (typeKey === "flow.foreach") {
+    try {
+      const parsed = JSON.parse(configJson);
+      return { source: parsed.source || "" };
+    } catch {
+      return { source: "" };
+    }
+  }
+  if (typeKey === "flow.if") {
+    try {
+      const parsed = JSON.parse(configJson);
+      return { left: parsed.left || "", operator: parsed.operator || "equals", right: parsed.right || "" };
+    } catch {
+      return { left: "", operator: "equals", right: "" };
+    }
+  }
+  if (typeKey === "flow.else" || typeKey === "flow.end") {
+    return {};
   }
 
   // PGP steps
@@ -688,6 +786,24 @@ export function serializeStepConfig(config: StepConfig, typeKey?: string): strin
         recursive: (config.recursive as boolean) ?? false,
       });
     }
+  }
+
+  // Flow control steps
+  if (typeKey === "flow.foreach") {
+    return JSON.stringify({ source: config.source || "" });
+  }
+  if (typeKey === "flow.if") {
+    const obj: Record<string, string> = {
+      left: (config.left as string) || "",
+      operator: (config.operator as string) || "equals",
+    };
+    if ((config.operator as string) !== "exists") {
+      obj.right = (config.right as string) || "";
+    }
+    return JSON.stringify(obj);
+  }
+  if (typeKey === "flow.else" || typeKey === "flow.end") {
+    return "{}";
   }
 
   // PGP steps
