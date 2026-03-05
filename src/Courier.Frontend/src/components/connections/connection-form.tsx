@@ -47,11 +47,11 @@ const connectionSchema = z.object({
   password: z.string().max(500).optional(),
   clientSecret: z.string().max(500).optional(),
   sshKeyId: z.string().optional(),
-  hostKeyPolicy: z.enum(["trust_on_first_use", "accept_any", "manual"]).optional(),
+  hostKeyPolicy: z.enum(["trust_on_first_use", "always_trust", "manual"]).optional(),
   sshAlgorithms: z.string().max(2000).optional(),
   passiveMode: z.boolean().optional(),
   tlsVersionFloor: z.enum(["tls12", "tls13"]).optional(),
-  tlsCertPolicy: z.enum(["os_default", "accept_any", "pinned_thumbprint"]).optional(),
+  tlsCertPolicy: z.enum(["system_trust", "insecure", "pinned_thumbprint"]).optional(),
   tlsPinnedThumbprint: z.string().max(200).optional(),
   connectTimeoutSec: z.number().int().min(1).max(300),
   operationTimeoutSec: z.number().int().min(1).max(3600),
@@ -123,7 +123,7 @@ export function ConnectionForm({ connection }: ConnectionFormProps) {
       sshAlgorithms: connection?.sshAlgorithms ?? "",
       passiveMode: connection?.passiveMode ?? true,
       tlsVersionFloor: (connection?.tlsVersionFloor as ConnectionFormValues["tlsVersionFloor"]) ?? "tls12",
-      tlsCertPolicy: (connection?.tlsCertPolicy as ConnectionFormValues["tlsCertPolicy"]) ?? "os_default",
+      tlsCertPolicy: (connection?.tlsCertPolicy as ConnectionFormValues["tlsCertPolicy"]) ?? "system_trust",
       tlsPinnedThumbprint: connection?.tlsPinnedThumbprint ?? "",
       connectTimeoutSec: connection?.connectTimeoutSec ?? 30,
       operationTimeoutSec: connection?.operationTimeoutSec ?? 120,
@@ -479,7 +479,7 @@ export function ConnectionForm({ connection }: ConnectionFormProps) {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="trust_on_first_use">Trust on First Use</SelectItem>
-                      <SelectItem value="accept_any">Accept Any</SelectItem>
+                      <SelectItem value="always_trust">Always Trust</SelectItem>
                       <SelectItem value="manual">Manual</SelectItem>
                     </SelectContent>
                   </Select>
@@ -548,13 +548,13 @@ export function ConnectionForm({ connection }: ConnectionFormProps) {
                       control={control}
                       name="tlsCertPolicy"
                       render={({ field }) => (
-                        <Select value={field.value ?? "os_default"} onValueChange={field.onChange}>
+                        <Select value={field.value ?? "system_trust"} onValueChange={field.onChange}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="os_default">OS Default</SelectItem>
-                            <SelectItem value="accept_any">Accept Any</SelectItem>
+                            <SelectItem value="system_trust">System Trust</SelectItem>
+                            <SelectItem value="insecure">Insecure</SelectItem>
                             <SelectItem value="pinned_thumbprint">Pinned Thumbprint</SelectItem>
                           </SelectContent>
                         </Select>
