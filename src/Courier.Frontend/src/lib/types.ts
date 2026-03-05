@@ -586,6 +586,33 @@ export interface TriggerChainRequest {
   triggeredBy: string;
 }
 
+// Chain Schedules
+export interface ChainScheduleDto {
+  id: string;
+  chainId: string;
+  scheduleType: string;
+  cronExpression?: string;
+  runAt?: string;
+  isEnabled: boolean;
+  lastFiredAt?: string;
+  nextFireAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateChainScheduleRequest {
+  scheduleType: string;
+  cronExpression?: string;
+  runAt?: string;
+  isEnabled: boolean;
+}
+
+export interface UpdateChainScheduleRequest {
+  cronExpression?: string;
+  runAt?: string;
+  isEnabled?: boolean;
+}
+
 // Job Dependencies
 export interface JobDependencyDto {
   id: string;
@@ -650,4 +677,99 @@ export interface NotificationLogDto {
   success: boolean;
   errorMessage?: string;
   sentAt: string;
+}
+
+// Auth types
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  user: UserProfileDto;
+}
+
+export interface RefreshRequest {
+  refreshToken: string;
+}
+
+export interface UserProfileDto {
+  id: string;
+  username: string;
+  displayName: string;
+  email?: string;
+  role: string;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+}
+
+export interface SetupStatusDto {
+  isCompleted: boolean;
+}
+
+export interface InitializeSetupRequest {
+  username: string;
+  displayName: string;
+  email?: string;
+  password: string;
+  confirmPassword: string;
+}
+
+// User management types
+export interface UserDto {
+  id: string;
+  username: string;
+  email?: string;
+  displayName: string;
+  role: string;
+  isActive: boolean;
+  isSsoUser: boolean;
+  lastLoginAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateUserRequest {
+  username: string;
+  email?: string;
+  displayName: string;
+  password: string;
+  confirmPassword: string;
+  role: string;
+}
+
+export interface UpdateUserRequest {
+  email?: string;
+  displayName: string;
+  role: string;
+  isActive: boolean;
+}
+
+export interface NewPasswordRequest {
+  password: string;
+  confirmPassword: string;
+}
+
+// Settings types
+export interface AuthSettingsDto {
+  sessionTimeoutMinutes: number;
+  refreshTokenDays: number;
+  passwordMinLength: number;
+  maxLoginAttempts: number;
+  lockoutDurationMinutes: number;
+}
+
+export interface UpdateAuthSettingsRequest {
+  sessionTimeoutMinutes: number;
+  refreshTokenDays: number;
+  passwordMinLength: number;
+  maxLoginAttempts: number;
+  lockoutDurationMinutes: number;
 }

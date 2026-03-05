@@ -1,5 +1,6 @@
 using Courier.Domain.Common;
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,6 +8,7 @@ namespace Courier.Features.PgpKeys;
 
 [ApiController]
 [Route("api/v1/pgp-keys")]
+[Authorize]
 public class PgpKeysController : ControllerBase
 {
     private readonly PgpKeyService _pgpKeyService;

@@ -12,5 +12,6 @@ public enum AuditableEntityType
     Tag,
     Chain,
     ChainExecution,
-    NotificationRule
+    NotificationRule,
+    User
 }

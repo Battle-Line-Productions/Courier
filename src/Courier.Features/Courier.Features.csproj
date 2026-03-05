@@ -14,6 +14,8 @@
     <PackageReference Include="BouncyCastle.Cryptography" />
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Konscious.Security.Cryptography.Argon2" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
     <PackageReference Include="MailKit" />
     <PackageReference Include="SSH.NET" />
     <PackageReference Include="FluentFTP" />

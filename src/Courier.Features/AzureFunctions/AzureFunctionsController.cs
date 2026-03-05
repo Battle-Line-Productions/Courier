@@ -2,6 +2,7 @@ using Courier.Domain.Common;
 using Courier.Domain.Encryption;
 using Courier.Features.Connections;
 using Courier.Infrastructure.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -10,6 +11,7 @@ namespace Courier.Features.AzureFunctions;
 
 [ApiController]
 [Route("api/v1/azure-functions")]
+[Authorize]
 public class AzureFunctionsController : ControllerBase
 {
     private readonly CourierDbContext _db;

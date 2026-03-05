@@ -1,11 +1,13 @@
 using Courier.Domain.Common;
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Courier.Features.Monitors;
 
 [ApiController]
 [Route("api/v1/monitors")]
+[Authorize]
 public class MonitorsController : ControllerBase
 {
     private readonly MonitorService _monitorService;

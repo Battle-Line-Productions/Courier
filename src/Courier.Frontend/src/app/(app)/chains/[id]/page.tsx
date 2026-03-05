@@ -6,6 +6,7 @@ import { useChain, useChainExecutions } from "@/lib/hooks/use-chains";
 import { useAllJobs } from "@/lib/hooks/use-jobs";
 import { useTriggerChain } from "@/lib/hooks/use-chain-mutations";
 import { ChainMemberEditor } from "@/components/chains/chain-member-editor";
+import { ChainSchedulePanel } from "@/components/chains/chain-schedule-panel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -134,6 +135,9 @@ export default function ChainDetailPage({ params }: { params: Promise<{ id: stri
           />
         </CardContent>
       </Card>
+
+      {/* Schedules */}
+      <ChainSchedulePanel chainId={id} />
 
       {/* Executions */}
       <Card>

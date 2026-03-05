@@ -1,11 +1,13 @@
 using Courier.Domain.Common;
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Courier.Features.Tags;
 
 [ApiController]
 [Route("api/v1/tags")]
+[Authorize]
 public class TagsController : ControllerBase
 {
     private readonly TagService _tagService;

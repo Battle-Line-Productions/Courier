@@ -1,10 +1,12 @@
 using Courier.Domain.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Courier.Features.Notifications;
 
 [ApiController]
 [Route("api/v1/notification-logs")]
+[Authorize]
 public class NotificationLogsController : ControllerBase
 {
     private readonly NotificationLogService _logService;

@@ -1,11 +1,13 @@
 using Courier.Domain.Common;
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Courier.Features.Jobs;
 
 [ApiController]
 [Route("api/v1/jobs")]
+[Authorize]
 public class JobsController : ControllerBase
 {
     private readonly JobService _jobService;

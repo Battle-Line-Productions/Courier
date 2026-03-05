@@ -44,11 +44,13 @@ public class ScheduleStartupSync : BackgroundService
     private async Task SyncAsync(CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
-        var manager = scope.ServiceProvider.GetRequiredService<QuartzScheduleManager>();
+        var jobManager = scope.ServiceProvider.GetRequiredService<QuartzScheduleManager>();
+        var chainManager = scope.ServiceProvider.GetRequiredService<ChainScheduleManager>();
 
         try
         {
-            await manager.SyncAllAsync(ct);
+            await jobManager.SyncAllAsync(ct);
+            await chainManager.SyncAllAsync(ct);
             _logger.LogDebug("Schedule sync completed");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

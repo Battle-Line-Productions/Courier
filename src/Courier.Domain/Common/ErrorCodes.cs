@@ -95,6 +95,8 @@ public static class ErrorCodes
     public const int ChainMemberJobNotFound = 2056;
     public const int ChainExecutionNotFound = 2057;
     public const int DependencyNotFound = 2058;
+    public const int ChainScheduleNotFound = 2059;
+    public const int ChainScheduleMismatch = 2060;
 
     // Tags (7100-7199)
     public const int DuplicateTagName = 7100;
@@ -109,6 +111,23 @@ public static class ErrorCodes
     public const int NotificationDispatchFailed = 7204;
     public const int InvalidChannelConfig = 7205;
     public const int NotificationTestFailed = 7206;
+
+    // Authentication & Authorization (10000-10099)
+    public const int InvalidCredentials = 10000;
+    public const int AccountLocked = 10001;
+    public const int AccountDisabled = 10002;
+    public const int InvalidRefreshToken = 10003;
+    public const int RefreshTokenExpired = 10004;
+    public const int SetupNotCompleted = 10005;
+    public const int SetupAlreadyCompleted = 10006;
+    public const int Unauthorized = 10007;
+    public const int Forbidden = 10008;
+    public const int DuplicateUsername = 10009;
+    public const int CannotDeleteSelf = 10010;
+    public const int CannotDemoteLastAdmin = 10011;
+    public const int WeakPassword = 10012;
+    public const int InvalidCurrentPassword = 10013;
+    public const int UserNotFound = 10014;
 }
 
 public static class ErrorMessages
@@ -187,9 +206,26 @@ public static class ErrorMessages
         [ErrorCodes.ChainMemberJobNotFound] = "Chain member job not found",
         [ErrorCodes.ChainExecutionNotFound] = "Chain execution not found",
         [ErrorCodes.DependencyNotFound] = "Dependency not found",
+        [ErrorCodes.ChainScheduleNotFound] = "Chain schedule not found",
+        [ErrorCodes.ChainScheduleMismatch] = "Schedule does not belong to this chain",
         [ErrorCodes.DuplicateTagName] = "Duplicate tag name",
         [ErrorCodes.InvalidTagEntityType] = "Invalid entity type for tagging",
         [ErrorCodes.TagEntityNotFound] = "Tagged entity not found",
+        [ErrorCodes.InvalidCredentials] = "Invalid credentials",
+        [ErrorCodes.AccountLocked] = "Account locked",
+        [ErrorCodes.AccountDisabled] = "Account disabled",
+        [ErrorCodes.InvalidRefreshToken] = "Invalid refresh token",
+        [ErrorCodes.RefreshTokenExpired] = "Refresh token expired",
+        [ErrorCodes.SetupNotCompleted] = "Setup not completed",
+        [ErrorCodes.SetupAlreadyCompleted] = "Setup already completed",
+        [ErrorCodes.Unauthorized] = "Unauthorized",
+        [ErrorCodes.Forbidden] = "Forbidden",
+        [ErrorCodes.DuplicateUsername] = "Duplicate username",
+        [ErrorCodes.CannotDeleteSelf] = "Cannot delete own account",
+        [ErrorCodes.CannotDemoteLastAdmin] = "Cannot demote the last admin",
+        [ErrorCodes.WeakPassword] = "Password does not meet requirements",
+        [ErrorCodes.InvalidCurrentPassword] = "Invalid current password",
+        [ErrorCodes.UserNotFound] = "User not found",
     };
 
     public static ApiError Create(int code, string message, IReadOnlyList<FieldError>? details = null)

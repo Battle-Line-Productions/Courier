@@ -1,10 +1,12 @@
 using Courier.Domain.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Courier.Features.Filesystem;
 
 [ApiController]
 [Route("api/v1/filesystem")]
+[Authorize]
 public class FilesystemController : ControllerBase
 {
     private readonly FilesystemService _filesystemService;

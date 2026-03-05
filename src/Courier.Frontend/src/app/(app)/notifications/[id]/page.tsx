@@ -138,13 +138,13 @@ export default function NotificationRuleDetailPage({ params }: { params: Promise
                 ))}
               </div>
             </div>
-            {rule.channel === "webhook" && config.url && (
+            {rule.channel === "webhook" && !!config.url && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">URL</span>
                 <span className="text-xs truncate max-w-[200px]">{String(config.url)}</span>
               </div>
             )}
-            {rule.channel === "email" && config.recipients && (
+            {rule.channel === "email" && !!config.recipients && (
               <div>
                 <span className="text-muted-foreground">Recipients:</span>
                 <p className="text-xs mt-1">{(config.recipients as string[]).join(", ")}</p>

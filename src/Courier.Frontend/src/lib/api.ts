@@ -42,28 +42,65 @@ import type {
   UpdateChainRequest,
   ReplaceChainMembersRequest,
   TriggerChainRequest,
+  ChainScheduleDto,
+  CreateChainScheduleRequest,
+  UpdateChainScheduleRequest,
   JobDependencyDto,
   AddJobDependencyRequest,
   NotificationRuleDto,
   CreateNotificationRuleRequest,
   UpdateNotificationRuleRequest,
   NotificationLogDto,
+  LoginRequest,
+  LoginResponse,
+  RefreshRequest,
+  UserProfileDto,
+  ChangePasswordRequest,
+  SetupStatusDto,
+  InitializeSetupRequest,
+  UserDto,
+  CreateUserRequest,
+  UpdateUserRequest,
+  NewPasswordRequest,
+  AuthSettingsDto,
+  UpdateAuthSettingsRequest,
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 class ApiClient {
   private baseUrl: string;
+  private accessToken: string | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
   }
 
+  setAccessToken(token: string | null) {
+    this.accessToken = token;
+  }
+
   private async request<T>(path: string, options?: RequestInit): Promise<T> {
+    const headers: Record<string, string> = {};
+    if (this.accessToken) {
+      headers["Authorization"] = `Bearer ${this.accessToken}`;
+    }
+    if (options?.body) {
+      headers["Content-Type"] = "application/json";
+    }
+
     const response = await fetch(`${this.baseUrl}${path}`, {
-      headers: { "Content-Type": "application/json", ...options?.headers },
       ...options,
+      headers: { ...headers, ...options?.headers },
     });
+
+    if (response.status === 401) {
+      throw new ApiClientError({
+        code: 10007,
+        systemMessage: "Unauthorized",
+        message: "Your session has expired. Please log in again.",
+      });
+    }
 
     const body = await response.json();
 
@@ -245,8 +282,13 @@ class ApiClient {
   }
 
   async importPgpKey(formData: FormData): Promise<ApiResponse<PgpKeyDto>> {
+    const headers: Record<string, string> = {};
+    if (this.accessToken) {
+      headers["Authorization"] = `Bearer ${this.accessToken}`;
+    }
     const response = await fetch(`${this.baseUrl}/api/v1/pgp-keys/import`, {
       method: "POST",
+      headers,
       body: formData,
     });
     const body = await response.json();
@@ -266,7 +308,13 @@ class ApiClient {
   }
 
   async exportPgpPublicKey(id: string): Promise<Blob> {
-    const response = await fetch(`${this.baseUrl}/api/v1/pgp-keys/${id}/export/public`);
+    const headers: Record<string, string> = {};
+    if (this.accessToken) {
+      headers["Authorization"] = `Bearer ${this.accessToken}`;
+    }
+    const response = await fetch(`${this.baseUrl}/api/v1/pgp-keys/${id}/export/public`, {
+      headers,
+    });
     if (!response.ok) throw new Error(`Export failed: ${response.statusText}`);
     return response.blob();
   }
@@ -309,8 +357,13 @@ class ApiClient {
   }
 
   async importSshKey(formData: FormData): Promise<ApiResponse<SshKeyDto>> {
+    const headers: Record<string, string> = {};
+    if (this.accessToken) {
+      headers["Authorization"] = `Bearer ${this.accessToken}`;
+    }
     const response = await fetch(`${this.baseUrl}/api/v1/ssh-keys/import`, {
       method: "POST",
+      headers,
       body: formData,
     });
     const body = await response.json();
@@ -330,7 +383,13 @@ class ApiClient {
   }
 
   async exportSshPublicKey(id: string): Promise<Blob> {
-    const response = await fetch(`${this.baseUrl}/api/v1/ssh-keys/${id}/export/public`);
+    const headers: Record<string, string> = {};
+    if (this.accessToken) {
+      headers["Authorization"] = `Bearer ${this.accessToken}`;
+    }
+    const response = await fetch(`${this.baseUrl}/api/v1/ssh-keys/${id}/export/public`, {
+      headers,
+    });
     if (!response.ok) throw new Error(`Export failed: ${response.statusText}`);
     return response.blob();
   }
@@ -568,6 +627,29 @@ class ApiClient {
     return this.request(`/api/v1/chains/${chainId}/executions/${executionId}`);
   }
 
+  // Chain Schedules
+  async listChainSchedules(chainId: string): Promise<ApiResponse<ChainScheduleDto[]>> {
+    return this.request(`/api/v1/chains/${chainId}/schedules`);
+  }
+
+  async createChainSchedule(chainId: string, data: CreateChainScheduleRequest): Promise<ApiResponse<ChainScheduleDto>> {
+    return this.request(`/api/v1/chains/${chainId}/schedules`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateChainSchedule(chainId: string, scheduleId: string, data: UpdateChainScheduleRequest): Promise<ApiResponse<ChainScheduleDto>> {
+    return this.request(`/api/v1/chains/${chainId}/schedules/${scheduleId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteChainSchedule(chainId: string, scheduleId: string): Promise<ApiResponse<void>> {
+    return this.request(`/api/v1/chains/${chainId}/schedules/${scheduleId}`, { method: "DELETE" });
+  }
+
   // Job Dependencies
   async listJobDependencies(jobId: string): Promise<ApiResponse<JobDependencyDto[]>> {
     return this.request(`/api/v1/jobs/${jobId}/dependencies`);
@@ -650,6 +732,99 @@ class ApiClient {
     if (params?.success !== undefined) searchParams.set("success", params.success.toString());
     const qs = searchParams.toString();
     return this.request(`/api/v1/notification-logs${qs ? `?${qs}` : ""}`);
+  }
+
+  // Auth
+  async login(data: LoginRequest): Promise<ApiResponse<LoginResponse>> {
+    return this.request("/api/v1/auth/login", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async refreshToken(data: RefreshRequest): Promise<ApiResponse<LoginResponse>> {
+    return this.request("/api/v1/auth/refresh", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async logout(refreshToken: string): Promise<ApiResponse<void>> {
+    return this.request("/api/v1/auth/logout", {
+      method: "POST",
+      body: JSON.stringify({ refreshToken }),
+    });
+  }
+
+  async getMe(): Promise<ApiResponse<UserProfileDto>> {
+    return this.request("/api/v1/auth/me");
+  }
+
+  async changePassword(data: ChangePasswordRequest): Promise<ApiResponse<void>> {
+    return this.request("/api/v1/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Setup
+  async getSetupStatus(): Promise<ApiResponse<SetupStatusDto>> {
+    return this.request("/api/v1/setup/status");
+  }
+
+  async initializeSetup(data: InitializeSetupRequest): Promise<ApiResponse<UserProfileDto>> {
+    return this.request("/api/v1/setup/initialize", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Users (admin)
+  async listUsers(page = 1, pageSize = 10, search?: string): Promise<PagedApiResponse<UserDto>> {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (search) params.set("search", search);
+    return this.request(`/api/v1/users?${params}`);
+  }
+
+  async getUser(id: string): Promise<ApiResponse<UserDto>> {
+    return this.request(`/api/v1/users/${id}`);
+  }
+
+  async createUser(data: CreateUserRequest): Promise<ApiResponse<UserDto>> {
+    return this.request("/api/v1/users", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateUser(id: string, data: UpdateUserRequest): Promise<ApiResponse<UserDto>> {
+    return this.request(`/api/v1/users/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteUser(id: string): Promise<ApiResponse<void>> {
+    return this.request(`/api/v1/users/${id}`, { method: "DELETE" });
+  }
+
+  async resetUserPassword(id: string, data: NewPasswordRequest): Promise<ApiResponse<void>> {
+    return this.request(`/api/v1/users/${id}/reset-password`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Settings
+  async getAuthSettings(): Promise<ApiResponse<AuthSettingsDto>> {
+    return this.request("/api/v1/settings/auth");
+  }
+
+  async updateAuthSettings(data: UpdateAuthSettingsRequest): Promise<ApiResponse<AuthSettingsDto>> {
+    return this.request("/api/v1/settings/auth", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
   }
 }
 

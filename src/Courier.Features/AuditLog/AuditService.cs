@@ -24,6 +24,7 @@ public class AuditService
         [AuditableEntityType.Chain] = "chain",
         [AuditableEntityType.ChainExecution] = "chain_execution",
         [AuditableEntityType.NotificationRule] = "notification_rule",
+        [AuditableEntityType.User] = "user",
     };
 
     public AuditService(CourierDbContext db)

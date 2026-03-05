@@ -58,6 +58,7 @@ builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
 // Schedule sync — Quartz registration manager + periodic sync from DB
 builder.Services.AddScoped<QuartzScheduleManager>();
+builder.Services.AddScoped<ChainScheduleManager>();
 builder.Services.AddHostedService<ScheduleStartupSync>();
 
 var host = builder.Build();

@@ -1,24 +1,29 @@
 using Courier.Domain.Common;
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Courier.Features.Chains;
 
 [ApiController]
 [Route("api/v1/chains")]
+[Authorize]
 public class ChainsController : ControllerBase
 {
     private readonly ChainService _chainService;
     private readonly ChainExecutionService _executionService;
+    private readonly ChainScheduleService _scheduleService;
     private readonly IValidator<CreateChainRequest> _createValidator;
 
     public ChainsController(
         ChainService chainService,
         ChainExecutionService executionService,
+        ChainScheduleService scheduleService,
         IValidator<CreateChainRequest> createValidator)
     {
         _chainService = chainService;
         _executionService = executionService;
+        _scheduleService = scheduleService;
         _createValidator = createValidator;
     }
 
@@ -181,6 +186,112 @@ public class ChainsController : ControllerBase
 
         if (!result.Success)
             return NotFound(result);
+
+        return Ok(result);
+    }
+
+    // --- Schedules ---
+
+    [HttpGet("{chainId:guid}/schedules")]
+    public async Task<ActionResult<ApiResponse<List<ChainScheduleDto>>>> ListSchedules(
+        Guid chainId,
+        CancellationToken ct)
+    {
+        var result = await _scheduleService.ListAsync(chainId, ct);
+
+        if (!result.Success)
+            return NotFound(result);
+
+        return Ok(result);
+    }
+
+    [HttpPost("{chainId:guid}/schedules")]
+    public async Task<ActionResult<ApiResponse<ChainScheduleDto>>> CreateSchedule(
+        Guid chainId,
+        [FromBody] CreateChainScheduleRequest request,
+        [FromServices] IValidator<CreateChainScheduleRequest> validator,
+        CancellationToken ct)
+    {
+        var validation = await validator.ValidateAsync(request, ct);
+        if (!validation.IsValid)
+        {
+            var details = validation.Errors
+                .Select(e => new FieldError(e.PropertyName, e.ErrorMessage))
+                .ToList();
+
+            return BadRequest(new ApiResponse<ChainScheduleDto>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.ValidationFailed, "Validation failed.", details)
+            });
+        }
+
+        var result = await _scheduleService.CreateAsync(chainId, request, ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ChainNotFound => NotFound(result),
+                _ => StatusCode(500, result)
+            };
+        }
+
+        return Created($"/api/v1/chains/{chainId}/schedules/{result.Data!.Id}", result);
+    }
+
+    [HttpPut("{chainId:guid}/schedules/{scheduleId:guid}")]
+    public async Task<ActionResult<ApiResponse<ChainScheduleDto>>> UpdateSchedule(
+        Guid chainId,
+        Guid scheduleId,
+        [FromBody] UpdateChainScheduleRequest request,
+        [FromServices] IValidator<UpdateChainScheduleRequest> validator,
+        CancellationToken ct)
+    {
+        var validation = await validator.ValidateAsync(request, ct);
+        if (!validation.IsValid)
+        {
+            var details = validation.Errors
+                .Select(e => new FieldError(e.PropertyName, e.ErrorMessage))
+                .ToList();
+
+            return BadRequest(new ApiResponse<ChainScheduleDto>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.ValidationFailed, "Validation failed.", details)
+            });
+        }
+
+        var result = await _scheduleService.UpdateAsync(chainId, scheduleId, request, ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ChainScheduleNotFound => NotFound(result),
+                ErrorCodes.ChainScheduleMismatch => BadRequest(result),
+                _ => StatusCode(500, result)
+            };
+        }
+
+        return Ok(result);
+    }
+
+    [HttpDelete("{chainId:guid}/schedules/{scheduleId:guid}")]
+    public async Task<ActionResult<ApiResponse>> DeleteSchedule(
+        Guid chainId,
+        Guid scheduleId,
+        CancellationToken ct)
+    {
+        var result = await _scheduleService.DeleteAsync(chainId, scheduleId, ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ChainScheduleNotFound => NotFound(result),
+                ErrorCodes.ChainScheduleMismatch => BadRequest(result),
+                _ => StatusCode(500, result)
+            };
+        }
 
         return Ok(result);
     }

@@ -1,7 +1,11 @@
+using System.Text;
 using Courier.Api.Middleware;
 using Courier.Features;
+using Courier.Features.Auth;
 using Courier.Infrastructure.Data;
 using Courier.Migrations;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,14 +34,52 @@ builder.Services.AddHostedService<MigrationRunner>();
 // Features (Jobs, validators, etc.)
 builder.Services.AddCourierFeatures(builder.Configuration);
 
-// CORS — allow frontend origin in development
+// JWT Authentication
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
+
+var jwtSecret = builder.Configuration["Jwt:Secret"];
+if (!string.IsNullOrEmpty(jwtSecret))
+{
+    var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
+
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "courier",
+                ValidAudience = builder.Configuration["Jwt:Audience"] ?? "courier-api",
+                IssuerSigningKey = key,
+                ClockSkew = TimeSpan.FromSeconds(30),
+            };
+        });
+}
+
+builder.Services.AddAuthorization();
+
+// CORS — allow frontend origin
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+        if (allowedOrigins is { Length: > 0 })
+        {
+            policy.WithOrigins(allowedOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        }
+        else
+        {
+            policy.AllowAnyOrigin()
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        }
     });
 });
 
@@ -63,6 +105,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseMiddleware<SetupGuardMiddleware>();
 
 app.UseSerilogRequestLogging();
 

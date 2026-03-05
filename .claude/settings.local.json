@@ -69,7 +69,10 @@
       "mcp__sequential-thinking__*",
       "Bash(python3:*)",
       "Bash(python:*)",
-      "Bash(dotnet add:*)"
+      "Bash(dotnet add:*)",
+      "mcp__plugin_context-mode_context-mode__execute_file",
+      "mcp__plugin_context-mode_context-mode__search",
+      "Bash(npx shadcn@latest:*)"
     ],
     "deny": [],
     "ask": []

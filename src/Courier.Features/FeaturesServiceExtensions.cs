@@ -12,6 +12,7 @@ using Courier.Features.Engine.Steps.FileOps;
 using Courier.Features.Engine.Steps.Flow;
 using Courier.Features.Engine.Steps.Transfer;
 using Courier.Features.Engine.Compression;
+using Courier.Features.Auth;
 using Courier.Features.AuditLog;
 using Courier.Features.AzureFunctions;
 using Courier.Features.Filesystem;
@@ -23,6 +24,9 @@ using Courier.Features.Chains;
 using Courier.Features.Tags;
 using Courier.Features.Notifications;
 using Courier.Features.Notifications.Channels;
+using Courier.Features.Settings;
+using Courier.Features.Setup;
+using Courier.Features.Users;
 using Courier.Infrastructure.Encryption;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
@@ -114,6 +118,19 @@ public static class FeaturesServiceExtensions
         // Audit
         services.AddScoped<AuditService>();
 
+        // Auth
+        services.AddScoped<AuthService>();
+        services.AddScoped<JwtTokenService>();
+
+        // Settings
+        services.AddScoped<SettingsService>();
+
+        // Setup
+        services.AddScoped<SetupService>();
+
+        // Users
+        services.AddScoped<UserService>();
+
         // Tags
         services.AddScoped<TagService>();
 
@@ -121,6 +138,7 @@ public static class FeaturesServiceExtensions
         services.AddScoped<ChainService>();
         services.AddScoped<ChainExecutionService>();
         services.AddScoped<ChainOrchestrator>();
+        services.AddScoped<ChainScheduleService>();
         services.AddScoped<JobDependencyService>();
 
         // Notifications

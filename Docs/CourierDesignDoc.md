@@ -1152,7 +1152,7 @@ A single run of a job. Owns its step executions and context snapshot.
 | `IsDeleted`         | `bool`              | Soft delete flag                                      |
 | `DeletedAt`         | `DateTimeOffset?`   | Soft delete timestamp                                 |
 | `Members`           | `IReadOnlyList<JobChainMember>` | Ordered job references with dependencies   |
-| `Schedules`         | `IReadOnlyList<JobSchedule>` | Attached schedules                          |
+| `Schedules`         | `IReadOnlyList<ChainSchedule>` | Attached schedules                        |
 | `Tags`              | `IReadOnlyList<EntityTag>` | Associated tags                               |
 
 **JobChainMember** (entity owned by JobChain)
@@ -1191,14 +1191,28 @@ Represents a dependency edge between two standalone jobs (outside of chains).
 
 **JobSchedule** (entity)
 
-Attached to either a Job or a JobChain. Polymorphic via nullable FKs.
+Attached to a Job via `job_schedules` table.
 
 | Property            | Type                | Description                                           |
 |---------------------|---------------------|-------------------------------------------------------|
 | `Id`                | `Guid`              | Primary key                                           |
-| `JobId`             | `Guid?`             | FK to Job (nullable — set if attached to a job)       |
-| `ChainId`           | `Guid?`             | FK to JobChain (nullable — set if attached to a chain)|
-| `ScheduleType`      | `ScheduleType`      | Enum: `Cron`, `OneShot`                               |
+| `JobId`             | `Guid`              | FK to Job                                             |
+| `ScheduleType`      | `string`            | `"cron"` or `"one_shot"`                              |
+| `CronExpression`    | `string?`           | Quartz cron expression (nullable for one-shot)        |
+| `RunAt`             | `DateTimeOffset?`   | One-shot execution time (nullable for cron)           |
+| `IsEnabled`         | `bool`              | Whether the schedule is active                        |
+| `LastFiredAt`       | `DateTimeOffset?`   | Last time this schedule triggered                     |
+| `NextFireAt`        | `DateTimeOffset?`   | Next calculated fire time                             |
+
+**ChainSchedule** (entity)
+
+Attached to a JobChain via `chain_schedules` table. Mirrors `JobSchedule` exactly.
+
+| Property            | Type                | Description                                           |
+|---------------------|---------------------|-------------------------------------------------------|
+| `Id`                | `Guid`              | Primary key                                           |
+| `ChainId`           | `Guid`              | FK to JobChain                                        |
+| `ScheduleType`      | `string`            | `"cron"` or `"one_shot"`                              |
 | `CronExpression`    | `string?`           | Quartz cron expression (nullable for one-shot)        |
 | `RunAt`             | `DateTimeOffset?`   | One-shot execution time (nullable for cron)           |
 | `IsEnabled`         | `bool`              | Whether the schedule is active                        |
@@ -1508,12 +1522,12 @@ public enum AuditableEntityType { Job, JobExecution, StepExecution, Chain, Chain
 │                                                                                  │
 │  ┌─────────┐ 1    * ┌──────────┐         ┌──────────────┐                       │
 │  │   Job   │───────│ JobStep  │         │ JobSchedule  │                       │
-│  └────┬────┘        └──────────┘         └──────┬───────┘                       │
-│       │ 1                                        │ *                             │
-│       ├──────────* ┌──────────────┐              │                               │
-│       │            │  JobVersion  │         ┌────┴─────┐                         │
-│       │            └──────────────┘         │ JobChain │                         │
-│       │ 1                                    └────┬────┘                         │
+│  └────┬────┘        └──────────┘         └──────────────┘                       │
+│       │ 1                                  1 *                                   │
+│       ├──────────* ┌──────────────┐                                              │
+│       │            │  JobVersion  │         ┌────────────┐  1  * ┌──────────────┐│
+│       │            └──────────────┘         │ JobChain   │─────│ChainSchedule ││
+│       │ 1                                    └────┬────┘       └──────────────┘│
 │       ├──────────* ┌──────────────┐               │ 1                            │
 │       │            │ JobExecution │◄──────────┐   ├──────* ┌────────────────┐    │
 │       │            └──────┬───────┘           │   │        │ JobChainMember │    │
@@ -1589,7 +1603,7 @@ KEY RELATIONSHIPS:
   JobExecution ──1:*──► StepExecution    Execution owns step executions
   JobChain ──1:*──► JobChainMember      Chain owns ordered member references
   JobChain ──1:*──► ChainExecution      Chain owns chain execution history
-  JobChain ──1:*──► JobSchedule         Chain can have multiple schedules
+  JobChain ──1:*──► ChainSchedule       Chain can have multiple schedules
   ChainExecution ──1:*──► JobExecution   Chain execution owns job executions
   Connection ──1:*──► KnownHost         Connection owns host fingerprints
   Connection ──*:1──► SshKey            Connections reference SSH keys
@@ -1816,9 +1830,11 @@ Chain: "Daily Partner Invoice Processing"
 
 - **Name & description**: Human-readable identification
 - **Member jobs**: Ordered list of Job references with dependency edges
-- **Schedule**: A Chain can have its own cron/one-shot schedule. When triggered, it starts the first Job(s) with no upstream dependencies
+- **Schedule**: A Chain can have its own cron/one-shot schedules via the separate `chain_schedules` table. When triggered, it starts the first Job(s) with no upstream dependencies
 - **Chain-level state**: `Pending → Running → Completed | Failed | Paused | Cancelled`
 - **Propagation behavior**: As each Job completes, the Chain evaluates which downstream Jobs are unblocked and enqueues them
+
+**Chain Scheduling**: Chains support the same scheduling types as Jobs — **cron** (recurring via Quartz cron expressions) and **one_shot** (single future execution that auto-disables after firing). Chain schedules are stored in a separate `chain_schedules` table (not the `job_schedules` table) to maintain clean separation. The Worker runs a `ChainScheduleManager` that registers chain schedules with Quartz.NET under the `"courier-chains"` group (separate from job schedules in the `"courier"` group). The `ScheduleStartupSync` background service syncs both job and chain schedules on a 30-second interval. When a chain schedule fires, `QuartzChainAdapter` calls `ChainExecutionService.TriggerAsync()` with `triggeredBy: "schedule"`.
 
 **Chain vs. standalone dependencies**: Jobs can have dependencies both within a Chain and as standalone relationships. Chains are a convenience for defining and scheduling a related group. Standalone dependencies allow cross-chain relationships.
 
@@ -4569,17 +4585,99 @@ The audit log is read-only — entries are created internally by the system and 
 }
 ```
 
-### 10.10 System Settings API
+### 10.10 Authentication API
+
+All auth endpoints use `[AllowAnonymous]` (login, refresh) or `[Authorize]` (me, logout, change-password).
 
 ```
-GET    /api/v1/settings                       List all settings
-GET    /api/v1/settings/{key}                 Get a specific setting
-PUT    /api/v1/settings/{key}                 Update a setting value
+POST   /api/v1/auth/login                     Authenticate with username/password
+POST   /api/v1/auth/refresh                   Exchange refresh token for new token pair
+POST   /api/v1/auth/logout                    Revoke refresh token
+GET    /api/v1/auth/me                         Get current user profile
+POST   /api/v1/auth/change-password           Change own password (requires current password)
 ```
 
-Settings are seeded on first migration and cannot be created or deleted via the API. Only the `value` field is mutable.
+**Login response**:
 
-### 10.11 Dashboard & Summary Endpoints
+```json
+{
+    "data": {
+        "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+        "refreshToken": "base64-random-32-bytes",
+        "expiresIn": 900,
+        "user": {
+            "id": "uuid",
+            "username": "admin",
+            "displayName": "Admin User",
+            "email": "admin@example.com",
+            "role": "admin"
+        }
+    }
+}
+```
+
+**Error codes** (10000–10014):
+
+| Code | Name | HTTP Status |
+|------|------|-------------|
+| 10000 | InvalidCredentials | 401 |
+| 10001 | AccountLocked | 423 |
+| 10002 | AccountDisabled | 403 |
+| 10003 | InvalidRefreshToken | 401 |
+| 10004 | RefreshTokenExpired | 401 |
+| 10007 | Unauthorized | 401 |
+| 10008 | Forbidden | 403 |
+| 10012 | WeakPassword | 400 |
+| 10013 | InvalidCurrentPassword | 400 |
+
+### 10.11 Setup API
+
+Both endpoints use `[AllowAnonymous]`.
+
+```
+GET    /api/v1/setup/status                   Check if initial setup is completed
+POST   /api/v1/setup/initialize               Create initial admin account
+```
+
+**Error codes**:
+
+| Code | Name | HTTP Status |
+|------|------|-------------|
+| 10005 | SetupNotCompleted | 503 |
+| 10006 | SetupAlreadyCompleted | 409 |
+
+### 10.12 Users API (Admin Only)
+
+All endpoints require `[Authorize(Roles = "admin")]`.
+
+```
+GET    /api/v1/users                          List users (paginated, searchable)
+GET    /api/v1/users/{id}                     Get user by ID
+POST   /api/v1/users                          Create user
+PUT    /api/v1/users/{id}                     Update user (role, display name, active status)
+DELETE /api/v1/users/{id}                     Soft-delete user
+POST   /api/v1/users/{id}/reset-password      Reset user password (revokes all sessions)
+```
+
+**Error codes**:
+
+| Code | Name | HTTP Status |
+|------|------|-------------|
+| 10009 | DuplicateUsername | 409 |
+| 10010 | CannotDeleteSelf | 400 |
+| 10011 | CannotDemoteLastAdmin | 400 |
+| 10014 | UserNotFound | 404 |
+
+### 10.13 System Settings API
+
+```
+GET    /api/v1/settings/auth                  Get auth settings (admin only)
+PUT    /api/v1/settings/auth                  Update auth settings (admin only)
+```
+
+Auth settings control session timeout, refresh token lifetime, password policy, and lockout configuration. Settings are seeded on first migration and cannot be created or deleted via the API.
+
+### 10.14 Dashboard & Summary Endpoints
 
 These endpoints support the frontend dashboard with aggregated data that would be expensive to assemble from individual resource endpoints.
 
@@ -4612,7 +4710,7 @@ GET    /api/v1/dashboard/key-expiry           Keys expiring within N days
 }
 ```
 
-### 10.12 Azure Functions API
+### 10.15 Azure Functions API
 
 On-demand trace retrieval for Azure Function executions. Traces are fetched live from Application Insights — nothing is stored in the Courier database.
 
@@ -4644,7 +4742,7 @@ GET    /api/v1/azure-functions/{connectionId}/traces/{invocationId}   Get execut
 
 Severity levels follow Application Insights convention: 0=Verbose, 1=Information, 2=Warning, 3=Error, 4=Critical.
 
-### 10.13 Step Type Registry API
+### 10.16 Step Type Registry API
 
 A read-only endpoint that returns all available step types and their configuration schemas. Used by the frontend job builder to render step-specific configuration forms.
 
@@ -4704,7 +4802,7 @@ GET    /api/v1/step-types/{typeKey}           Get configuration schema for a ste
 
 The `configurationSchema` follows JSON Schema with custom `uiHint` extensions that the frontend uses to render appropriate input controls (e.g., `connection-picker` renders a connection dropdown, `key-picker` renders a PGP key selector).
 
-### 10.14 OpenAPI / Swagger Configuration
+### 10.17 OpenAPI / Swagger Configuration
 
 The API specification is generated at build time via Swashbuckle and served at `/swagger` in development and staging environments. Production exposes the spec at `/api/v1/openapi.json` but disables the Swagger UI.
 
@@ -4748,7 +4846,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 ```
 
-### 10.15 Request Validation
+### 10.18 Request Validation
 
 All request bodies are validated using **FluentValidation**. Validators are auto-discovered from the assembly and wired into the ASP.NET pipeline via a validation filter. Validation errors return an HTTP 400 with error code `1000` (`Validation failed`) and field-level details.
 
@@ -5500,45 +5598,66 @@ This section consolidates all security concerns across the Courier platform: aut
 
 ### 12.1 Authentication
 
-Courier uses **Azure AD / Entra ID** as its sole identity provider. There are no local user accounts, no password storage, and no self-registration. All users must be members of the organization's Entra ID tenant.
+Courier uses a **hybrid local-first + SSO-optional** authentication model. Local username/password authentication works out of the box on first deployment, with no external identity provider required. Administrators can optionally configure enterprise SSO providers (OIDC, SAML) through the settings UI.
 
-**Flow**:
+#### 12.1.1 First-Run Setup
 
-1. The Next.js frontend initiates an OAuth 2.0 Authorization Code flow with PKCE against Entra ID
-2. On successful login, the frontend receives an ID token (for display) and an access token (for API calls)
-3. Every API request includes the access token as a `Bearer` token in the `Authorization` header
-4. The .NET backend validates the token using Microsoft Identity Web middleware — verifying the signature, issuer, audience, expiration, and tenant ID
-5. Claims from the token (user ID, name, email, roles) are extracted and available throughout the request pipeline
+On first startup, a `SetupGuardMiddleware` blocks all API requests (except `/api/v1/setup/*`, `/api/v1/auth/*`, `/health`, `/swagger`) with `503 Service Unavailable` until initial setup is completed. The frontend redirects to `/setup`, where the administrator creates the first admin account.
 
-**ASP.NET configuration**:
+**Setup flow**:
+
+1. Frontend detects `auth.setup_completed = false` via `GET /api/v1/setup/status` and redirects to `/setup`
+2. Administrator enters username, display name, optional email, and password
+3. `POST /api/v1/setup/initialize` creates the admin user with Argon2id-hashed password and sets `auth.setup_completed = true`
+4. The setup guard cache is invalidated and subsequent requests proceed normally
+
+#### 12.1.2 Local Authentication
+
+**Password hashing**: Argon2id with 64 MB memory, 4 iterations, 8-way parallelism, 16-byte random salt, 32-byte hash output. Stored as `$argon2id$<base64-salt>$<base64-hash>`. Verification uses `CryptographicOperations.FixedTimeEquals` to prevent timing attacks.
+
+**Login flow**:
+
+1. `POST /api/v1/auth/login` with username and password
+2. Server validates credentials, checks account active status and lockout
+3. On success: returns JWT access token + opaque refresh token + user profile
+4. On failure: increments `failed_login_count`; locks account for configurable duration after threshold exceeded
+
+**JWT access tokens**: HMAC-SHA256 signed, configurable lifetime (default 15 minutes). Claims: `sub` (user ID), `role`, `name`, `email`, `jti`.
 
 ```csharp
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApi(options =>
+    .AddJwtBearer(options =>
     {
-        builder.Configuration.Bind("AzureAd", options);
-        options.TokenValidationParameters.ValidateIssuer = true;
-        options.TokenValidationParameters.ValidateAudience = true;
-    },
-    options =>
-    {
-        builder.Configuration.Bind("AzureAd", options);
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = "courier",
+            ValidAudience = "courier-api",
+            IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
+            ClockSkew = TimeSpan.FromSeconds(30),
+        };
     });
 ```
 
-**Token validation requirements**:
+**Refresh tokens**: 32 random bytes (base64-encoded), stored as SHA-256 hash in the `refresh_tokens` table. Configurable lifetime (default 7 days). Token rotation on every refresh — the old token is revoked and a new one issued. Revoked tokens cannot be reused.
 
-- **Issuer**: Must match the configured Entra ID tenant (`https://login.microsoftonline.com/{tenantId}/v2.0`)
-- **Audience**: Must match the Courier API app registration's client ID
-- **Expiration**: Tokens with `exp` in the past are rejected. Default Entra ID token lifetime is 1 hour
-- **Signature**: Validated against Entra ID's published signing keys (auto-rotated via OIDC metadata endpoint)
-- **Tenant**: Single-tenant validation — tokens from other tenants are rejected
+**Account lockout**: After configurable failed attempts (default 5), the account is locked for a configurable duration (default 15 minutes). Successful login resets the failed counter and clears the lock.
 
-**No service accounts or API keys in V1**: All API access requires an interactive Entra ID login. Machine-to-machine access (e.g., CI/CD triggering job executions) is deferred to V2 via Entra ID client credential grants.
+#### 12.1.3 SSO Authentication (Phase 2/3 — Future)
+
+The `auth_providers` table and SSO fields on the `users` table are in place but not yet active. Planned phases:
+
+- **Phase 2 — OIDC**: Azure AD, Google, Okta via `Microsoft.AspNetCore.Authentication.OpenIdConnect`. After OIDC verification, the server issues the same JWT + refresh token pair as local auth. Users are auto-provisioned on first login with a configurable default role.
+- **Phase 3 — SAML**: Enterprise SAML 2.0 support via `ITfoxtec.Identity.Saml2` or equivalent. SP metadata and assertion consumer endpoints.
+
+SSO users have `is_sso_user = true`, `sso_provider_id`, and `sso_subject_id` set. They may have no `password_hash` (SSO-only) or may also have a local password (dual auth).
 
 ### 12.2 Authorization — Role-Based Access Control (RBAC)
 
-Courier uses a simple three-role model. Roles are assigned via **Entra ID App Roles** on the Courier app registration, managed by the organization's identity administrators. There is no in-app role management.
+Courier uses a simple three-role model. For local users, roles are assigned by administrators through the user management UI (`/settings/users`). For SSO users (Phase 2+), roles are either mapped from the identity provider's claims or assigned a configurable default role on auto-provisioning.
 
 **Roles**:
 
@@ -5577,57 +5696,36 @@ Courier uses a simple three-role model. Roles are assigned via **Entra ID App Ro
 | Tags | View | ✓ | ✓ | ✓ |
 | Tags | Create / Edit / Delete / Assign | ✓ | ✓ | |
 | Audit Log | View | ✓ | ✓ | ✓ |
+| Users | View / Create / Edit / Delete | ✓ | | |
+| Users | Reset Password | ✓ | | |
+| Auth Settings | View / Update | ✓ | | |
 | System Settings | View | ✓ | ✓ | ✓ |
 | System Settings | Update | ✓ | | |
 | Dashboard | View | ✓ | ✓ | ✓ |
 
 **Enforcement**:
 
-Roles are enforced at the controller level via ASP.NET's `[Authorize]` attribute with role requirements:
+Roles are enforced at the controller level via ASP.NET's `[Authorize]` attribute with role requirements. The role claim is embedded in the JWT access token issued by the Courier auth service:
 
 ```csharp
-[Authorize(Roles = "Admin")]
+// Admin-only endpoints
+[Authorize(Roles = "admin")]
 [HttpPost("connections")]
 public async Task<ApiResponse<ConnectionDto>> CreateConnection(CreateConnectionRequest request)
 
-[Authorize(Roles = "Admin,Operator")]
-[HttpPost("jobs/{id}/execute")]
-public async Task<ApiResponse<ExecutionDto>> ExecuteJob(Guid id)
-
-[Authorize(Roles = "Admin,Operator,Viewer")]
+// All authenticated users (any role)
+[Authorize]
 [HttpGet("jobs")]
 public async Task<PagedApiResponse<JobDto>> ListJobs([FromQuery] JobFilter filter)
 ```
 
-A custom `CourierAuthorizationMiddleware` extracts the `roles` claim from the Entra ID token and maps it to the three-role model. If a user has no recognized role, they receive a `403` (error code `1020: Insufficient permissions`) on every request.
+**User management endpoints** (`/api/v1/users`) are restricted to the `admin` role. **Settings endpoints** (`/api/v1/settings/auth`) are also admin-only. Auth and setup endpoints use `[AllowAnonymous]`.
 
-**Entra ID App Role configuration** (app registration manifest):
+**Guards**:
 
-```json
-"appRoles": [
-    {
-        "allowedMemberTypes": ["User"],
-        "displayName": "Courier Admin",
-        "id": "unique-guid-1",
-        "isEnabled": true,
-        "value": "Admin"
-    },
-    {
-        "allowedMemberTypes": ["User"],
-        "displayName": "Courier Operator",
-        "id": "unique-guid-2",
-        "isEnabled": true,
-        "value": "Operator"
-    },
-    {
-        "allowedMemberTypes": ["User"],
-        "displayName": "Courier Viewer",
-        "id": "unique-guid-3",
-        "isEnabled": true,
-        "value": "Viewer"
-    }
-]
-```
+- `CannotDeleteSelf` — admins cannot delete their own account
+- `CannotDemoteLastAdmin` — the last remaining admin cannot have their role changed
+- `DuplicateUsername` — usernames must be unique
 
 ### 12.3 Data Protection at Rest
 
@@ -5728,7 +5826,8 @@ Courier manages two categories of secrets: application secrets (infrastructure c
 | Secret | Production | Development |
 |--------|------------|-------------|
 | Database connection string | Azure Key Vault | Local secrets file (`secrets.json`) |
-| Entra ID client secret | Azure Key Vault | Local secrets file |
+| JWT signing secret | Azure Key Vault | `appsettings.Development.json` |
+| Encryption KEK | Azure Key Vault | `appsettings.Development.json` (base64) |
 | Key Vault URI | Environment variable | Environment variable |
 | Managed Identity client ID | Environment variable | N/A (uses Azure CLI) |
 
@@ -5825,6 +5924,8 @@ The key import endpoint (`POST /api/v1/pgp-keys/import`) accepts `multipart/form
 
 Since the API is purely JSON over bearer token authentication (no cookies), CSRF attacks are not applicable. The `Authorization: Bearer` header cannot be automatically attached by a browser in a cross-origin request without CORS cooperation, which is locked to the single frontend origin.
 
+**Token storage**: Access tokens are held in memory only (JavaScript variable). Refresh tokens are stored in `localStorage`. While `localStorage` is accessible to XSS, the refresh token alone cannot access resources — it can only be exchanged for a new access token via `POST /api/v1/auth/refresh`, and token rotation ensures each refresh token is single-use.
+
 ### 12.7 Audit & Accountability
 
 All security-relevant operations are recorded in the unified audit log (Section 13.3.5). The audit log is append-only — entries cannot be modified or deleted via any API endpoint.
@@ -5833,8 +5934,13 @@ All security-relevant operations are recorded in the unified audit log (Section 
 
 | Operation | Logged Details |
 |-----------|---------------|
-| `UserAuthenticated` | User ID, email, role, IP address, token issuer |
-| `AuthenticationFailed` | Reason (invalid token, expired, wrong tenant), IP address |
+| `Login` | User ID, IP address |
+| `PasswordChanged` | User ID |
+| `UserCreated` | User ID, username, role |
+| `UserUpdated` | User ID, changed fields |
+| `UserDeleted` | User ID, username |
+| `UserPasswordReset` | Admin user ID, target user ID |
+| `SetupInitialized` | Admin user ID |
 | `PermissionDenied` | User ID, attempted action, required role, endpoint |
 | `PrivateKeyExported` | User ID, key fingerprint, export format |
 | `KeyGenerated` | User ID, algorithm, key fingerprint |
@@ -6597,35 +6703,55 @@ CREATE INDEX ix_job_deps_downstream ON job_dependencies (downstream_job_id);
 -- JOB SCHEDULES
 -- ============================================================
 CREATE TABLE job_schedules (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    job_id              UUID,
-    chain_id            UUID,
-    schedule_type       TEXT NOT NULL,
-    cron_expression     TEXT,
-    run_at              TIMESTAMPTZ,
-    is_enabled          BOOLEAN NOT NULL DEFAULT TRUE,
-    last_fired_at       TIMESTAMPTZ,
-    next_fire_at        TIMESTAMPTZ,
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_id           UUID NOT NULL,
+    schedule_type    TEXT NOT NULL,              -- 'cron' | 'one_shot'
+    cron_expression  TEXT,
+    run_at           TIMESTAMPTZ,
+    is_enabled       BOOLEAN NOT NULL DEFAULT TRUE,
+    last_fired_at    TIMESTAMPTZ,
+    next_fire_at     TIMESTAMPTZ,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-    CONSTRAINT ck_schedule_owner CHECK (
-        (job_id IS NOT NULL AND chain_id IS NULL) OR
-        (job_id IS NULL AND chain_id IS NOT NULL)
-    ),
     CONSTRAINT ck_schedule_type CHECK (schedule_type IN ('cron', 'one_shot')),
     CONSTRAINT ck_schedule_cron CHECK (
         (schedule_type = 'cron' AND cron_expression IS NOT NULL) OR
         (schedule_type = 'one_shot' AND run_at IS NOT NULL)
     ),
     CONSTRAINT fk_schedules_jobs FOREIGN KEY (job_id)
-        REFERENCES jobs (id) ON DELETE CASCADE,
-    CONSTRAINT fk_schedules_chains FOREIGN KEY (chain_id)
+        REFERENCES jobs (id) ON DELETE CASCADE
+);
+
+CREATE INDEX ix_job_schedules_job_id ON job_schedules (job_id);
+CREATE INDEX ix_job_schedules_enabled ON job_schedules (is_enabled, schedule_type);
+
+-- ============================================================
+-- CHAIN SCHEDULES
+-- ============================================================
+CREATE TABLE chain_schedules (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    chain_id         UUID NOT NULL,
+    schedule_type    TEXT NOT NULL,              -- 'cron' | 'one_shot'
+    cron_expression  TEXT,
+    run_at           TIMESTAMPTZ,
+    is_enabled       BOOLEAN NOT NULL DEFAULT TRUE,
+    last_fired_at    TIMESTAMPTZ,
+    next_fire_at     TIMESTAMPTZ,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    CONSTRAINT ck_chain_schedule_type CHECK (schedule_type IN ('cron', 'one_shot')),
+    CONSTRAINT ck_chain_schedule_cron CHECK (
+        (schedule_type = 'cron' AND cron_expression IS NOT NULL) OR
+        (schedule_type = 'one_shot' AND run_at IS NOT NULL)
+    ),
+    CONSTRAINT fk_chain_schedules_chains FOREIGN KEY (chain_id)
         REFERENCES job_chains (id) ON DELETE CASCADE
 );
 
-CREATE INDEX ix_schedules_job ON job_schedules (job_id) WHERE job_id IS NOT NULL;
-CREATE INDEX ix_schedules_chain ON job_schedules (chain_id) WHERE chain_id IS NOT NULL;
-CREATE INDEX ix_schedules_next_fire ON job_schedules (next_fire_at)
-    WHERE is_enabled = TRUE;
+CREATE INDEX ix_chain_schedules_chain_id ON chain_schedules (chain_id);
+CREATE INDEX ix_chain_schedules_enabled ON chain_schedules (is_enabled, schedule_type);
 ```
 
 #### 13.3.2 Connection Tables
@@ -7021,7 +7147,7 @@ services.AddQuartz(q =>
 });
 ```
 
-**Important**: These tables are managed entirely by Quartz.NET. Courier code never reads from or writes to `QRTZ_*` tables directly — all interaction goes through the Quartz.NET `IScheduler` API. The `job_schedules` table in the Courier schema (Section 13.3.1) is the application-level representation of schedules; Quartz.NET tables are the runtime execution layer.
+**Important**: These tables are managed entirely by Quartz.NET. Courier code never reads from or writes to `QRTZ_*` tables directly — all interaction goes through the Quartz.NET `IScheduler` API. The `job_schedules` and `chain_schedules` tables in the Courier schema (Section 13.3.1) are the application-level representation of schedules; Quartz.NET tables are the runtime execution layer. Job schedules use the `"courier"` Quartz group, while chain schedules use the `"courier-chains"` group to avoid collision.
 
 ### 13.4 EF Core Mapping Configuration
 

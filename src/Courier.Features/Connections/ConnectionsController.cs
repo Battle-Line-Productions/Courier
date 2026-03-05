@@ -1,11 +1,13 @@
 using Courier.Domain.Common;
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Courier.Features.Connections;
 
 [ApiController]
 [Route("api/v1/connections")]
+[Authorize]
 public class ConnectionsController : ControllerBase
 {
     private readonly ConnectionService _connectionService;

@@ -31,6 +31,11 @@ public class CourierDbContext : DbContext
     public DbSet<JobDependency> JobDependencies => Set<JobDependency>();
     public DbSet<NotificationRule> NotificationRules => Set<NotificationRule>();
     public DbSet<NotificationLog> NotificationLogs => Set<NotificationLog>();
+    public DbSet<User> Users => Set<User>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<AuthProvider> AuthProviders => Set<AuthProvider>();
+    public DbSet<ChainSchedule> ChainSchedules => Set<ChainSchedule>();
+    public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -418,6 +423,26 @@ public class CourierDbContext : DbContext
             entity.HasIndex(e => e.Name).HasFilter("NOT is_deleted");
         });
 
+        modelBuilder.Entity<ChainSchedule>(entity =>
+        {
+            entity.ToTable("chain_schedules");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ChainId).HasColumnName("chain_id");
+            entity.Property(e => e.ScheduleType).HasColumnName("schedule_type").IsRequired();
+            entity.Property(e => e.CronExpression).HasColumnName("cron_expression");
+            entity.Property(e => e.RunAt).HasColumnName("run_at");
+            entity.Property(e => e.IsEnabled).HasColumnName("is_enabled").HasDefaultValue(true);
+            entity.Property(e => e.LastFiredAt).HasColumnName("last_fired_at");
+            entity.Property(e => e.NextFireAt).HasColumnName("next_fire_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+
+            entity.HasOne(e => e.Chain).WithMany(c => c.Schedules).HasForeignKey(e => e.ChainId);
+            entity.HasIndex(e => e.ChainId);
+            entity.HasIndex(e => new { e.IsEnabled, e.ScheduleType });
+        });
+
         modelBuilder.Entity<JobChainMember>(entity =>
         {
             entity.ToTable("job_chain_members");
@@ -515,6 +540,82 @@ public class CourierDbContext : DbContext
             entity.HasIndex(e => e.NotificationRuleId);
             entity.HasIndex(e => new { e.EntityType, e.EntityId });
             entity.HasIndex(e => e.SentAt).IsDescending();
+        });
+
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.ToTable("users");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Username).HasColumnName("username").IsRequired();
+            entity.Property(e => e.Email).HasColumnName("email");
+            entity.Property(e => e.DisplayName).HasColumnName("display_name").IsRequired();
+            entity.Property(e => e.PasswordHash).HasColumnName("password_hash");
+            entity.Property(e => e.Role).HasColumnName("role").IsRequired();
+            entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            entity.Property(e => e.IsSsoUser).HasColumnName("is_sso_user").HasDefaultValue(false);
+            entity.Property(e => e.SsoProviderId).HasColumnName("sso_provider_id");
+            entity.Property(e => e.SsoSubjectId).HasColumnName("sso_subject_id");
+            entity.Property(e => e.FailedLoginCount).HasColumnName("failed_login_count").HasDefaultValue(0);
+            entity.Property(e => e.LockedUntil).HasColumnName("locked_until");
+            entity.Property(e => e.LastLoginAt).HasColumnName("last_login_at");
+            entity.Property(e => e.PasswordChangedAt).HasColumnName("password_changed_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+
+            entity.HasOne(e => e.SsoProvider).WithMany(p => p.Users).HasForeignKey(e => e.SsoProviderId);
+            entity.HasIndex(e => e.Username).IsUnique().HasFilter("NOT is_deleted");
+        });
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.ToTable("refresh_tokens");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.TokenHash).HasColumnName("token_hash").IsRequired();
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.CreatedByIp).HasColumnName("created_by_ip");
+            entity.Property(e => e.RevokedAt).HasColumnName("revoked_at");
+            entity.Property(e => e.ReplacedById).HasColumnName("replaced_by_id");
+
+            entity.HasOne(e => e.User).WithMany(u => u.RefreshTokens).HasForeignKey(e => e.UserId);
+            entity.HasOne(e => e.ReplacedBy).WithMany().HasForeignKey(e => e.ReplacedById);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.TokenHash);
+        });
+
+        modelBuilder.Entity<AuthProvider>(entity =>
+        {
+            entity.ToTable("auth_providers");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Type).HasColumnName("type").IsRequired();
+            entity.Property(e => e.Name).HasColumnName("name").IsRequired();
+            entity.Property(e => e.IsEnabled).HasColumnName("is_enabled").HasDefaultValue(false);
+            entity.Property(e => e.Configuration).HasColumnName("configuration").HasColumnType("jsonb");
+            entity.Property(e => e.AutoProvision).HasColumnName("auto_provision").HasDefaultValue(true);
+            entity.Property(e => e.DefaultRole).HasColumnName("default_role").IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+
+            entity.HasIndex(e => e.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<SystemSetting>(entity =>
+        {
+            entity.ToTable("system_settings");
+            entity.HasKey(e => e.Key);
+            entity.Property(e => e.Key).HasColumnName("key");
+            entity.Property(e => e.Value).HasColumnName("value").IsRequired();
+            entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by").IsRequired();
         });
     }
 }

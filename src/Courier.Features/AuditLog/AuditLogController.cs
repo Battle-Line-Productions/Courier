@@ -1,10 +1,12 @@
 using Courier.Domain.Common;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Courier.Features.AuditLog;
 
 [ApiController]
 [Route("api/v1/audit-log")]
+[Authorize]
 public class AuditLogController : ControllerBase
 {
     private readonly AuditService _auditService;

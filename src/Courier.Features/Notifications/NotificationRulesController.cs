@@ -1,11 +1,13 @@
 using Courier.Domain.Common;
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Courier.Features.Notifications;
 
 [ApiController]
 [Route("api/v1/notification-rules")]
+[Authorize]
 public class NotificationRulesController : ControllerBase
 {
     private readonly NotificationRuleService _ruleService;

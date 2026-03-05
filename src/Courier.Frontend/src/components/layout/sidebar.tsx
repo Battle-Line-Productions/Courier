@@ -34,7 +34,7 @@ const navItems = [
 ];
 
 const bottomItems = [
-  { label: "Settings", href: "#", icon: Settings, active: false },
+  { label: "Settings", href: "/settings", icon: Settings, active: true },
 ];
 
 export function Sidebar() {
@@ -91,18 +91,28 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-sidebar-border p-2">
-        {bottomItems.map((item) => (
-          <Link
-            key={item.label}
-            href={item.active ? item.href : "#"}
-            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground/30 cursor-not-allowed"
-            title="Coming Soon"
-            onClick={(e) => e.preventDefault()}
-          >
-            <item.icon className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>{item.label}</span>}
-          </Link>
-        ))}
+        {bottomItems.map((item) => {
+          const isActive = item.active && pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.label}
+              href={item.active ? item.href : "#"}
+              className={cn(
+                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-sidebar-accent text-sidebar-primary"
+                  : item.active
+                    ? "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                    : "cursor-not-allowed text-sidebar-foreground/30"
+              )}
+              title={!item.active ? "Coming Soon" : undefined}
+              onClick={!item.active ? (e) => e.preventDefault() : undefined}
+            >
+              <item.icon className="h-4 w-4 shrink-0" />
+              {!collapsed && <span>{item.label}</span>}
+            </Link>
+          );
+        })}
 
         <Button
           variant="ghost"

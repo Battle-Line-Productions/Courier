@@ -13,4 +13,5 @@ public class JobChain
 
     public List<JobChainMember> Members { get; set; } = [];
     public List<ChainExecution> Executions { get; set; } = [];
+    public List<ChainSchedule> Schedules { get; set; } = [];
 }

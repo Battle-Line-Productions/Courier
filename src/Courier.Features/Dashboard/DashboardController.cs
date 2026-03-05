@@ -1,11 +1,13 @@
 using Courier.Domain.Common;
 using Courier.Features.Monitors;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Courier.Features.Dashboard;
 
 [ApiController]
 [Route("api/v1/dashboard")]
+[Authorize]
 public class DashboardController : ControllerBase
 {
     private readonly DashboardService _dashboardService;

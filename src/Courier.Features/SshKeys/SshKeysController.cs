@@ -1,5 +1,6 @@
 using Courier.Domain.Common;
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,6 +8,7 @@ namespace Courier.Features.SshKeys;
 
 [ApiController]
 [Route("api/v1/ssh-keys")]
+[Authorize]
 public class SshKeysController : ControllerBase
 {
     private readonly SshKeyService _sshKeyService;
