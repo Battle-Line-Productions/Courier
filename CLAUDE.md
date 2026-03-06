@@ -107,6 +107,7 @@ Api / Worker  →  Features  →  Infrastructure  →  Domain (BCL-only, zero Nu
 - **Unit**: InMemory EF database (unique per test), NSubstitute for mocking, Shouldly assertions.
 - **Integration**: `WebApplicationFactory<Courier.Api.Program>` + Testcontainers PostgreSQL. Factory removes all `IHostedService` registrations and replaces EF connection.
 - **Architecture**: NetArchTest enforces dependency rules (Domain has zero external deps, etc.).
+- **E2E (Playwright)**: Browser-based tests against a running Aspire stack. See [E2E Tests](#e2e-tests-playwright) section below.
 
 ### Frontend
 
@@ -114,6 +115,56 @@ Api / Worker  →  Features  →  Infrastructure  →  Domain (BCL-only, zero Nu
 - TanStack Query hooks in `src/lib/hooks/` per domain (e.g., `use-jobs.ts`, `use-connections.ts`).
 - API client class in `src/lib/api.ts` — throws `ApiClientError` with structured error info.
 - TypeScript types in `src/lib/types.ts` mirror backend DTOs exactly.
+
+## E2E Tests (Playwright)
+
+**Prerequisite:** The Aspire stack must be running (`cd src/Courier.AppHost && dotnet run`). Aspire assigns dynamic ports — the test scripts auto-discover them.
+
+```bash
+cd src/Courier.Frontend
+
+# First-time setup: install Playwright browsers
+npx playwright install chromium
+
+# Run all E2E tests (auto-discovers Aspire ports)
+e2e-run.bat
+
+# Run in headed mode (visible browser)
+e2e-headed.bat
+
+# Run with Playwright UI mode (interactive)
+e2e-ui.bat
+
+# Run against a fresh database (setup wizard tests)
+e2e-fresh-db.bat
+
+# Run specific test file
+npx playwright test e2e/jobs.spec.ts
+
+# Run with manual port override (if auto-discovery fails)
+set API_URL=http://localhost:60606
+set FRONTEND_URL=http://localhost:51420
+npx playwright test
+```
+
+**Port discovery:** Scripts use `e2e/discover-ports.ps1` to find the Aspire-assigned API and frontend ports automatically. If the Aspire stack is restarted, ports change and scripts re-discover them.
+
+**Environment variables:**
+- `API_URL` — Backend API base URL (default: `http://localhost:5000`)
+- `FRONTEND_URL` — Frontend base URL (default: `http://localhost:3000`)
+
+**Test structure:**
+- `e2e/fixtures.ts` — Custom fixtures: `authenticatedPage` (logged-in page), `apiHelper` (API request context)
+- `e2e/helpers/api-helpers.ts` — Programmatic test data setup/teardown via API
+- `e2e/global-setup.ts` — Creates test admin user on first run
+- Spec files: `auth.spec.ts`, `dashboard.spec.ts`, `jobs.spec.ts`, `connections.spec.ts`, `keys.spec.ts`, `chains.spec.ts`, `monitors.spec.ts`, `notifications.spec.ts`, `tags.spec.ts`, `users.spec.ts`, `audit-log.spec.ts`, `settings.spec.ts`
+
+**Conventions:**
+- All test entities prefixed with `e2e-` + unique suffix for isolation
+- API-first setup: create data via `apiHelper`, test only UI workflows
+- Cleanup in `finally` blocks via API helpers
+- Toast assertions: `page.locator('[data-sonner-toast]').filter({ hasText: "..." })`
+- Confirm dialogs: `page.getByRole('dialog')` then click confirm button inside
 
 ## Serena MCP — Code Navigation & Editing
 

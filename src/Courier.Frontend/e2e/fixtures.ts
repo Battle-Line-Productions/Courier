@@ -1,9 +1,11 @@
-import { test as base, type Page } from "@playwright/test";
+import { test as base, type Page, type APIRequestContext } from "@playwright/test";
 import { TEST_ADMIN } from "./global-setup";
+import * as apiHelpers from "./helpers/api-helpers";
 
 type CourierFixtures = {
   authenticatedPage: Page;
   apiBaseUrl: string;
+  apiHelper: typeof apiHelpers & { request: APIRequestContext };
 };
 
 export const test = base.extend<CourierFixtures>({
@@ -53,6 +55,13 @@ export const test = base.extend<CourierFixtures>({
 
   apiBaseUrl: async ({}, use) => {
     await use(process.env.API_URL || "http://localhost:5000");
+  },
+
+  apiHelper: async ({ playwright }, use) => {
+    const request = await playwright.request.newContext();
+    const helper = { ...apiHelpers, request };
+    await use(helper);
+    await request.dispose();
   },
 });
 

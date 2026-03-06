@@ -80,7 +80,9 @@
       "Bash(docker volume:*)",
       "Bash(docker ps:*)",
       "Bash(docker:*)",
-      "Bash(cmd.exe:*)"
+      "Bash(cmd.exe:*)",
+      "mcp__plugin_context-mode_context-mode__batch_execute",
+      "Bash(API_URL=http://localhost:53620 FRONTEND_URL=http://localhost:53625 npx playwright:*)"
     ],
     "deny": [],
     "ask": []
