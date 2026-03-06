@@ -9,6 +9,7 @@ using Courier.Features.Notifications;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Courier.Features.Engine;
 
@@ -17,15 +18,19 @@ public class JobEngine
     private readonly CourierDbContext _db;
     private readonly StepTypeRegistry _registry;
     private readonly JobConnectionRegistry _connectionRegistry;
+    private readonly JobWorkspace _workspace;
+    private readonly WorkspaceSettings _workspaceSettings;
     private readonly ILogger<JobEngine> _logger;
     private readonly AuditService _audit;
     private readonly NotificationDispatcher _dispatcher;
 
-    public JobEngine(CourierDbContext db, StepTypeRegistry registry, JobConnectionRegistry connectionRegistry, ILogger<JobEngine> logger, AuditService audit, NotificationDispatcher dispatcher)
+    public JobEngine(CourierDbContext db, StepTypeRegistry registry, JobConnectionRegistry connectionRegistry, JobWorkspace workspace, IOptions<WorkspaceSettings> workspaceSettings, ILogger<JobEngine> logger, AuditService audit, NotificationDispatcher dispatcher)
     {
         _db = db;
         _registry = registry;
         _connectionRegistry = connectionRegistry;
+        _workspace = workspace;
+        _workspaceSettings = workspaceSettings.Value;
         _logger = logger;
         _audit = audit;
         _dispatcher = dispatcher;
@@ -99,6 +104,15 @@ public class JobEngine
                 executionId, completedStepOrders.Count);
         }
 
+        // Initialize workspace
+        string? existingWorkspacePath = null;
+        if (isResumed && context.TryGet<string>("workspace", out var resumedPath))
+            existingWorkspacePath = resumedPath;
+
+        var workspacePath = _workspace.EnsureInitialized(
+            executionId, _workspaceSettings.BaseDirectory, existingWorkspacePath);
+        context.Set("workspace", workspacePath);
+
         // Parse steps into execution tree
         List<ExecutionNode> executionPlan;
         try
@@ -149,6 +163,11 @@ public class JobEngine
         finally
         {
             await _connectionRegistry.DisposeAsync();
+
+            var shouldCleanup = _workspaceSettings.CleanupOnCompletion
+                                && execution.State != JobExecutionState.Paused;
+            if (shouldCleanup)
+                await _workspace.DisposeAsync();
         }
 
         _logger.LogInformation("JobExecution {ExecutionId} finished with state {State}", executionId, execution.State);

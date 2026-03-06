@@ -12,7 +12,11 @@ public class FileUnzipStep : CompressionStepBase
     public override async Task<StepResult> ExecuteAsync(StepConfiguration config, JobContext context, CancellationToken ct)
     {
         var archivePath = ResolveContextRef(config.GetString("archive_path"), context);
-        var outputDirectory = ResolveContextRef(config.GetString("output_directory"), context);
+        var outputDirectory = config.Has("output_directory")
+            ? ResolveContextRef(config.GetString("output_directory"), context)
+            : context.TryGet<string>("workspace", out var ws)
+                ? Path.Combine(ws!, "unzipped")
+                : throw new InvalidOperationException("output_directory is required when no workspace is available");
         var password = config.GetStringOrDefault("password");
         var format = config.GetStringOrDefault("format", "zip")!;
 
@@ -39,8 +43,6 @@ public class FileUnzipStep : CompressionStepBase
     {
         if (!config.Has("archive_path"))
             return Task.FromResult(StepResult.Fail("Missing required config: archive_path"));
-        if (!config.Has("output_directory"))
-            return Task.FromResult(StepResult.Fail("Missing required config: output_directory"));
         return Task.FromResult(StepResult.Ok());
     }
 }

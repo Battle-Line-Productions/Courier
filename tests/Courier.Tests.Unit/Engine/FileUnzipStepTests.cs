@@ -41,17 +41,14 @@ public class FileUnzipStepTests
     }
 
     [Fact]
-    public async Task ValidateAsync_MissingOutputDirectory_ReturnsFailure()
+    public async Task ValidateAsync_MissingOutputDirectory_ReturnsSuccess()
     {
-        // Arrange
+        // output_directory is optional — falls back to workspace at runtime
         var config = new StepConfiguration("""{"archive_path": "/file.zip"}""");
 
-        // Act
         var result = await _step.ValidateAsync(config);
 
-        // Assert
-        result.Success.ShouldBeFalse();
-        result.ErrorMessage!.ShouldContain("output_directory");
+        result.Success.ShouldBeTrue();
     }
 
     [Fact]

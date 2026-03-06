@@ -62,7 +62,7 @@ function ConnectionPicker({
             </SelectItem>
           ))}
           {connections.length === 0 && (
-            <SelectItem value="" disabled>
+            <SelectItem value="__none__" disabled>
               No {protocol.toUpperCase()} connections found
             </SelectItem>
           )}

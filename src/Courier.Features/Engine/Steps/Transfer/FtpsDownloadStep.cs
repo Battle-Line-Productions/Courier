@@ -20,8 +20,13 @@ public class FtpsDownloadStep : TransferStepBase
         if (error is not null) return error;
 
         var remotePath = config.GetString("remote_path");
-        var localPath = config.GetStringOrDefault("local_path")
-            ?? Path.Combine(Path.GetTempPath(), Path.GetFileName(remotePath));
+        var localPath = config.GetStringOrDefault("local_path");
+        if (localPath is not null)
+            localPath = ResolveContextRef(localPath, context);
+        else if (context.TryGet<string>("workspace", out var ws))
+            localPath = Path.Combine(ws!, Path.GetFileName(remotePath));
+        else
+            localPath = Path.Combine(Path.GetTempPath(), Path.GetFileName(remotePath));
 
         var request = new DownloadRequest(
             remotePath, localPath,

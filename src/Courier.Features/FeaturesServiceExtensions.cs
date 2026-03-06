@@ -48,6 +48,10 @@ public static class FeaturesServiceExtensions
         services.AddScoped<IJobStep, FileMoveStep>();
         services.AddScoped<StepTypeRegistry>();
 
+        // Workspace
+        services.Configure<WorkspaceSettings>(configuration.GetSection("Workspace"));
+        services.AddScoped<JobWorkspace>();
+
         // Protocol services
         services.AddScoped<ITransferClientFactory, TransferClientFactory>();
         services.AddScoped<JobConnectionRegistry>();

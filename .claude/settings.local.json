@@ -72,7 +72,15 @@
       "Bash(dotnet add:*)",
       "mcp__plugin_context-mode_context-mode__execute_file",
       "mcp__plugin_context-mode_context-mode__search",
-      "Bash(npx shadcn@latest:*)"
+      "Bash(npx shadcn@latest:*)",
+      "Bash(npm install:*)",
+      "Bash(npx playwright:*)",
+      "Bash(export:*)",
+      "Bash(taskkill:*)",
+      "Bash(docker volume:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker:*)",
+      "Bash(cmd.exe:*)"
     ],
     "deny": [],
     "ask": []

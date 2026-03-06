@@ -8,6 +8,7 @@ using Courier.Features.Notifications;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using Shouldly;
 
@@ -73,7 +74,7 @@ public class JobEngineTests
             .Returns(StepResult.Ok(bytesProcessed: 1024));
 
         var registry = new StepTypeRegistry([mockStep]);
-        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), new JobWorkspace(NullLogger<JobWorkspace>.Instance), Options.Create(new WorkspaceSettings()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
 
         await engine.ExecuteAsync(execution.Id, CancellationToken.None);
 
@@ -97,7 +98,7 @@ public class JobEngineTests
             .Returns(StepResult.Fail("Disk full"));
 
         var registry = new StepTypeRegistry([mockStep]);
-        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), new JobWorkspace(NullLogger<JobWorkspace>.Instance), Options.Create(new WorkspaceSettings()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
 
         await engine.ExecuteAsync(execution.Id, CancellationToken.None);
 
@@ -116,11 +117,86 @@ public class JobEngineTests
         var (job, step, execution) = SeedJobWithStep(db, typeKey: "nonexistent.step");
 
         var registry = new StepTypeRegistry([]);
-        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), new JobWorkspace(NullLogger<JobWorkspace>.Instance), Options.Create(new WorkspaceSettings()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
 
         await engine.ExecuteAsync(execution.Id, CancellationToken.None);
 
         var updated = await db.JobExecutions.FirstAsync(e => e.Id == execution.Id);
         updated.State.ShouldBe(JobExecutionState.Failed);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_SetsWorkspaceKeyInContext()
+    {
+        using var db = CreateInMemoryContext();
+        var (job, step, execution) = SeedJobWithStep(db);
+
+        var mockStep = Substitute.For<IJobStep>();
+        mockStep.TypeKey.Returns("file.copy");
+        mockStep.ExecuteAsync(Arg.Any<StepConfiguration>(), Arg.Any<JobContext>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var ctx = callInfo.ArgAt<JobContext>(1);
+                ctx.TryGet<string>("workspace", out var ws).ShouldBeTrue();
+                ws.ShouldNotBeNullOrEmpty();
+                return StepResult.Ok(bytesProcessed: 0);
+            });
+
+        var registry = new StepTypeRegistry([mockStep]);
+        var workspace = new JobWorkspace(NullLogger<JobWorkspace>.Instance);
+        var settings = new WorkspaceSettings { BaseDirectory = Path.Combine(Path.GetTempPath(), $"engine-test-{Guid.NewGuid()}") };
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), workspace, Options.Create(settings), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
+
+        await engine.ExecuteAsync(execution.Id, CancellationToken.None);
+
+        // Workspace should be cleaned up after completion
+        workspace.IsInitialized.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WorkspaceCleanedUpOnCompletion()
+    {
+        using var db = CreateInMemoryContext();
+        var (job, step, execution) = SeedJobWithStep(db);
+
+        var mockStep = Substitute.For<IJobStep>();
+        mockStep.TypeKey.Returns("file.copy");
+        mockStep.ExecuteAsync(Arg.Any<StepConfiguration>(), Arg.Any<JobContext>(), Arg.Any<CancellationToken>())
+            .Returns(StepResult.Ok(bytesProcessed: 0));
+
+        var registry = new StepTypeRegistry([mockStep]);
+        var workspace = new JobWorkspace(NullLogger<JobWorkspace>.Instance);
+        var baseDir = Path.Combine(Path.GetTempPath(), $"engine-test-{Guid.NewGuid()}");
+        var settings = new WorkspaceSettings { BaseDirectory = baseDir, CleanupOnCompletion = true };
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), workspace, Options.Create(settings), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
+
+        await engine.ExecuteAsync(execution.Id, CancellationToken.None);
+
+        // Workspace directory should have been deleted
+        if (workspace.Path is not null)
+            Directory.Exists(workspace.Path).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WorkspaceCleanedUpOnFailure()
+    {
+        using var db = CreateInMemoryContext();
+        var (job, step, execution) = SeedJobWithStep(db);
+
+        var mockStep = Substitute.For<IJobStep>();
+        mockStep.TypeKey.Returns("file.copy");
+        mockStep.ExecuteAsync(Arg.Any<StepConfiguration>(), Arg.Any<JobContext>(), Arg.Any<CancellationToken>())
+            .Returns(StepResult.Fail("Something broke"));
+
+        var registry = new StepTypeRegistry([mockStep]);
+        var workspace = new JobWorkspace(NullLogger<JobWorkspace>.Instance);
+        var baseDir = Path.Combine(Path.GetTempPath(), $"engine-test-{Guid.NewGuid()}");
+        var settings = new WorkspaceSettings { BaseDirectory = baseDir, CleanupOnCompletion = true };
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), workspace, Options.Create(settings), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
+
+        await engine.ExecuteAsync(execution.Id, CancellationToken.None);
+
+        if (workspace.Path is not null)
+            Directory.Exists(workspace.Path).ShouldBeFalse();
     }
 }

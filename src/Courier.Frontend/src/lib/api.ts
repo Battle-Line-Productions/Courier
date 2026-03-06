@@ -94,15 +94,15 @@ class ApiClient {
       headers: { ...headers, ...options?.headers },
     });
 
-    if (response.status === 401) {
+    const body = await response.json();
+
+    if (response.status === 401 && !body.error) {
       throw new ApiClientError({
         code: 10007,
         systemMessage: "Unauthorized",
         message: "Your session has expired. Please log in again.",
       });
     }
-
-    const body = await response.json();
 
     if (!response.ok && !body.error) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);

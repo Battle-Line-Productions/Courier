@@ -1,0 +1,14 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:52426",
+      "localStorage": [
+        {
+          "name": "courier_refresh_token",
+          "value": "7PBfsDDbgAcfhOxb85nIugJidr1AsJfdd4PJ+pQwf4c="
+        }
+      ]
+    }
+  ]
+}
