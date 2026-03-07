@@ -107,7 +107,7 @@ test.describe("Navigation & Layout", () => {
     const header = page.locator("header");
 
     // Open user dropdown
-    const userMenuButton = header.getByRole("button");
+    const userMenuButton = header.getByRole("button", { name: /Test Admin/ });
     await expect(userMenuButton).toBeVisible({ timeout: 10_000 });
     await userMenuButton.click();
 

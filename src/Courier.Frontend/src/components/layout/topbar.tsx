@@ -91,11 +91,11 @@ export function Topbar() {
               {user.username} &middot; {user.role}
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => router.push("/settings/users")}>
+            <DropdownMenuItem onSelect={() => setTimeout(() => router.push("/settings/users"))}>
               <User className="mr-2 h-4 w-4" />
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => router.push("/settings")}>
+            <DropdownMenuItem onSelect={() => setTimeout(() => router.push("/settings"))}>
               <KeyRound className="mr-2 h-4 w-4" />
               Change Password
             </DropdownMenuItem>
