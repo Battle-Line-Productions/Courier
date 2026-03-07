@@ -11,8 +11,8 @@ public class FileCopyStep : IJobStep
         JobContext context,
         CancellationToken cancellationToken)
     {
-        var sourcePath = config.GetString("source_path");
-        var destPath = config.GetString("destination_path");
+        var sourcePath = ContextResolver.Resolve(config.GetString("source_path"), context);
+        var destPath = ContextResolver.Resolve(config.GetString("destination_path"), context);
 
         if (!File.Exists(sourcePath))
             return Task.FromResult(StepResult.Fail($"Source file not found: {sourcePath}"));

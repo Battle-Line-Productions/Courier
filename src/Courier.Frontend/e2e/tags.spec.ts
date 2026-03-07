@@ -2,6 +2,9 @@ import { test, expect } from "./fixtures";
 import {
   createTestTag,
   deleteTestTag,
+  createTestJob,
+  deleteTestJob,
+  assignTagToEntity,
   getAuthToken,
 } from "./helpers/api-helpers";
 
@@ -23,7 +26,7 @@ test.describe("Tags", () => {
     // If truly empty (no other tags), we should see the empty state
     // We check for the heading regardless — it's always present
     await expect(
-      authenticatedPage.getByRole("heading", { name: "Tags", level: 1 })
+      authenticatedPage.locator("main").getByRole("heading", { name: "Tags", level: 1 }).first()
     ).toBeVisible();
 
     // The empty state shows "No tags yet" when there are zero tags and no search
@@ -38,7 +41,7 @@ test.describe("Tags", () => {
   }) => {
     await authenticatedPage.goto("/tags");
     await expect(
-      authenticatedPage.getByRole("heading", { name: "Tags", level: 1 })
+      authenticatedPage.locator("main").getByRole("heading", { name: "Tags", level: 1 }).first()
     ).toBeVisible();
 
     // Click the "Create Tag" link/button in the page header
@@ -102,7 +105,7 @@ test.describe("Tags", () => {
     try {
       await authenticatedPage.goto("/tags");
       await expect(
-        authenticatedPage.getByRole("heading", { name: "Tags", level: 1 })
+        authenticatedPage.locator("main").getByRole("heading", { name: "Tags", level: 1 }).first()
       ).toBeVisible();
 
       // The tag name appears inside a TagBadge in the table
@@ -219,7 +222,7 @@ test.describe("Tags", () => {
     try {
       await authenticatedPage.goto("/tags");
       await expect(
-        authenticatedPage.getByRole("heading", { name: "Tags", level: 1 })
+        authenticatedPage.locator("main").getByRole("heading", { name: "Tags", level: 1 }).first()
       ).toBeVisible();
 
       // Wait for table to appear
@@ -306,6 +309,196 @@ test.describe("Tags", () => {
       ).toBeVisible();
     } finally {
       await deleteTestTag(apiHelper.request, tag.id);
+    }
+  });
+
+  test("tag picker on job detail assigns and shows tag", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    const job = await createTestJob(apiHelper.request, {
+      name: `e2e-tagpicker-job-${Date.now().toString(36)}`,
+    });
+    const tag = await createTestTag(apiHelper.request, {
+      name: `e2e-tagpicker-${Date.now().toString(36)}`,
+      color: "#3b82f6",
+    });
+
+    try {
+      await authenticatedPage.goto(`/jobs/${job.id}`);
+      await expect(
+        authenticatedPage.getByRole("heading", { name: job.name })
+      ).toBeVisible({ timeout: 10_000 });
+
+      // Open the tag picker popover
+      await authenticatedPage
+        .getByRole("button", { name: "Manage Tags" })
+        .click();
+
+      // Search for the tag in the popover
+      const popover = authenticatedPage.locator("[data-radix-popper-content-wrapper]");
+      await popover.getByPlaceholder("Search tags...").fill(tag.name);
+
+      // Click the tag to assign it
+      await popover.getByText(tag.name).click();
+
+      // Verify success toast
+      await expect(
+        authenticatedPage
+          .locator("[data-sonner-toast]")
+          .filter({ hasText: `Tag "${tag.name}" added` })
+      ).toBeVisible({ timeout: 10_000 });
+
+      // The tag badge should now appear on the job detail page (outside the popover)
+      // Close the popover first by clicking elsewhere
+      await authenticatedPage.getByRole("heading", { name: job.name }).click();
+
+      // Verify the TagBadge is visible in the Tags card
+      const tagsCard = authenticatedPage.locator("text=Tags").locator("..");
+      await expect(tagsCard.getByText(tag.name)).toBeVisible({
+        timeout: 10_000,
+      });
+    } finally {
+      await deleteTestJob(apiHelper.request, job.id);
+      await deleteTestTag(apiHelper.request, tag.id);
+    }
+  });
+
+  test("tagged entities section shows assigned job", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    const job = await createTestJob(apiHelper.request, {
+      name: `e2e-tagged-entity-${Date.now().toString(36)}`,
+    });
+    const tag = await createTestTag(apiHelper.request, {
+      name: `e2e-assigned-${Date.now().toString(36)}`,
+    });
+
+    try {
+      // Assign tag to job via API
+      await assignTagToEntity(apiHelper.request, tag.id, "job", job.id);
+
+      // Navigate to tag detail page
+      await authenticatedPage.goto(`/tags/${tag.id}`);
+      await expect(
+        authenticatedPage.getByRole("heading", { name: tag.name })
+      ).toBeVisible({ timeout: 10_000 });
+
+      // The Tagged Entities section should show the job (entity ID link)
+      await expect(
+        authenticatedPage.getByText("Tagged Entities")
+      ).toBeVisible();
+
+      // Should NOT show the "No entities" empty message
+      await expect(
+        authenticatedPage.getByText("No entities are tagged with this tag.")
+      ).not.toBeVisible({ timeout: 5_000 });
+
+      // Should show "Jobs (1)" group header
+      await expect(authenticatedPage.getByText("Jobs (1)")).toBeVisible();
+    } finally {
+      await deleteTestJob(apiHelper.request, job.id);
+      await deleteTestTag(apiHelper.request, tag.id);
+    }
+  });
+
+  test("tag badge renders with correct color", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    const tagColor = "#ef4444";
+    const tag = await createTestTag(apiHelper.request, {
+      name: `e2e-color-${Date.now().toString(36)}`,
+      color: tagColor,
+    });
+
+    try {
+      await authenticatedPage.goto("/tags");
+      await expect(
+        authenticatedPage.locator("main").getByRole("heading", { name: "Tags", level: 1 }).first()
+      ).toBeVisible();
+
+      // Find the tag badge in the table
+      const tagBadge = authenticatedPage.locator("table").getByText(tag.name);
+      await expect(tagBadge).toBeVisible({ timeout: 10_000 });
+
+      // The TagBadge uses inline style with rgba/rgb values derived from the hex color
+      // e.g., #ef4444 becomes rgb(239, 68, 68)
+      const style = await tagBadge.getAttribute("style");
+      expect(style).toBeTruthy();
+      // The hex color #ef4444 is rendered as rgb(239, 68, 68) in computed CSS
+      expect(style).toContain("239, 68, 68");
+    } finally {
+      await deleteTestTag(apiHelper.request, tag.id);
+    }
+  });
+
+  test("pagination controls appear with many tags", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    // Create 26 tags (page size is 25) to trigger pagination
+    const suffix = Date.now().toString(36);
+    const tags: Array<{ id: string; name: string }> = [];
+
+    try {
+      // Create tags in parallel batches
+      const createPromises = Array.from({ length: 26 }, (_, i) =>
+        createTestTag(apiHelper.request, {
+          name: `e2e-page-${suffix}-${String(i).padStart(2, "0")}`,
+          category: "pagination-test",
+        })
+      );
+      const results = await Promise.all(createPromises);
+      tags.push(...results);
+
+      await authenticatedPage.goto("/tags");
+      await expect(
+        authenticatedPage.locator("main").getByRole("heading", { name: "Tags", level: 1 }).first()
+      ).toBeVisible();
+
+      // Wait for the table to load
+      await expect(authenticatedPage.locator("table")).toBeVisible({
+        timeout: 10_000,
+      });
+
+      // Pagination controls should be visible
+      await expect(
+        authenticatedPage.getByText(/Page \d+ of \d+/)
+      ).toBeVisible({ timeout: 10_000 });
+
+      const main = authenticatedPage.locator("main");
+      const previousButton = main.getByRole("button", {
+        name: "Previous",
+        exact: true,
+      });
+      const nextButton = main.getByRole("button", {
+        name: "Next",
+        exact: true,
+      });
+
+      // On page 1, Previous should be disabled
+      await expect(previousButton).toBeDisabled();
+
+      // Next should be enabled
+      await expect(nextButton).toBeEnabled();
+
+      // Click Next to go to page 2
+      await nextButton.click();
+
+      // Should now show page 2
+      await expect(
+        authenticatedPage.getByText(/Page 2 of \d+/)
+      ).toBeVisible({ timeout: 10_000 });
+
+      // Previous should now be enabled
+      await expect(previousButton).toBeEnabled();
+    } finally {
+      // Cleanup all tags
+      await Promise.all(
+        tags.map((t) => deleteTestTag(apiHelper.request, t.id))
+      );
     }
   });
 });

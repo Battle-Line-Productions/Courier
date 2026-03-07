@@ -25,29 +25,37 @@ export const test = base.extend<CourierFixtures>({
       }
     );
     const body = await loginResponse.json();
-    const { accessToken, refreshToken } = body.data;
+    const loginData = body.data;
 
-    // Inject auth state into the page's localStorage and API client
+    // Intercept the refresh endpoint so restoreSession() gets an instant response
+    // instead of hitting the real API (avoids contention under parallel workers)
+    await page.route("**/api/v1/auth/refresh", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: loginData,
+          error: null,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+    });
+
+    // Inject auth state into the page's localStorage
     await page.goto("/");
     await page.evaluate(
       ({ refreshToken }) => {
         localStorage.setItem("courier_refresh_token", refreshToken);
       },
-      { refreshToken }
+      { refreshToken: loginData.refreshToken }
     );
 
-    // Set the access token via the API client by injecting it into the page context
-    await page.evaluate(
-      ({ accessToken }) => {
-        // Store temporarily so the auth provider can pick it up on next navigation
-        sessionStorage.setItem("__e2e_access_token", accessToken);
-      },
-      { accessToken }
-    );
-
-    // Reload to let AuthProvider restore session from the refresh token
+    // Reload to let AuthProvider restore session from the intercepted refresh
     await page.reload();
-    await page.waitForURL("/", { timeout: 10_000 });
+    await page.waitForURL("/", { timeout: 15_000 });
+
+    // Wait for AuthProvider to fully restore the session (user menu appears when authenticated)
+    await page.locator("header").getByRole("button").waitFor({ timeout: 15_000 });
 
     await use(page);
     await context.close();

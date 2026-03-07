@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, LogOut, User, KeyRound } from "lucide-react";
 import { useAuth } from "@/lib/auth";
@@ -50,6 +50,7 @@ function useBreadcrumbs() {
 export function Topbar() {
   const crumbs = useBreadcrumbs();
   const { user, logout } = useAuth();
+  const router = useRouter();
 
   const initials = user?.displayName
     ?.split(" ")
@@ -90,17 +91,13 @@ export function Topbar() {
               {user.username} &middot; {user.role}
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/settings/users">
-                <User className="mr-2 h-4 w-4" />
-                Profile
-              </Link>
+            <DropdownMenuItem onSelect={() => router.push("/settings/users")}>
+              <User className="mr-2 h-4 w-4" />
+              Profile
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/settings">
-                <KeyRound className="mr-2 h-4 w-4" />
-                Change Password
-              </Link>
+            <DropdownMenuItem onSelect={() => router.push("/settings")}>
+              <KeyRound className="mr-2 h-4 w-4" />
+              Change Password
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => logout()}>

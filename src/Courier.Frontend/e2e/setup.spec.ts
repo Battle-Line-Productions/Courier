@@ -2,8 +2,22 @@ import { test, expect } from "@playwright/test";
 
 // These tests require a fresh database (no prior setup).
 // Run separately: npx playwright test --project=fresh-db
+// They are skipped automatically when the system is already initialized.
 
 test.describe("Setup wizard @fresh-db", () => {
+  // Skip all tests in this suite if the system is already initialized
+  test.beforeEach(async ({ page }) => {
+    const apiUrl = process.env.API_URL || "http://localhost:5000";
+    const response = await page.request.post(`${apiUrl}/api/v1/auth/login`, {
+      data: { username: "__probe__", password: "__probe__" },
+    });
+    // If login endpoint returns 401, the system is initialized (rejects bad creds)
+    // If not initialized, it would return 503 or a different status
+    if (response.status() === 401) {
+      test.skip(true, "System already initialized — setup tests require a fresh database");
+    }
+  });
+
   test("redirects to setup when not initialized", async ({ page }) => {
     await page.goto("/");
 

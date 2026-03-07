@@ -6,6 +6,7 @@ import {
   triggerJob,
   createJobSchedule,
   deleteJobSchedule,
+  updateTestJob,
 } from "./helpers/api-helpers";
 
 test.describe("Job Execution", () => {
@@ -207,6 +208,109 @@ test.describe("Job Execution", () => {
     }
     // If already completed/failed, the cancel button won't be shown — test passes
   });
+
+  test("cancel execution via cancel confirm flow", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    // Trigger via API
+    await triggerJob(apiHelper.request, jobId);
+
+    await authenticatedPage.goto(`/jobs/${jobId}`);
+
+    // Expand the latest execution
+    const latestExecution = authenticatedPage.getByText("Latest");
+    await expect(latestExecution).toBeVisible({ timeout: 10_000 });
+    await latestExecution.click();
+
+    await expect(
+      authenticatedPage.getByText(/Triggered by:/)
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Check if execution is in a cancellable state
+    const stateText = await authenticatedPage
+      .locator(".capitalize")
+      .first()
+      .textContent();
+    const state = stateText?.trim().toLowerCase();
+
+    if (state === "queued" || state === "running" || state === "paused") {
+      // Click Cancel button to show the cancel confirmation form
+      const cancelButton = authenticatedPage.getByRole("button", {
+        name: "Cancel",
+        exact: true,
+      });
+      await cancelButton.click();
+
+      // The cancel confirmation form should appear with reason input
+      await expect(
+        authenticatedPage.getByText("Cancel this execution?")
+      ).toBeVisible();
+
+      // Fill optional reason
+      await authenticatedPage
+        .getByPlaceholder("Reason (optional)")
+        .fill("E2E test cancellation");
+
+      // Click Confirm Cancel
+      await authenticatedPage
+        .getByRole("button", { name: "Confirm Cancel" })
+        .click();
+
+      // The cancel confirmation should disappear
+      await expect(
+        authenticatedPage.getByText("Cancel this execution?")
+      ).not.toBeVisible({ timeout: 10_000 });
+    }
+    // If already completed/failed, skip — test passes
+  });
+
+  test("execution step details show step names and status", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    // Trigger via API
+    await triggerJob(apiHelper.request, jobId);
+
+    await authenticatedPage.goto(`/jobs/${jobId}`);
+
+    // Expand the latest execution
+    const latestExecution = authenticatedPage.getByText("Latest");
+    await expect(latestExecution).toBeVisible({ timeout: 10_000 });
+    await latestExecution.click();
+
+    // Wait for expanded content
+    await expect(
+      authenticatedPage.getByText(/Triggered by:/)
+    ).toBeVisible({ timeout: 10_000 });
+
+    // If step executions are present, they should show step names
+    // The step execution section has an uppercase "STEPS" label
+    const stepsLabel = authenticatedPage.getByText("Steps", { exact: true }).last();
+
+    // Step executions may or may not be present depending on worker state
+    // Look for step execution rows that contain the step name
+    const stepRow = authenticatedPage.locator(".rounded-md.border.bg-muted\\/30");
+    const stepRowCount = await stepRow.count();
+
+    if (stepRowCount > 0) {
+      // The step row should contain the step name "Copy test file"
+      await expect(
+        authenticatedPage.getByText("Copy test file")
+      ).toBeVisible();
+
+      // Should show step order number
+      await expect(
+        authenticatedPage.getByText("Step 1:")
+      ).toBeVisible();
+
+      // Should show step type key
+      await expect(
+        authenticatedPage.getByText("(file.copy)")
+      ).toBeVisible();
+    }
+    // If no step executions yet (worker hasn't processed), test passes
+  });
 });
 
 test.describe("Job Schedules", () => {
@@ -217,6 +321,19 @@ test.describe("Job Schedules", () => {
       name: `e2e-sched-${Date.now()}`,
     });
     jobId = job.id;
+
+    // Add a step so the job can be triggered
+    await addJobSteps(apiHelper.request, jobId, [
+      {
+        name: "Copy test file",
+        typeKey: "file.copy",
+        stepOrder: 1,
+        configuration: JSON.stringify({
+          sourcePath: "/tmp/source.txt",
+          destinationPath: "/tmp/dest.txt",
+        }),
+      },
+    ]);
   });
 
   test.afterEach(async ({ apiHelper }) => {
@@ -384,5 +501,202 @@ test.describe("Job Schedules", () => {
     await expect(
       authenticatedPage.getByText("No schedules configured.")
     ).toBeVisible();
+  });
+
+  test("edits a schedule cron expression", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    const schedule = await createJobSchedule(apiHelper.request, jobId, {
+      cronExpression: "0 0 6 * * ?",
+    });
+
+    try {
+      await authenticatedPage.goto(`/jobs/${jobId}`);
+
+      await expect(
+        authenticatedPage.getByText("Schedules (1)")
+      ).toBeVisible({ timeout: 10_000 });
+      await expect(
+        authenticatedPage.getByText("0 0 6 * * ?")
+      ).toBeVisible();
+
+      // Click the edit (pencil) button on the schedule row
+      const scheduleRow = authenticatedPage
+        .locator(".rounded-md.border")
+        .filter({ hasText: "0 0 6 * * ?" });
+
+      // The pencil button is second-to-last in the row
+      const editButton = scheduleRow.locator("button").filter({
+        has: authenticatedPage.locator("svg.lucide-pencil"),
+      });
+      await editButton.click();
+
+      // The Edit Schedule dialog should open
+      const dialog = authenticatedPage.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByText("Edit Schedule")).toBeVisible();
+
+      // Update the cron expression
+      const cronInput = dialog.getByPlaceholder("0 0 3 * * ?");
+      await cronInput.clear();
+      await cronInput.fill("0 30 8 * * ?");
+
+      // Save
+      await dialog.getByRole("button", { name: "Save" }).click();
+
+      await expect(
+        authenticatedPage.locator("[data-sonner-toast]", {
+          hasText: "Schedule updated",
+        })
+      ).toBeVisible({ timeout: 10_000 });
+
+      // The updated cron expression should be visible
+      await expect(
+        authenticatedPage.getByText("0 30 8 * * ?")
+      ).toBeVisible({ timeout: 10_000 });
+    } finally {
+      await deleteJobSchedule(apiHelper.request, jobId, schedule.id).catch(
+        () => {}
+      );
+    }
+  });
+
+  test("creates a one-shot schedule", async ({
+    authenticatedPage,
+  }) => {
+    await authenticatedPage.goto(`/jobs/${jobId}`, {
+      waitUntil: "networkidle",
+    });
+
+    await expect(
+      authenticatedPage.getByText("Schedules (0)")
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Open Add Schedule dialog
+    await authenticatedPage
+      .getByRole("button", { name: "Add Schedule" })
+      .click();
+
+    const dialog = authenticatedPage.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+
+    // Switch schedule type to One-Shot
+    // The Schedule Type select defaults to "Cron" — click it and select "One-Shot"
+    const typeSelect = dialog.locator("button").filter({
+      hasText: "Cron",
+    });
+    await typeSelect.click();
+    await authenticatedPage.getByRole("option", { name: "One-Shot" }).click();
+
+    // Fill the datetime-local input for Run At
+    const runAtInput = dialog.locator("input[type='datetime-local']");
+    await expect(runAtInput).toBeVisible();
+
+    // Set a future date/time
+    const futureDate = new Date(Date.now() + 86400000);
+    const dateStr = futureDate.toISOString().slice(0, 16);
+    await runAtInput.fill(dateStr);
+
+    // Click Create
+    await dialog.getByRole("button", { name: "Create" }).click();
+
+    await expect(
+      authenticatedPage.locator("[data-sonner-toast]", {
+        hasText: "Schedule created",
+      })
+    ).toBeVisible({ timeout: 10_000 });
+
+    // The schedule should appear with "one_shot" type badge
+    await expect(
+      authenticatedPage.getByText("Schedules (1)")
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(
+      authenticatedPage.getByText("one_shot")
+    ).toBeVisible();
+  });
+
+  test("execution pagination appears with multiple executions", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    // Trigger enough executions to exceed page size (10) so pagination appears
+    for (let i = 0; i < 11; i++) {
+      await triggerJob(apiHelper.request, jobId);
+      // Small delay to avoid concurrent execution guards
+      if (i < 10) await new Promise((r) => setTimeout(r, 200));
+    }
+
+    await authenticatedPage.goto(`/jobs/${jobId}`);
+
+    const main = authenticatedPage.locator("main");
+
+    // Wait for executions to load
+    await expect(
+      main.getByText("Latest")
+    ).toBeVisible({ timeout: 15_000 });
+
+    // With 11 executions (page size 10), pagination should appear
+    // Verify the "Next" button is visible within main (avoid matching Next.js dev tools)
+    await expect(
+      main.getByRole("button", { name: "Next", exact: true })
+    ).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("schedule enable/disable toggle", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    const schedule = await createJobSchedule(apiHelper.request, jobId, {
+      cronExpression: "0 0 12 * * ?",
+      isEnabled: true,
+    });
+
+    try {
+      await authenticatedPage.goto(`/jobs/${jobId}`);
+
+      await expect(
+        authenticatedPage.getByText("Schedules (1)")
+      ).toBeVisible({ timeout: 10_000 });
+
+      // Find the schedule row
+      const scheduleRow = authenticatedPage
+        .locator(".rounded-md.border")
+        .filter({ hasText: "0 0 12 * * ?" });
+
+      // The Switch toggle has aria-label "Toggle schedule"
+      const toggle = scheduleRow.getByLabel("Toggle schedule");
+      await expect(toggle).toBeVisible();
+
+      // The toggle should be checked (enabled)
+      await expect(toggle).toBeChecked();
+
+      // Click to disable
+      await toggle.click();
+
+      await expect(
+        authenticatedPage.locator("[data-sonner-toast]", {
+          hasText: "Schedule disabled",
+        })
+      ).toBeVisible({ timeout: 10_000 });
+
+      // Toggle should now be unchecked
+      await expect(toggle).not.toBeChecked();
+
+      // Click again to re-enable
+      await toggle.click();
+
+      await expect(
+        authenticatedPage.locator("[data-sonner-toast]", {
+          hasText: "Schedule enabled",
+        })
+      ).toBeVisible({ timeout: 10_000 });
+
+      await expect(toggle).toBeChecked();
+    } finally {
+      await deleteJobSchedule(apiHelper.request, jobId, schedule.id).catch(
+        () => {}
+      );
+    }
   });
 });

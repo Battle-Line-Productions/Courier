@@ -513,3 +513,222 @@ export async function findUserByUsername(
     (u: { username: string }) => u.username === username
   );
 }
+
+export async function updateUser(
+  request: APIRequestContext,
+  userId: string,
+  data: Partial<{
+    displayName: string;
+    email: string;
+    role: string;
+    isActive: boolean;
+  }>
+) {
+  const token = await getAuthToken(request);
+  const response = await request.put(
+    `${API_BASE_URL}/api/v1/users/${userId}`,
+    { headers: authHeaders(token), data }
+  );
+  const body = await response.json();
+  return body.data;
+}
+
+export async function resetUserPassword(
+  request: APIRequestContext,
+  userId: string,
+  newPassword: string
+) {
+  const token = await getAuthToken(request);
+  return await request.post(
+    `${API_BASE_URL}/api/v1/users/${userId}/reset-password`,
+    {
+      headers: authHeaders(token),
+      data: { newPassword, confirmPassword: newPassword },
+    }
+  );
+}
+
+// ── Jobs (extended) ──
+
+export async function updateTestJob(
+  request: APIRequestContext,
+  jobId: string,
+  data: Partial<{
+    name: string;
+    description: string;
+    isEnabled: boolean;
+  }>
+) {
+  const token = await getAuthToken(request);
+  const response = await request.put(
+    `${API_BASE_URL}/api/v1/jobs/${jobId}`,
+    { headers: authHeaders(token), data }
+  );
+  const body = await response.json();
+  return body.data;
+}
+
+export async function cancelJobExecution(
+  request: APIRequestContext,
+  executionId: string
+) {
+  const token = await getAuthToken(request);
+  await request.post(
+    `${API_BASE_URL}/api/v1/jobs/executions/${executionId}/cancel`,
+    { headers: authHeaders(token) }
+  );
+}
+
+// ── Monitors (extended) ──
+
+export async function updateTestMonitor(
+  request: APIRequestContext,
+  monitorId: string,
+  data: Partial<{
+    name: string;
+    description: string;
+    watchTarget: string;
+    pollingIntervalSec: number;
+  }>
+) {
+  const token = await getAuthToken(request);
+  const response = await request.put(
+    `${API_BASE_URL}/api/v1/monitors/${monitorId}`,
+    { headers: authHeaders(token), data }
+  );
+  const body = await response.json();
+  return body.data;
+}
+
+export async function disableMonitor(
+  request: APIRequestContext,
+  monitorId: string
+) {
+  const token = await getAuthToken(request);
+  await request.post(
+    `${API_BASE_URL}/api/v1/monitors/${monitorId}/disable`,
+    { headers: authHeaders(token) }
+  );
+}
+
+export async function acknowledgeMonitorError(
+  request: APIRequestContext,
+  monitorId: string
+) {
+  const token = await getAuthToken(request);
+  await request.post(
+    `${API_BASE_URL}/api/v1/monitors/${monitorId}/acknowledge-error`,
+    { headers: authHeaders(token) }
+  );
+}
+
+// ── Tags (extended) ──
+
+export async function assignTagToEntity(
+  request: APIRequestContext,
+  tagId: string,
+  entityType: string,
+  entityId: string
+) {
+  const token = await getAuthToken(request);
+  await request.post(`${API_BASE_URL}/api/v1/tags/assign`, {
+    headers: authHeaders(token),
+    data: {
+      assignments: [{ tagId, entityType, entityId }],
+    },
+  });
+}
+
+export async function unassignTagFromEntity(
+  request: APIRequestContext,
+  tagId: string,
+  entityType: string,
+  entityId: string
+) {
+  const token = await getAuthToken(request);
+  await request.post(`${API_BASE_URL}/api/v1/tags/unassign`, {
+    headers: authHeaders(token),
+    data: {
+      assignments: [{ tagId, entityType, entityId }],
+    },
+  });
+}
+
+// ── Chain Schedules ──
+
+export async function createChainSchedule(
+  request: APIRequestContext,
+  chainId: string,
+  overrides?: {
+    scheduleType?: string;
+    cronExpression?: string;
+    isEnabled?: boolean;
+  }
+) {
+  const token = await getAuthToken(request);
+  const response = await request.post(
+    `${API_BASE_URL}/api/v1/chains/${chainId}/schedules`,
+    {
+      headers: authHeaders(token),
+      data: {
+        scheduleType: overrides?.scheduleType ?? "cron",
+        cronExpression: overrides?.cronExpression ?? "0 0 * * *",
+        isEnabled: overrides?.isEnabled ?? true,
+      },
+    }
+  );
+  const body = await response.json();
+  return body.data;
+}
+
+export async function deleteChainSchedule(
+  request: APIRequestContext,
+  chainId: string,
+  scheduleId: string
+) {
+  const token = await getAuthToken(request);
+  await request.delete(
+    `${API_BASE_URL}/api/v1/chains/${chainId}/schedules/${scheduleId}`,
+    { headers: authHeaders(token) }
+  );
+}
+
+// ── PGP Keys (extended) ──
+
+export async function revokePgpKey(
+  request: APIRequestContext,
+  id: string
+) {
+  const token = await getAuthToken(request);
+  await request.post(`${API_BASE_URL}/api/v1/pgp-keys/${id}/revoke`, {
+    headers: authHeaders(token),
+  });
+}
+
+// ── Connections (extended) ──
+
+export async function testConnectionApi(
+  request: APIRequestContext,
+  connectionId: string
+) {
+  const token = await getAuthToken(request);
+  const response = await request.post(
+    `${API_BASE_URL}/api/v1/connections/${connectionId}/test`,
+    { headers: authHeaders(token) }
+  );
+  const body = await response.json();
+  return body.data;
+}
+
+// ── Notification Rules (extended) ──
+
+export async function testNotificationRule(
+  request: APIRequestContext,
+  ruleId: string
+) {
+  const token = await getAuthToken(request);
+  return await request.post(
+    `${API_BASE_URL}/api/v1/notification-rules/${ruleId}/test`,
+    { headers: authHeaders(token) }
+  );
+}

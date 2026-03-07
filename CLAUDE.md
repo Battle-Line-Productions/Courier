@@ -157,7 +157,8 @@ npx playwright test
 - `e2e/fixtures.ts` — Custom fixtures: `authenticatedPage` (logged-in page), `apiHelper` (API request context)
 - `e2e/helpers/api-helpers.ts` — Programmatic test data setup/teardown via API
 - `e2e/global-setup.ts` — Creates test admin user on first run
-- Spec files: `auth.spec.ts`, `dashboard.spec.ts`, `jobs.spec.ts`, `connections.spec.ts`, `keys.spec.ts`, `chains.spec.ts`, `monitors.spec.ts`, `notifications.spec.ts`, `tags.spec.ts`, `users.spec.ts`, `audit-log.spec.ts`, `settings.spec.ts`
+- `e2e/global-teardown.ts` — Cleans up orphaned `e2e-` prefixed entities after each run
+- Spec files: `auth.spec.ts`, `dashboard.spec.ts`, `jobs.spec.ts`, `connections.spec.ts`, `keys.spec.ts`, `chains.spec.ts`, `monitors.spec.ts`, `notifications.spec.ts`, `tags.spec.ts`, `users.spec.ts`, `audit-log.spec.ts`, `settings.spec.ts`, `navigation.spec.ts`
 
 **Conventions:**
 - All test entities prefixed with `e2e-` + unique suffix for isolation
@@ -165,6 +166,62 @@ npx playwright test
 - Cleanup in `finally` blocks via API helpers
 - Toast assertions: `page.locator('[data-sonner-toast]').filter({ hasText: "..." })`
 - Confirm dialogs: `page.getByRole('dialog')` then click confirm button inside
+
+**Reading test results correctly (IMPORTANT):**
+Playwright's default `line` and `dot` reporters use ANSI escape codes that overwrite previous lines. When captured via `tail` or `tee`, the summary counts appear garbled or incomplete. To get accurate results:
+```bash
+# Option 1: Pipe through cat -v to neutralize ANSI escapes, then grep for summary
+npx playwright test --workers=4 2>&1 | cat -v | grep -E "passed|failed|flaky"
+
+# Option 2: Use JSON output file (most reliable for automation)
+PLAYWRIGHT_JSON_OUTPUT_NAME=results.json npx playwright test --reporter=json
+node -e "const r=require('./results.json'); console.log(r.stats)"
+
+# Option 3: Run with --reporter=list for non-ANSI output
+npx playwright test --reporter=list 2>&1 | tail -5
+```
+
+**Worker count:** The config limits to 4 parallel workers (`workers: 4`). More workers overwhelm the API with concurrent login requests, causing cascading auth failures. Do NOT increase without load-testing the API.
+
+**Troubleshooting cascading auth failures:**
+If most tests fail with `body.data is null` or `Cannot destructure 'accessToken'`:
+1. The test admin account may be locked. Unlock via DB:
+   ```bash
+   docker exec -e PGPASSWORD='<pw>' <container> psql -U postgres -d CourierDb \
+     -c "UPDATE users SET failed_login_count=0, locked_until=NULL WHERE username='testadmin';"
+   ```
+2. Orphaned test data may slow queries. The global teardown handles this, but for manual cleanup:
+   ```bash
+   docker exec -e PGPASSWORD='<pw>' <container> psql -U postgres -d CourierDb \
+     -c "DELETE FROM jobs WHERE name LIKE 'e2e-%'; DELETE FROM tags WHERE name LIKE 'e2e-%';" # etc.
+   ```
+3. Never modify the `testadmin` password in tests. Use a temporary user instead (see `settings.spec.ts`).
+
+### Playwright Best Practices (for writing and fixing E2E tests)
+
+**Timeouts after navigation:**
+- ALWAYS add `{ timeout: 10_000 }` to the first `toBeVisible()` or `toHaveURL()` assertion after `page.goto()`. The default 5s timeout is too short — React hydration + AuthProvider session restore (API call for token refresh) can take 6-8s under parallel worker load.
+- Subsequent assertions on the same page can use the default timeout since the page is already loaded.
+
+**Radix UI + Next.js Link in dropdowns:**
+- NEVER use `DropdownMenuItem asChild` with a Next.js `<Link>`. Radix closes the dropdown (unmounting the Link) before client-side navigation fires. Use `onSelect={() => router.push("/path")}` instead.
+- Same applies to `ContextMenuItem`, `MenubarItem`, etc.
+- `SelectItem value=""` crashes Radix Select — use `value="__none__"` for empty-state placeholders.
+
+**CSS transitions:**
+- After triggering a CSS transition (e.g., sidebar collapse/expand), add `await page.waitForTimeout(500)` before measuring dimensions with `boundingBox()`. The React state update is synchronous, but the CSS `transition-all` animation takes time.
+
+**Parallel worker safety:**
+- Tests that create data must use unique names with `e2e-` prefix + timestamp/random suffix.
+- Jobs must have at least one step before triggering — `triggerJob()` silently fails on stepless jobs.
+- Setup wizard tests (`setup.spec.ts`) require a fresh DB. They auto-skip when the system is already initialized.
+- Keep workers at 4 max. More overwhelms the API with concurrent auth requests.
+
+**Waiting patterns:**
+- After `goto()`: wait for a heading or key element with `{ timeout: 10_000 }` before interacting.
+- After clicking navigation links in a loop: add `waitForLoadState("networkidle")` between iterations.
+- Before clicking dropdown/menu items: verify the item `toBeVisible()` first.
+- For toast assertions after mutations: use `{ timeout: 10_000 }` — API round-trip + toast animation takes time.
 
 ## Serena MCP — Code Navigation & Editing
 

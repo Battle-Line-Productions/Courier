@@ -17,7 +17,7 @@ test.describe("Keys - PGP", () => {
     // Navigate to keys page — PGP tab is the default
     await authenticatedPage.goto("/keys");
     await expect(
-      authenticatedPage.getByRole("heading", { name: "Keys", level: 1 })
+      authenticatedPage.locator("main").getByRole("heading", { name: "Keys", level: 1 }).first()
     ).toBeVisible();
 
     // The PGP tab should be selected by default
@@ -456,6 +456,293 @@ test.describe("Keys - PGP", () => {
       authenticatedPage.getByRole("link", { name: keyName })
     ).not.toBeVisible({ timeout: 5_000 });
   });
+
+  test("navigates to import PGP key page", async ({
+    authenticatedPage,
+  }) => {
+    await authenticatedPage.goto("/keys");
+
+    // PGP tab is default, click Import button
+    await authenticatedPage
+      .getByRole("link", { name: "Import" })
+      .first()
+      .click();
+
+    await expect(authenticatedPage).toHaveURL(/\/keys\/pgp\/import/);
+    await expect(
+      authenticatedPage.getByRole("heading", { name: "Import PGP Key" })
+    ).toBeVisible();
+
+    // Verify form fields: Name, Key File, Passphrase
+    await expect(
+      authenticatedPage.getByLabel("Name *")
+    ).toBeVisible();
+    await expect(
+      authenticatedPage.getByText("Key File *")
+    ).toBeVisible();
+    await expect(
+      authenticatedPage.getByLabel("Passphrase")
+    ).toBeVisible();
+    await expect(
+      authenticatedPage.getByRole("button", { name: "Import PGP Key" })
+    ).toBeVisible();
+  });
+
+  test("generates PGP key with RSA algorithm", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    const keyName = `e2e-pgp-rsa-${Date.now()}`;
+    let createdKeyId: string | undefined;
+
+    try {
+      await authenticatedPage.goto("/keys/pgp/new");
+
+      // Fill in key name
+      await authenticatedPage.getByLabel("Name *").fill(keyName);
+
+      // Select RSA 4096 algorithm (it's the default, but verify)
+      const algoSelect = authenticatedPage
+        .locator("form")
+        .getByRole("combobox")
+        .first();
+      await algoSelect.click();
+      await authenticatedPage
+        .getByRole("option", { name: "RSA 4096" })
+        .click();
+
+      // Submit
+      await authenticatedPage
+        .getByRole("button", { name: "Generate Key" })
+        .click();
+
+      // Should show success toast and redirect
+      await expect(
+        authenticatedPage.locator("[data-sonner-toast]").getByText("PGP key generated")
+      ).toBeVisible({ timeout: 30_000 });
+
+      await expect(authenticatedPage).toHaveURL(/\/keys\/pgp\/[0-9a-f-]+$/);
+
+      createdKeyId = authenticatedPage.url().split("/keys/pgp/")[1];
+
+      await expect(
+        authenticatedPage.getByRole("heading", { name: keyName })
+      ).toBeVisible();
+    } finally {
+      if (createdKeyId) {
+        await deleteTestPgpKey(apiHelper.request, createdKeyId);
+      }
+    }
+  });
+
+  test("revokes a PGP key", async ({ authenticatedPage, apiHelper }) => {
+    const keyName = `e2e-pgp-revoke-${Date.now()}`;
+    const key = await generateTestPgpKey(apiHelper.request, keyName);
+
+    try {
+      await authenticatedPage.goto("/keys");
+
+      // Wait for key to appear
+      await expect(
+        authenticatedPage.getByRole("link", { name: keyName })
+      ).toBeVisible({ timeout: 10_000 });
+
+      // Open the row action menu
+      const row = authenticatedPage.getByRole("row").filter({ hasText: keyName });
+      const actionButton = row.getByRole("button");
+      await actionButton.click({ force: true });
+
+      // Click Revoke from dropdown
+      await authenticatedPage
+        .getByRole("menuitem", { name: "Revoke" })
+        .click();
+
+      // Should show success toast
+      await expect(
+        authenticatedPage.locator("[data-sonner-toast]").getByText("Key revoked")
+      ).toBeVisible({ timeout: 10_000 });
+    } finally {
+      await deleteTestPgpKey(apiHelper.request, key.id);
+    }
+  });
+
+  test("generates PGP key with passphrase", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    const keyName = `e2e-pgp-pass-${Date.now()}`;
+    let createdKeyId: string | undefined;
+
+    try {
+      await authenticatedPage.goto("/keys/pgp/new");
+
+      // Fill key name
+      await authenticatedPage.getByLabel("Name *").fill(keyName);
+
+      // Select algorithm
+      const algoSelect = authenticatedPage
+        .locator("form")
+        .getByRole("combobox")
+        .first();
+      await algoSelect.click();
+      await authenticatedPage
+        .getByRole("option", { name: "ECC Curve25519" })
+        .click();
+
+      // Fill passphrase
+      await authenticatedPage
+        .getByLabel("Passphrase")
+        .fill("test-passphrase-123!");
+
+      // Submit
+      await authenticatedPage
+        .getByRole("button", { name: "Generate Key" })
+        .click();
+
+      // Should show success toast
+      await expect(
+        authenticatedPage.locator("[data-sonner-toast]").getByText("PGP key generated")
+      ).toBeVisible({ timeout: 30_000 });
+
+      await expect(authenticatedPage).toHaveURL(/\/keys\/pgp\/[0-9a-f-]+$/);
+      createdKeyId = authenticatedPage.url().split("/keys/pgp/")[1];
+    } finally {
+      if (createdKeyId) {
+        await deleteTestPgpKey(apiHelper.request, createdKeyId);
+      }
+    }
+  });
+
+  test("generates PGP key with real name, email, and expiry", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    const keyName = `e2e-pgp-extras-${Date.now()}`;
+    let createdKeyId: string | undefined;
+
+    try {
+      await authenticatedPage.goto("/keys/pgp/new");
+
+      // Fill key name
+      await authenticatedPage.getByLabel("Name *").fill(keyName);
+
+      // Select algorithm
+      const algoSelect = authenticatedPage
+        .locator("form")
+        .getByRole("combobox")
+        .first();
+      await algoSelect.click();
+      await authenticatedPage
+        .getByRole("option", { name: "ECC Curve25519" })
+        .click();
+
+      // Fill Real Name
+      await authenticatedPage.getByLabel("Real Name").fill("E2E Test User");
+
+      // Fill Email
+      await authenticatedPage.getByLabel("Email").fill("e2e-test@example.com");
+
+      // Fill Expires In (days)
+      await authenticatedPage
+        .getByLabel("Expires In (days)")
+        .fill("365");
+
+      // Submit
+      await authenticatedPage
+        .getByRole("button", { name: "Generate Key" })
+        .click();
+
+      // Should show success toast and redirect to detail page
+      await expect(
+        authenticatedPage.locator("[data-sonner-toast]").getByText("PGP key generated")
+      ).toBeVisible({ timeout: 30_000 });
+
+      await expect(authenticatedPage).toHaveURL(/\/keys\/pgp\/[0-9a-f-]+$/);
+      createdKeyId = authenticatedPage.url().split("/keys/pgp/")[1];
+
+      // Verify detail page shows key info
+      await expect(
+        authenticatedPage.getByRole("heading", { name: keyName })
+      ).toBeVisible();
+
+      // Expiry date should be visible on the detail page
+      await expect(
+        authenticatedPage.getByText("Expires")
+      ).toBeVisible();
+    } finally {
+      if (createdKeyId) {
+        await deleteTestPgpKey(apiHelper.request, createdKeyId);
+      }
+    }
+  });
+
+  test("PGP key detail shows fingerprint", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    const keyName = `e2e-pgp-fp-${Date.now()}`;
+    const key = await generateTestPgpKey(apiHelper.request, keyName);
+
+    try {
+      await authenticatedPage.goto(`/keys/pgp/${key.id}`);
+
+      // Fingerprint label
+      await expect(
+        authenticatedPage.getByText("Fingerprint", { exact: true })
+      ).toBeVisible();
+
+      // Fingerprint value should be a non-empty monospace text
+      const fingerprintDd = authenticatedPage
+        .locator("dd.font-mono")
+        .first();
+      await expect(fingerprintDd).toBeVisible();
+      const fpText = await fingerprintDd.textContent();
+      expect(fpText).toBeTruthy();
+      expect(fpText!.length).toBeGreaterThan(5);
+    } finally {
+      await deleteTestPgpKey(apiHelper.request, key.id);
+    }
+  });
+
+  test("pagination appears with many PGP keys", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    const suffix = Date.now().toString(36);
+    const keys: Array<{ id: string }> = [];
+
+    try {
+      // Create 11 PGP keys to exceed page size
+      for (let i = 0; i < 11; i++) {
+        const key = await generateTestPgpKey(
+          apiHelper.request,
+          `e2e-pgp-page-${suffix}-${String(i).padStart(2, "0")}`
+        );
+        keys.push(key);
+      }
+
+      await authenticatedPage.goto("/keys");
+
+      // PGP tab is default, wait for data
+      // Keys are ordered by created_at DESC, so the last created key (-10) appears first on page 1
+      await expect(
+        authenticatedPage.getByRole("link", { name: `e2e-pgp-page-${suffix}-10` })
+      ).toBeVisible({ timeout: 10_000 });
+
+      // Pagination controls should appear
+      const main = authenticatedPage.locator("main");
+      await expect(
+        main.getByRole("button", { name: "Next", exact: true })
+      ).toBeVisible({ timeout: 10_000 });
+      await expect(
+        main.getByText(/Page \d+ of \d+/)
+      ).toBeVisible();
+    } finally {
+      for (const key of keys) {
+        await deleteTestPgpKey(apiHelper.request, key.id);
+      }
+    }
+  });
 });
 
 // ────────────────────────────────────────────────────────────────────
@@ -794,5 +1081,214 @@ test.describe("Keys - SSH", () => {
     await expect(
       authenticatedPage.getByRole("link", { name: keyName })
     ).not.toBeVisible({ timeout: 5_000 });
+  });
+
+  test("navigates to import SSH key page", async ({
+    authenticatedPage,
+  }) => {
+    await authenticatedPage.goto("/keys");
+
+    // Switch to SSH tab so Import links to SSH
+    await authenticatedPage
+      .getByRole("tab", { name: "SSH Keys" })
+      .click();
+
+    // Click Import button
+    await authenticatedPage
+      .getByRole("link", { name: "Import" })
+      .first()
+      .click();
+
+    await expect(authenticatedPage).toHaveURL(/\/keys\/ssh\/import/);
+    await expect(
+      authenticatedPage.getByRole("heading", { name: "Import SSH Key" })
+    ).toBeVisible();
+
+    // Verify form fields: Name, Key File, Passphrase
+    await expect(
+      authenticatedPage.getByLabel("Name *")
+    ).toBeVisible();
+    await expect(
+      authenticatedPage.getByText("Key File *")
+    ).toBeVisible();
+    await expect(
+      authenticatedPage.getByLabel("Passphrase")
+    ).toBeVisible();
+    await expect(
+      authenticatedPage.getByRole("button", { name: "Import SSH Key" })
+    ).toBeVisible();
+  });
+
+  test("generates SSH key with RSA type", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    const keyName = `e2e-ssh-rsa-${Date.now()}`;
+    let createdKeyId: string | undefined;
+
+    try {
+      await authenticatedPage.goto("/keys/ssh/new");
+
+      // Fill in key name
+      await authenticatedPage.getByLabel("Name *").fill(keyName);
+
+      // Select RSA 4096 key type
+      const keyTypeSelect = authenticatedPage
+        .locator("form")
+        .getByRole("combobox")
+        .first();
+      await keyTypeSelect.click();
+      await authenticatedPage
+        .getByRole("option", { name: "RSA 4096" })
+        .click();
+
+      // Submit
+      await authenticatedPage
+        .getByRole("button", { name: "Generate Key" })
+        .click();
+
+      // Should show success toast and redirect
+      await expect(
+        authenticatedPage.locator("[data-sonner-toast]").getByText("SSH key generated")
+      ).toBeVisible({ timeout: 30_000 });
+
+      await expect(authenticatedPage).toHaveURL(/\/keys\/ssh\/[0-9a-f-]+$/);
+
+      createdKeyId = authenticatedPage.url().split("/keys/ssh/")[1];
+
+      await expect(
+        authenticatedPage.getByRole("heading", { name: keyName })
+      ).toBeVisible();
+    } finally {
+      if (createdKeyId) {
+        await deleteTestSshKey(apiHelper.request, createdKeyId);
+      }
+    }
+  });
+
+  test("filters SSH keys by status", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    const suffix = Date.now().toString();
+    const activeKeyName = `e2e-ssh-active-${suffix}`;
+    const retiredKeyName = `e2e-ssh-retired-${suffix}`;
+    const activeKey = await generateTestSshKey(apiHelper.request, activeKeyName);
+    const retiredKey = await generateTestSshKey(apiHelper.request, retiredKeyName);
+
+    // Retire one key via API
+    await retireSshKey(apiHelper.request, retiredKey.id);
+
+    try {
+      await authenticatedPage.goto("/keys");
+
+      // Switch to SSH tab
+      await authenticatedPage
+        .getByRole("tab", { name: "SSH Keys" })
+        .click();
+
+      // Wait for active key to appear
+      await expect(
+        authenticatedPage.getByRole("link", { name: activeKeyName })
+      ).toBeVisible({ timeout: 10_000 });
+
+      // Open the status filter (Radix Select trigger) and select "Retired"
+      await authenticatedPage
+        .locator("[role='tabpanel'][data-state='active'] [data-slot='select-trigger']")
+        .click();
+      await authenticatedPage
+        .getByRole("option", { name: "Retired" })
+        .click();
+
+      // Active key should disappear, retired key should be visible
+      await expect(
+        authenticatedPage.getByRole("link", { name: activeKeyName })
+      ).not.toBeVisible({ timeout: 5_000 });
+
+      // Search for the retired key
+      await authenticatedPage
+        .getByPlaceholder("Search SSH keys...")
+        .fill(retiredKeyName);
+
+      await expect(
+        authenticatedPage.getByRole("link", { name: retiredKeyName })
+      ).toBeVisible({ timeout: 10_000 });
+    } finally {
+      await deleteTestSshKey(apiHelper.request, activeKey.id);
+      await deleteTestSshKey(apiHelper.request, retiredKey.id);
+    }
+  });
+
+  test("SSH key detail shows fingerprint", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    const keyName = `e2e-ssh-fp-${Date.now()}`;
+    const key = await generateTestSshKey(apiHelper.request, keyName);
+
+    try {
+      await authenticatedPage.goto(`/keys/ssh/${key.id}`);
+
+      // Fingerprint label
+      await expect(
+        authenticatedPage.getByText("Fingerprint", { exact: true })
+      ).toBeVisible();
+
+      // Fingerprint value should be a non-empty monospace text
+      const fingerprintDd = authenticatedPage
+        .locator("dd.font-mono")
+        .first();
+      await expect(fingerprintDd).toBeVisible();
+      const fpText = await fingerprintDd.textContent();
+      expect(fpText).toBeTruthy();
+      expect(fpText!.length).toBeGreaterThan(5);
+    } finally {
+      await deleteTestSshKey(apiHelper.request, key.id);
+    }
+  });
+
+  test("pagination appears with many SSH keys", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    const suffix = Date.now().toString(36);
+    const keys: Array<{ id: string }> = [];
+
+    try {
+      // Create 11 SSH keys to exceed page size
+      for (let i = 0; i < 11; i++) {
+        const key = await generateTestSshKey(
+          apiHelper.request,
+          `e2e-ssh-page-${suffix}-${String(i).padStart(2, "0")}`
+        );
+        keys.push(key);
+      }
+
+      await authenticatedPage.goto("/keys");
+
+      // Switch to SSH tab
+      await authenticatedPage
+        .getByRole("tab", { name: "SSH Keys" })
+        .click();
+
+      // Wait for data — use the last-created key which, with DESC ordering
+      // by CreatedAt, will appear on the first page
+      await expect(
+        authenticatedPage.getByRole("link", { name: `e2e-ssh-page-${suffix}-10` })
+      ).toBeVisible({ timeout: 10_000 });
+
+      // Pagination controls should appear
+      const main = authenticatedPage.locator("main");
+      await expect(
+        main.getByRole("button", { name: "Next", exact: true })
+      ).toBeVisible({ timeout: 10_000 });
+      await expect(
+        main.getByText(/Page \d+ of \d+/)
+      ).toBeVisible();
+    } finally {
+      for (const key of keys) {
+        await deleteTestSshKey(apiHelper.request, key.id);
+      }
+    }
   });
 });

@@ -70,7 +70,7 @@ export function AzureFunctionStepConfigForm({ config, onChange }: AzureFunctionS
               </SelectItem>
             ))}
             {connections.length === 0 && (
-              <SelectItem value="" disabled>
+              <SelectItem value="__none__" disabled>
                 No Azure Function connections found
               </SelectItem>
             )}

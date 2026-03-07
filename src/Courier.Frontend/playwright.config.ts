@@ -5,9 +5,14 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 1,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 1 : 4,
   reporter: "html",
   globalSetup: "./e2e/global-setup.ts",
+  globalTeardown: "./e2e/global-teardown.ts",
+
+  expect: {
+    timeout: 10_000,
+  },
 
   use: {
     baseURL: process.env.FRONTEND_URL || "http://localhost:3000",

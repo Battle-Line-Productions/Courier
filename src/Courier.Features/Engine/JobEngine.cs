@@ -381,16 +381,26 @@ public class JobEngine
         var step = run.Steps[node.StepIndex];
         var config = new StepConfiguration(step.Configuration);
 
-        var left = ContextResolver.Resolve(config.GetString("left"), run.Context);
-        var op = config.GetString("operator");
-        var right = config.Has("right")
-            ? ContextResolver.Resolve(config.GetString("right"), run.Context)
-            : null;
+        bool conditionResult;
+        try
+        {
+            var left = ContextResolver.Resolve(config.GetString("left"), run.Context);
+            var op = config.GetString("operator");
+            var right = config.Has("right")
+                ? ContextResolver.Resolve(config.GetString("right"), run.Context)
+                : null;
 
-        var conditionResult = ConditionEvaluator.Evaluate(left, op, right);
+            conditionResult = ConditionEvaluator.Evaluate(left, op, right);
 
-        _logger.LogInformation("Condition '{Left}' {Operator} '{Right}' evaluated to {Result}",
-            left, op, right ?? "(none)", conditionResult);
+            _logger.LogInformation("Condition '{Left}' {Operator} '{Right}' evaluated to {Result}",
+                left, op, right ?? "(none)", conditionResult);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "If/Else condition evaluation failed for step '{StepName}'", step.Name);
+            run.AllSucceeded = false;
+            return FlowSignal.Abort;
+        }
 
         var branch = conditionResult ? node.ThenBranch : node.ElseBranch;
         if (branch is null || branch.Count == 0)
