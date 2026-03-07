@@ -47,4 +47,67 @@ public class StepConfigurationTests
         var config = new StepConfiguration("{}");
         config.GetStringArray("ids").ShouldBeEmpty();
     }
+
+    [Fact]
+    public void GetString_PresentKey_ReturnsValue()
+    {
+        var config = new StepConfiguration("""{"name": "report.csv"}""");
+        config.GetString("name").ShouldBe("report.csv");
+    }
+
+    [Fact]
+    public void GetString_MissingKey_ThrowsKeyNotFoundException()
+    {
+        var config = new StepConfiguration("{}");
+        Should.Throw<KeyNotFoundException>(() => config.GetString("missing"));
+    }
+
+    [Fact]
+    public void GetBool_PresentKey_ReturnsValue()
+    {
+        var config = new StepConfiguration("""{"enabled": true}""");
+        config.GetBool("enabled").ShouldBeTrue();
+    }
+
+    [Fact]
+    public void GetInt_PresentKey_ReturnsValue()
+    {
+        var config = new StepConfiguration("""{"port": 8080}""");
+        config.GetInt("port").ShouldBe(8080);
+    }
+
+    [Fact]
+    public void GetLong_PresentKey_ReturnsValue()
+    {
+        var config = new StepConfiguration("""{"size": 9876543210}""");
+        config.GetLong("size").ShouldBe(9876543210L);
+    }
+
+    [Fact]
+    public void GetLongOrDefault_MissingKey_ReturnsDefault()
+    {
+        var config = new StepConfiguration("{}");
+        config.GetLongOrDefault("missing", 999L).ShouldBe(999L);
+    }
+
+    [Fact]
+    public void Has_PresentKey_ReturnsTrue()
+    {
+        var config = new StepConfiguration("""{"name": "test"}""");
+        config.Has("name").ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Has_MissingKey_ReturnsFalse()
+    {
+        var config = new StepConfiguration("{}");
+        config.Has("missing").ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Raw_ReturnsOriginalJsonText()
+    {
+        var config = new StepConfiguration("""{"key":"value"}""");
+        config.Raw.ShouldBe("""{"key":"value"}""");
+    }
 }

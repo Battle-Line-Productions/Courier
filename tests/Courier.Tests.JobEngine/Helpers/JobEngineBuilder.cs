@@ -14,7 +14,6 @@ using Courier.Features.Engine.Steps.Flow;
 using Courier.Features.Engine.Steps.Transfer;
 using Courier.Features.Notifications;
 using Courier.Infrastructure.Data;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -25,6 +24,7 @@ public class JobEngineBuilder
 {
     private readonly CourierDbContext _db;
     private readonly ICredentialEncryptor _encryptor;
+    private readonly List<IJobStep> _additionalSteps = [];
     private string _baseDirectory = Path.GetTempPath();
     private bool _cleanupOnCompletion;
 
@@ -43,6 +43,12 @@ public class JobEngineBuilder
     public JobEngineBuilder WithCleanupOnCompletion(bool cleanup = true)
     {
         _cleanupOnCompletion = cleanup;
+        return this;
+    }
+
+    public JobEngineBuilder WithAdditionalSteps(params IJobStep[] additionalSteps)
+    {
+        _additionalSteps.AddRange(additionalSteps);
         return this;
     }
 
@@ -113,6 +119,8 @@ public class JobEngineBuilder
             new AzureFunctionExecuteStep(_db, _encryptor, functionClient, appInsights,
                 NullLogger<AzureFunctionExecuteStep>.Instance),
         };
+
+        steps.AddRange(_additionalSteps);
 
         var stepRegistry = new StepTypeRegistry(steps);
         var workspace = new JobWorkspace(NullLogger<JobWorkspace>.Instance);

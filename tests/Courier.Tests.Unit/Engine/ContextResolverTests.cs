@@ -147,4 +147,20 @@ public class ContextResolverTests
         ContextResolver.TryResolve("context:key", context, out var result).ShouldBeTrue();
         result.ShouldBe("value");
     }
+
+    [Fact]
+    public void Resolve_ContextRef_EmptyKeyAfterPrefix_ThrowsInvalidOperationException()
+    {
+        var context = new JobContext();
+        Should.Throw<InvalidOperationException>(
+            () => ContextResolver.Resolve("context:", context));
+    }
+
+    [Fact]
+    public void Resolve_ContextRef_WhitespaceKey_ThrowsInvalidOperationException()
+    {
+        var context = new JobContext();
+        Should.Throw<InvalidOperationException>(
+            () => ContextResolver.Resolve("context: ", context));
+    }
 }

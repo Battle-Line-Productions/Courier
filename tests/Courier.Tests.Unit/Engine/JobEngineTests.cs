@@ -199,4 +199,73 @@ public class JobEngineTests
         if (workspace.Path is not null)
             Directory.Exists(workspace.Path).ShouldBeFalse();
     }
+
+    [Fact]
+    public async Task ExecuteAsync_StepHandlerThrowsException_CaughtAndMarkedFailed()
+    {
+        using var db = CreateInMemoryContext();
+        var (job, step, execution) = SeedJobWithStep(db);
+
+        var mockStep = Substitute.For<IJobStep>();
+        mockStep.TypeKey.Returns("file.copy");
+        mockStep.ExecuteAsync(Arg.Any<StepConfiguration>(), Arg.Any<JobContext>(), Arg.Any<CancellationToken>())
+            .Returns<StepResult>(_ => throw new IOException("Network connection lost"));
+
+        var registry = new StepTypeRegistry([mockStep]);
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), new JobWorkspace(NullLogger<JobWorkspace>.Instance), Options.Create(new WorkspaceSettings()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
+
+        await engine.ExecuteAsync(execution.Id, CancellationToken.None);
+
+        var updated = await db.JobExecutions.FirstAsync(e => e.Id == execution.Id);
+        updated.State.ShouldBe(JobExecutionState.Failed);
+
+        var stepExec = await db.StepExecutions.FirstAsync(se => se.JobExecutionId == execution.Id);
+        stepExec.State.ShouldBe(StepExecutionState.Failed);
+        stepExec.ErrorMessage.ShouldNotBeNull();
+        stepExec.ErrorMessage.ShouldContain("Network connection lost");
+    }
+
+    [Fact]
+    public async Task ParseFailurePolicy_NullJson_DefaultsToStop()
+    {
+        using var db = CreateInMemoryContext();
+        var (job, _, execution) = SeedJobWithStep(db);
+
+        // Set failure policy to invalid JSON to trigger default
+        job.FailurePolicy = "null";
+        await db.SaveChangesAsync();
+
+        // Add a second step after the first one
+        var step2 = new JobStep
+        {
+            Id = Guid.NewGuid(),
+            JobId = job.Id,
+            StepOrder = 1,
+            Name = "Second Step",
+            TypeKey = "file.copy",
+            Configuration = """{"source_path": "/tmp/a.txt", "destination_path": "/tmp/b.txt"}""",
+        };
+        db.JobSteps.Add(step2);
+        await db.SaveChangesAsync();
+
+        var mockStep = Substitute.For<IJobStep>();
+        mockStep.TypeKey.Returns("file.copy");
+
+        // First call fails, second call would succeed
+        mockStep.ExecuteAsync(Arg.Any<StepConfiguration>(), Arg.Any<JobContext>(), Arg.Any<CancellationToken>())
+            .Returns(StepResult.Fail("First step failed"), StepResult.Ok(bytesProcessed: 0));
+
+        var registry = new StepTypeRegistry([mockStep]);
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), new JobWorkspace(NullLogger<JobWorkspace>.Instance), Options.Create(new WorkspaceSettings()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
+
+        await engine.ExecuteAsync(execution.Id, CancellationToken.None);
+
+        var updated = await db.JobExecutions.FirstAsync(e => e.Id == execution.Id);
+        updated.State.ShouldBe(JobExecutionState.Failed);
+
+        // Only one step execution should exist (second step was not run due to Stop policy)
+        var stepExecs = await db.StepExecutions.Where(se => se.JobExecutionId == execution.Id).ToListAsync();
+        stepExecs.Count.ShouldBe(1);
+        stepExecs[0].ErrorMessage.ShouldBe("First step failed");
+    }
 }

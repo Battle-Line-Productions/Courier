@@ -41,4 +41,27 @@ public class StepTypeRegistryTests
         keys.ShouldContain("b");
         keys.Count().ShouldBe(2);
     }
+
+    [Fact]
+    public void Resolve_CaseInsensitiveKey_ReturnsHandler()
+    {
+        var step = Substitute.For<IJobStep>();
+        step.TypeKey.Returns("file.copy");
+
+        var registry = new StepTypeRegistry([step]);
+        var resolved = registry.Resolve("FILE.COPY");
+
+        resolved.ShouldBe(step);
+    }
+
+    [Fact]
+    public void Constructor_DuplicateTypeKeys_ThrowsArgumentException()
+    {
+        var step1 = Substitute.For<IJobStep>();
+        step1.TypeKey.Returns("file.copy");
+        var step2 = Substitute.For<IJobStep>();
+        step2.TypeKey.Returns("file.copy");
+
+        Should.Throw<ArgumentException>(() => new StepTypeRegistry([step1, step2]));
+    }
 }
