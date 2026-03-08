@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Pencil, X, ChevronUp, ChevronDown, Layers } from "lucide-react";
 import { StepConfigForm, parseStepConfig, serializeStepConfig } from "./step-config-form";
 import { StepTypePicker } from "./step-type-picker";
-import { getCategoryMeta, getStepSummary, getStepTypeLabel, computeStepDepths, STEP_TYPE_GROUPS } from "./step-constants";
+import { getCategoryMeta, getStepSummary, getStepTypeLabel, computeStepDepths, STEP_TYPE_GROUPS, STEP_OUTPUT_META } from "./step-constants";
+import { ContextVariablePanel } from "./context-variable-panel";
 import type { StepFormData } from "./step-builder";
 
 interface StepPipelineProps {
@@ -129,6 +130,19 @@ export function StepPipeline({
                       {summary}
                     </p>
                   )}
+                  {!isEditing && !isFlowControl && (STEP_OUTPUT_META[step.typeKey] ?? []).length > 0 && (
+                    <div className="flex items-center gap-1 mt-0.5 pl-8">
+                      {(STEP_OUTPUT_META[step.typeKey] ?? []).filter(o => !o.conditional).map((output) => (
+                        <Badge
+                          key={output.key}
+                          variant="outline"
+                          className="text-[10px] font-mono px-1 py-0 text-muted-foreground"
+                        >
+                          &rarr; {output.key}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}
@@ -180,6 +194,23 @@ export function StepPipeline({
               {isEditing && (
                 <div className="px-3 pb-3 space-y-3 border-t mt-1 pt-3">
                   <div className="grid gap-1.5">
+                    <Label className="text-xs">Step Alias <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                    <Input
+                      placeholder="e.g., zip_step"
+                      value={step.alias || ""}
+                      onChange={(e) => {
+                        const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 50);
+                        onUpdate(index, { ...step, alias: val || undefined });
+                      }}
+                      className="h-7 text-sm font-mono"
+                    />
+                    {step.alias && (
+                      <p className="text-[11px] text-muted-foreground font-mono">
+                        Use in references: context:{step.alias}.output_key
+                      </p>
+                    )}
+                  </div>
+                  <div className="grid gap-1.5">
                     <Label className="text-xs">Step Type</Label>
                     <StepTypePicker
                       value={step.typeKey}
@@ -230,6 +261,7 @@ export function StepPipeline({
                       })
                     }
                   />
+                  <ContextVariablePanel steps={steps} currentStepIndex={index} />
                   <Button
                     type="button"
                     variant="outline"
