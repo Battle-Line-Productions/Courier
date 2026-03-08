@@ -275,6 +275,10 @@ public class JobEngine
             var handler = _registry.Resolve(step.TypeKey);
             var config = new StepConfiguration(step.Configuration);
 
+            _logger.LogInformation(
+                "Executing step '{StepName}' (type={TypeKey}, order={Order}) with config: {Config}",
+                step.Name, step.TypeKey, step.StepOrder, step.Configuration);
+
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(step.TimeoutSeconds));
 
@@ -286,6 +290,8 @@ public class JobEngine
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Step '{StepName}' threw exception. Config: {Config}",
+                step.Name, step.Configuration);
             result = StepResult.Fail(ex.Message, ex.StackTrace);
         }
 

@@ -50,100 +50,105 @@ public class JobQueueProcessor : BackgroundService
 
     private async Task ProcessNextAsync(CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
+        await using var scope = _scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<CourierDbContext>();
 
         var connection = (NpgsqlConnection)db.Database.GetDbConnection();
         await connection.OpenAsync(ct);
 
-        await using var transaction = await connection.BeginTransactionAsync(ct);
+        Guid? executionId = null;
 
-        try
+        await using (var transaction = await connection.BeginTransactionAsync(ct))
         {
-            // Read concurrency limit from system_settings
-            var concurrencyLimit = DefaultConcurrencyLimit;
-            await using (var limitCmd = new NpgsqlCommand(
-                "SELECT value FROM system_settings WHERE key = 'job.concurrency_limit'",
-                connection, transaction))
+            try
             {
-                var limitValue = await limitCmd.ExecuteScalarAsync(ct);
-                if (limitValue is string limitStr && int.TryParse(limitStr, out var parsed))
+                // Read concurrency limit from system_settings
+                var concurrencyLimit = DefaultConcurrencyLimit;
+                await using (var limitCmd = new NpgsqlCommand(
+                    "SELECT value FROM system_settings WHERE key = 'job.concurrency_limit'",
+                    connection, transaction))
                 {
-                    concurrencyLimit = parsed;
+                    var limitValue = await limitCmd.ExecuteScalarAsync(ct);
+                    if (limitValue is string limitStr && int.TryParse(limitStr, out var parsed))
+                    {
+                        concurrencyLimit = parsed;
+                    }
                 }
-            }
 
-            // Count currently running executions
-            int runningCount;
-            await using (var countCmd = new NpgsqlCommand(
-                "SELECT COUNT(*) FROM job_executions WHERE state = 'running'",
-                connection, transaction))
-            {
-                runningCount = Convert.ToInt32(await countCmd.ExecuteScalarAsync(ct));
-            }
-
-            if (runningCount >= concurrencyLimit)
-            {
-                _logger.LogDebug(
-                    "Concurrency limit reached ({Running}/{Limit}). Skipping dequeue.",
-                    runningCount, concurrencyLimit);
-                await transaction.CommitAsync(ct);
-                return;
-            }
-
-            // Atomically claim the next queued execution using FOR UPDATE SKIP LOCKED
-            Guid? executionId = null;
-            Guid? jobId = null;
-            await using (var dequeueCmd = new NpgsqlCommand(
-                """
-                SELECT id, job_id FROM job_executions
-                WHERE state = 'queued'
-                ORDER BY queued_at
-                LIMIT 1
-                FOR UPDATE SKIP LOCKED
-                """,
-                connection, transaction))
-            {
-                await using var reader = await dequeueCmd.ExecuteReaderAsync(ct);
-                if (await reader.ReadAsync(ct))
+                // Count currently running executions
+                int runningCount;
+                await using (var countCmd = new NpgsqlCommand(
+                    "SELECT COUNT(*) FROM job_executions WHERE state = 'running'",
+                    connection, transaction))
                 {
-                    executionId = reader.GetGuid(0);
-                    jobId = reader.GetGuid(1);
+                    runningCount = Convert.ToInt32(await countCmd.ExecuteScalarAsync(ct));
                 }
-            }
 
-            if (executionId is null)
-            {
+                if (runningCount >= concurrencyLimit)
+                {
+                    _logger.LogDebug(
+                        "Concurrency limit reached ({Running}/{Limit}). Skipping dequeue.",
+                        runningCount, concurrencyLimit);
+                    await transaction.CommitAsync(ct);
+                    return;
+                }
+
+                // Atomically claim the next queued execution using FOR UPDATE SKIP LOCKED
+                Guid? jobId = null;
+                await using (var dequeueCmd = new NpgsqlCommand(
+                    """
+                    SELECT id, job_id FROM job_executions
+                    WHERE state = 'queued'
+                    ORDER BY queued_at
+                    LIMIT 1
+                    FOR UPDATE SKIP LOCKED
+                    """,
+                    connection, transaction))
+                {
+                    await using var reader = await dequeueCmd.ExecuteReaderAsync(ct);
+                    if (await reader.ReadAsync(ct))
+                    {
+                        executionId = reader.GetGuid(0);
+                        jobId = reader.GetGuid(1);
+                    }
+                }
+
+                if (executionId is null)
+                {
+                    await transaction.CommitAsync(ct);
+                    return;
+                }
+
+                _logger.LogInformation("Dequeued execution {ExecutionId} for job {JobId}", executionId, jobId);
+
+                // Update state to running and set started_at
+                await using (var updateCmd = new NpgsqlCommand(
+                    "UPDATE job_executions SET state = 'running', started_at = @startedAt WHERE id = @id",
+                    connection, transaction))
+                {
+                    updateCmd.Parameters.AddWithValue("id", executionId.Value);
+                    updateCmd.Parameters.AddWithValue("startedAt", DateTime.UtcNow);
+                    await updateCmd.ExecuteNonQueryAsync(ct);
+                }
+
                 await transaction.CommitAsync(ct);
-                return;
             }
-
-            _logger.LogInformation("Dequeued execution {ExecutionId} for job {JobId}", executionId, jobId);
-
-            // Update state to running and set started_at
-            await using (var updateCmd = new NpgsqlCommand(
-                "UPDATE job_executions SET state = 'running', started_at = @startedAt WHERE id = @id",
-                connection, transaction))
+            catch
             {
-                updateCmd.Parameters.AddWithValue("id", executionId.Value);
-                updateCmd.Parameters.AddWithValue("startedAt", DateTime.UtcNow);
-                await updateCmd.ExecuteNonQueryAsync(ct);
+                await transaction.RollbackAsync(ct);
+                throw;
             }
+        }
 
-            await transaction.CommitAsync(ct);
-
-            // Execute the job outside the transaction
+        // Execute the job outside the transaction scope
+        if (executionId is not null)
+        {
             var engine = scope.ServiceProvider.GetRequiredService<JobEngine>();
             await engine.ExecuteAsync(executionId.Value, ct);
 
             // After job completes, evaluate chain progress if this execution is part of a chain
             var orchestrator = scope.ServiceProvider.GetRequiredService<ChainOrchestrator>();
             await orchestrator.EvaluateChainProgressAsync(executionId.Value, ct);
-        }
-        catch
-        {
-            await transaction.RollbackAsync(ct);
-            throw;
         }
     }
 }

@@ -698,8 +698,8 @@ export function parseStepConfig(configJson: string, typeKey?: string): StepConfi
   try {
     const parsed = JSON.parse(configJson);
     return {
-      sourcePath: parsed.sourcePath || "",
-      destinationPath: parsed.destinationPath || "",
+      sourcePath: parsed.source_path || parsed.sourcePath || "",
+      destinationPath: parsed.destination_path || parsed.destinationPath || "",
       overwrite: parsed.overwrite || false,
     };
   } catch {
@@ -843,8 +843,8 @@ export function serializeStepConfig(config: StepConfig, typeKey?: string): strin
 
   // Default: file copy/move step
   return JSON.stringify({
-    sourcePath: config.sourcePath,
-    destinationPath: config.destinationPath,
+    source_path: config.sourcePath,
+    destination_path: config.destinationPath,
     overwrite: config.overwrite,
   });
 }

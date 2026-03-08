@@ -138,13 +138,30 @@ public class ExecutionService
 
         if (execution.State == JobExecutionState.Running)
         {
-            // Signal the engine to cancel — it will acknowledge between steps
-            execution.RequestedState = "cancelled";
-            execution.CancelledBy = cancelledBy;
-            execution.CancelReason = reason;
-            await _db.SaveChangesAsync(ct);
+            if (execution.RequestedState == "cancelled")
+            {
+                // Previous cancel was never acknowledged by the engine (likely crashed).
+                // Force-transition directly.
+                execution.State = JobExecutionState.Cancelled;
+                execution.CancelledAt = DateTime.UtcNow;
+                execution.CompletedAt = DateTime.UtcNow;
+                execution.RequestedState = null;
+                execution.CancelledBy = cancelledBy;
+                execution.CancelReason = reason;
+                await _db.SaveChangesAsync(ct);
 
-            await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, "CancelRequested", cancelledBy, new { reason }, ct);
+                await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, "ForceCancelled", cancelledBy, new { reason }, ct);
+            }
+            else
+            {
+                // Signal the engine to cancel — it will acknowledge between steps
+                execution.RequestedState = "cancelled";
+                execution.CancelledBy = cancelledBy;
+                execution.CancelReason = reason;
+                await _db.SaveChangesAsync(ct);
+
+                await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, "CancelRequested", cancelledBy, new { reason }, ct);
+            }
         }
         else
         {

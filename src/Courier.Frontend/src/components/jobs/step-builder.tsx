@@ -10,6 +10,7 @@ import { StepConfigForm, parseStepConfig, serializeStepConfig } from "./step-con
 import { StepTypePicker } from "./step-type-picker";
 import { StepPipeline } from "./step-pipeline";
 import { getCategoryMeta, getStepTypeLabel, STEP_TYPE_GROUPS } from "./step-constants";
+import { ContextVariablePanel } from "./context-variable-panel";
 
 export interface StepFormData {
   name: string;
@@ -176,6 +177,7 @@ export function StepBuilder({ steps, onChange }: StepBuilderProps) {
               setDraft({ ...draft, configuration: serializeStepConfig(c, draft.typeKey) })
             }
           />
+          <ContextVariablePanel steps={steps} currentStepIndex={steps.length} />
           <div className="flex gap-2">
             <Button
               type="button"

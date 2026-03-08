@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StepBuilder, type StepFormData } from "./step-builder";
+import { parseStepConfig, serializeStepConfig } from "./step-config-form";
+import { getEffectiveAlias } from "./step-constants";
 import { useCreateJob, useUpdateJob, useReplaceSteps } from "@/lib/hooks/use-job-mutations";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -49,8 +51,9 @@ export function JobForm({ job, existingSteps }: JobFormProps) {
     existingSteps?.map((s) => ({
       name: s.name,
       typeKey: s.typeKey,
-      configuration: s.configuration,
+      configuration: serializeStepConfig(parseStepConfig(s.configuration, s.typeKey), s.typeKey),
       timeoutSeconds: s.timeoutSeconds,
+      alias: s.alias || undefined,
     })) ?? []
   );
 
@@ -70,6 +73,7 @@ export function JobForm({ job, existingSteps }: JobFormProps) {
             stepOrder: i + 1,
             configuration: s.configuration,
             timeoutSeconds: s.timeoutSeconds,
+            alias: getEffectiveAlias(s, i) || undefined,
           })),
         });
         toast.success("Job updated");
@@ -86,6 +90,7 @@ export function JobForm({ job, existingSteps }: JobFormProps) {
               stepOrder: i + 1,
               configuration: s.configuration,
               timeoutSeconds: s.timeoutSeconds,
+              alias: getEffectiveAlias(s, i) || undefined,
             })),
           });
         }

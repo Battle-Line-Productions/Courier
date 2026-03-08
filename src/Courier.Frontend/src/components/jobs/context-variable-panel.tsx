@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Copy, Check, Variable } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { STEP_OUTPUT_META, getStepTypeLabel } from "./step-constants";
+import { STEP_OUTPUT_META, getStepTypeLabel, getEffectiveAlias } from "./step-constants";
 import type { StepFormData } from "./step-builder";
 
 interface ContextVariablePanelProps {
@@ -56,18 +55,19 @@ export function ContextVariablePanel({ steps, currentStepIndex }: ContextVariabl
 
       {expanded && (
         <div className="mt-3 space-y-3">
+          <p className="text-[11px] text-muted-foreground">
+            Click a variable to copy it, then paste into any config field above.
+          </p>
           {precedingSteps.map(({ step, index, outputs }) => {
-            const ref = step.alias || String(index + 1);
+            const ref = getEffectiveAlias(step, index);
             return (
               <div key={index} className="space-y-1">
                 <div className="text-xs font-medium text-muted-foreground">
                   Step {index + 1}: &quot;{step.name || "Untitled"}&quot;
                   <span className="ml-1 text-muted-foreground/70">({getStepTypeLabel(step.typeKey)})</span>
-                  {step.alias && (
-                    <Badge variant="outline" className="ml-1.5 text-[10px] font-mono px-1 py-0">
-                      {step.alias}
-                    </Badge>
-                  )}
+                  <Badge variant="outline" className="ml-1.5 text-[10px] font-mono px-1 py-0">
+                    {ref}
+                  </Badge>
                 </div>
                 {outputs.map((output) => {
                   const fullKey = `context:${ref}.${output.key}`;
@@ -126,8 +126,12 @@ function VariableRow({
 }) {
   const isCopied = copiedKey === variableKey;
   return (
-    <div className="flex items-center gap-2 group pl-2">
-      <code className="text-xs font-mono text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded flex-1 truncate">
+    <button
+      type="button"
+      onClick={() => onCopy(variableKey)}
+      className="flex items-center gap-2 pl-2 w-full text-left rounded hover:bg-muted/50 transition-colors py-0.5 group cursor-pointer"
+    >
+      <code className="text-xs font-mono text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded truncate">
         {variableKey}
       </code>
       {conditional && (
@@ -135,19 +139,15 @@ function VariableRow({
           conditional
         </Badge>
       )}
-      <span className="text-[11px] text-muted-foreground hidden sm:inline truncate max-w-[180px]">
+      <span className="text-[11px] text-muted-foreground hidden sm:inline truncate max-w-[180px] flex-1">
         {description}
       </span>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-        onClick={() => onCopy(variableKey)}
-      >
-        {isCopied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
-      </Button>
-    </div>
+      {isCopied ? (
+        <span className="text-[10px] text-green-600 font-medium shrink-0">Copied!</span>
+      ) : (
+        <Copy className="h-3 w-3 text-muted-foreground/50 group-hover:text-muted-foreground shrink-0 transition-colors" />
+      )}
+    </button>
   );
 }
 

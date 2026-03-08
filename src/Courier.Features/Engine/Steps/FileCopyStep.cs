@@ -15,6 +15,10 @@ public class FileCopyStep : IJobStep
         var destPath = ContextResolver.Resolve(config.GetString("destination_path"), context);
         var idempotency = config.GetStringOrDefault("idempotency", "overwrite");
 
+        // If destination is a directory, append the source filename
+        if (Directory.Exists(destPath))
+            destPath = Path.Combine(destPath, Path.GetFileName(sourcePath));
+
         if (!File.Exists(sourcePath))
             return Task.FromResult(StepResult.Fail($"Source file not found: {sourcePath}"));
 

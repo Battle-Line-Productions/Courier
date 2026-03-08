@@ -193,6 +193,24 @@ export function computeStepDepths(steps: StepFormData[]): number[] {
   return depths;
 }
 
+/** Convert a step name to a valid alias: "Compress Invoice Files" → "compress_invoice_files" */
+export function slugifyStepName(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/^(\d)/, "_$1")
+    .slice(0, 50);
+}
+
+/** Get the effective alias for a step: explicit alias > slugified name > step order */
+export function getEffectiveAlias(step: StepFormData, index: number): string {
+  if (step.alias) return step.alias;
+  const slug = slugifyStepName(step.name);
+  return slug || String(index + 1);
+}
+
 export function getStepSummary(step: StepFormData): string | null {
   const config = parseStepConfig(step.configuration, step.typeKey);
 

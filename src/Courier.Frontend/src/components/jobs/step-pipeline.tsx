@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Pencil, X, ChevronUp, ChevronDown, Layers } from "lucide-react";
 import { StepConfigForm, parseStepConfig, serializeStepConfig } from "./step-config-form";
 import { StepTypePicker } from "./step-type-picker";
-import { getCategoryMeta, getStepSummary, getStepTypeLabel, computeStepDepths, STEP_TYPE_GROUPS, STEP_OUTPUT_META } from "./step-constants";
+import { getCategoryMeta, getStepSummary, getStepTypeLabel, computeStepDepths, STEP_TYPE_GROUPS, STEP_OUTPUT_META, slugifyStepName, getEffectiveAlias } from "./step-constants";
 import { ContextVariablePanel } from "./context-variable-panel";
 import type { StepFormData } from "./step-builder";
 
@@ -193,23 +193,24 @@ export function StepPipeline({
               {/* Inline editing panel */}
               {isEditing && (
                 <div className="px-3 pb-3 space-y-3 border-t mt-1 pt-3">
-                  <div className="grid gap-1.5">
-                    <Label className="text-xs">Step Alias <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                    <Input
-                      placeholder="e.g., zip_step"
-                      value={step.alias || ""}
-                      onChange={(e) => {
-                        const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 50);
-                        onUpdate(index, { ...step, alias: val || undefined });
-                      }}
-                      className="h-7 text-sm font-mono"
-                    />
-                    {step.alias && (
-                      <p className="text-[11px] text-muted-foreground font-mono">
-                        Use in references: context:{step.alias}.output_key
-                      </p>
-                    )}
-                  </div>
+                  {/* Reference ID — auto-derived from name, editable override */}
+                  {!isFlowControl && (STEP_OUTPUT_META[step.typeKey] ?? []).length > 0 && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground whitespace-nowrap">Reference ID:</span>
+                      <Input
+                        value={step.alias || ""}
+                        placeholder={slugifyStepName(step.name) || String(index + 1)}
+                        onChange={(e) => {
+                          const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 50);
+                          onUpdate(index, { ...step, alias: val || undefined });
+                        }}
+                        className="h-6 text-xs font-mono flex-1 max-w-[200px]"
+                      />
+                      <code className="text-[11px] text-muted-foreground font-mono truncate">
+                        context:{getEffectiveAlias(step, index)}.<span className="text-muted-foreground/50">output</span>
+                      </code>
+                    </div>
+                  )}
                   <div className="grid gap-1.5">
                     <Label className="text-xs">Step Type</Label>
                     <StepTypePicker
