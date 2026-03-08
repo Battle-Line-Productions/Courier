@@ -12,6 +12,7 @@ using Courier.Features.Engine.Steps.Crypto;
 using Courier.Features.Engine.Steps.FileOps;
 using Courier.Features.Engine.Steps.Flow;
 using Courier.Features.Engine.Steps.Transfer;
+using Courier.Features.Events;
 using Courier.Features.Notifications;
 using Courier.Infrastructure.Data;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -135,6 +136,7 @@ public class JobEngineBuilder
             _db,
             Array.Empty<INotificationChannel>(),
             NullLogger<NotificationDispatcher>.Instance);
+        var events = new DomainEventService(_db);
 
         return new Features.Engine.JobEngine(
             _db,
@@ -144,6 +146,7 @@ public class JobEngineBuilder
             workspaceSettings,
             NullLogger<Features.Engine.JobEngine>.Instance,
             audit,
-            dispatcher);
+            dispatcher,
+            events);
     }
 }

@@ -35,7 +35,10 @@ public class CourierDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<AuthProvider> AuthProviders => Set<AuthProvider>();
     public DbSet<ChainSchedule> ChainSchedules => Set<ChainSchedule>();
+    public DbSet<JobVersion> JobVersions => Set<JobVersion>();
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
+    public DbSet<DomainEvent> DomainEvents => Set<DomainEvent>();
+    public DbSet<KeyShareLink> KeyShareLinks => Set<KeyShareLink>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -129,6 +132,7 @@ public class CourierDbContext : DbContext
             entity.Property(e => e.ContextSnapshot).HasColumnName("context_snapshot").HasColumnType("jsonb");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
 
+            entity.Property(e => e.RetryAttempt).HasColumnName("retry_attempt");
             entity.Property(e => e.ChainExecutionId).HasColumnName("chain_execution_id");
 
             entity.HasOne(e => e.Job).WithMany(j => j.Executions).HasForeignKey(e => e.JobId);
@@ -314,6 +318,10 @@ public class CourierDbContext : DbContext
             entity.Property(e => e.ConsecutiveFailureCount).HasColumnName("consecutive_failure_count").HasDefaultValue(0);
             entity.Property(e => e.State).HasColumnName("state").IsRequired();
             entity.Property(e => e.LastPolledAt).HasColumnName("last_polled_at");
+            entity.Property(e => e.LastPollDurationMs).HasColumnName("last_poll_duration_ms");
+            entity.Property(e => e.LastPollFileCount).HasColumnName("last_poll_file_count");
+            entity.Property(e => e.LastOverflowAt).HasColumnName("last_overflow_at");
+            entity.Property(e => e.OverflowCount24h).HasColumnName("overflow_count_24h").HasDefaultValue(0);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
@@ -616,6 +624,53 @@ public class CourierDbContext : DbContext
             entity.Property(e => e.Description).HasColumnName("description");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.Property(e => e.UpdatedBy).HasColumnName("updated_by").IsRequired();
+        });
+
+        modelBuilder.Entity<JobVersion>(entity =>
+        {
+            entity.ToTable("job_versions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.JobId).HasColumnName("job_id");
+            entity.Property(e => e.VersionNumber).HasColumnName("version_number");
+            entity.Property(e => e.ConfigSnapshot).HasColumnName("config_snapshot").HasColumnType("jsonb");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+
+            entity.HasOne(e => e.Job).WithMany(j => j.Versions).HasForeignKey(e => e.JobId);
+            entity.HasIndex(e => new { e.JobId, e.VersionNumber }).IsUnique();
+        });
+
+        modelBuilder.Entity<DomainEvent>(entity =>
+        {
+            entity.ToTable("domain_events");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EventType).HasColumnName("event_type").IsRequired();
+            entity.Property(e => e.EntityType).HasColumnName("entity_type").IsRequired();
+            entity.Property(e => e.EntityId).HasColumnName("entity_id");
+            entity.Property(e => e.Payload).HasColumnName("payload").HasColumnType("jsonb");
+            entity.Property(e => e.OccurredAt).HasColumnName("occurred_at");
+            entity.Property(e => e.ProcessedAt).HasColumnName("processed_at");
+            entity.Property(e => e.ProcessedBy).HasColumnName("processed_by");
+        });
+
+        modelBuilder.Entity<KeyShareLink>(entity =>
+        {
+            entity.ToTable("key_share_links");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.KeyId).HasColumnName("key_id");
+            entity.Property(e => e.KeyType).HasColumnName("key_type").IsRequired();
+            entity.Property(e => e.TokenHash).HasColumnName("token_hash").IsRequired();
+            entity.Property(e => e.TokenSalt).HasColumnName("token_salt").IsRequired();
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.RevokedAt).HasColumnName("revoked_at");
+
+            entity.HasIndex(e => new { e.KeyId, e.KeyType });
+            entity.HasIndex(e => e.TokenHash);
         });
     }
 }

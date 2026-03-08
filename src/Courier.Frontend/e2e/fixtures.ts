@@ -15,17 +15,46 @@ export const test = base.extend<CourierFixtures>({
 
     // Perform a fresh login to get a valid session (avoids refresh token rotation conflicts)
     const apiUrl = process.env.API_URL || "http://localhost:5000";
-    const loginResponse = await page.request.post(
-      `${apiUrl}/api/v1/auth/login`,
-      {
-        data: {
-          username: TEST_ADMIN.username,
-          password: TEST_ADMIN.password,
-        },
+    let loginData: any;
+    let lastError = "";
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const loginResponse = await page.request.post(
+        `${apiUrl}/api/v1/auth/login`,
+        {
+          data: {
+            username: TEST_ADMIN.username,
+            password: TEST_ADMIN.password,
+          },
+        }
+      );
+
+      if (loginResponse.status() === 429) {
+        const retryAfter = parseInt(loginResponse.headers()["retry-after"] || "2", 10);
+        lastError = `429 (attempt ${attempt + 1})`;
+        await new Promise((r) => setTimeout(r, retryAfter * 1000));
+        continue;
       }
-    );
-    const body = await loginResponse.json();
-    const loginData = body.data;
+
+      if (!loginResponse.ok()) {
+        lastError = `${loginResponse.status()} (attempt ${attempt + 1})`;
+        await new Promise((r) => setTimeout(r, 1000));
+        continue;
+      }
+
+      try {
+        const body = await loginResponse.json();
+        loginData = body.data;
+        break;
+      } catch {
+        lastError = `JSON parse failed with status ${loginResponse.status()} (attempt ${attempt + 1})`;
+        await new Promise((r) => setTimeout(r, 1000));
+        continue;
+      }
+    }
+
+    if (!loginData) {
+      throw new Error(`authenticatedPage: login failed after 5 retries: ${lastError}`);
+    }
 
     // Intercept the refresh endpoint so restoreSession() gets an instant response
     // instead of hitting the real API (avoids contention under parallel workers)

@@ -1,9 +1,14 @@
+using Courier.Domain.Encryption;
 using Courier.Domain.Entities;
 using Courier.Domain.Enums;
+using Courier.Domain.Protocols;
+using Courier.Features.Engine.Protocols;
 using Courier.Features.Jobs;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileSystemGlobbing;
+using System.Diagnostics;
+using System.Security.Authentication;
 using System.Text.Json;
 
 namespace Courier.Worker.Services;
@@ -81,6 +86,8 @@ public class MonitorPollingService : BackgroundService
         FileMonitor monitor,
         CancellationToken ct)
     {
+        var pollStopwatch = Stopwatch.StartNew();
+
         var watchTarget = ParseWatchTarget(monitor.WatchTarget);
         if (watchTarget is null)
         {
@@ -88,12 +95,10 @@ public class MonitorPollingService : BackgroundService
             return;
         }
 
-        // Only local directory monitoring for now
+        // Route to remote monitoring for non-local watch targets
         if (watchTarget.Type != "local")
         {
-            _logger.LogDebug("Monitor {MonitorId} uses remote watch target — skipping (not yet implemented)", monitor.Id);
-            monitor.LastPolledAt = DateTime.UtcNow;
-            await db.SaveChangesAsync(ct);
+            await ProcessRemoteMonitorAsync(db, serviceProvider, monitor, watchTarget, pollStopwatch, ct);
             return;
         }
 
@@ -112,6 +117,24 @@ public class MonitorPollingService : BackgroundService
 
         // Apply glob patterns
         var matchedFiles = ApplyPatterns(allFiles, monitor.FilePatterns);
+
+        // Apply stability window — only include files that haven't been modified recently
+        if (monitor.StabilityWindowSec > 0)
+        {
+            var stableThreshold = DateTime.UtcNow.AddSeconds(-monitor.StabilityWindowSec);
+            var unstableCount = matchedFiles.Count;
+            matchedFiles = matchedFiles
+                .Where(f => f.LastWriteTimeUtc <= stableThreshold)
+                .ToList();
+
+            var skippedCount = unstableCount - matchedFiles.Count;
+            if (skippedCount > 0)
+            {
+                _logger.LogDebug(
+                    "Monitor {MonitorId} skipped {SkippedCount} file(s) not yet stable (window: {WindowSec}s)",
+                    monitor.Id, skippedCount, monitor.StabilityWindowSec);
+            }
+        }
 
         // Get existing file log entries for this monitor
         var existingLogs = await db.MonitorFileLogs
@@ -142,9 +165,13 @@ public class MonitorPollingService : BackgroundService
             }
         }
 
+        pollStopwatch.Stop();
+
         if (detectedFiles.Count == 0)
         {
             monitor.LastPolledAt = DateTime.UtcNow;
+            monitor.LastPollDurationMs = pollStopwatch.ElapsedMilliseconds;
+            monitor.LastPollFileCount = matchedFiles.Count;
             monitor.ConsecutiveFailureCount = 0;
             await db.SaveChangesAsync(ct);
             return;
@@ -211,6 +238,235 @@ public class MonitorPollingService : BackgroundService
         }
 
         monitor.LastPolledAt = DateTime.UtcNow;
+        monitor.LastPollDurationMs = pollStopwatch.ElapsedMilliseconds;
+        monitor.LastPollFileCount = detectedFiles.Count;
+        monitor.ConsecutiveFailureCount = 0;
+        await db.SaveChangesAsync(ct);
+    }
+
+    private async Task ProcessRemoteMonitorAsync(
+        CourierDbContext db,
+        IServiceProvider serviceProvider,
+        FileMonitor monitor,
+        WatchTargetConfig watchTarget,
+        Stopwatch pollStopwatch,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(watchTarget.ConnectionId))
+        {
+            _logger.LogWarning("Monitor {MonitorId} has remote watch target but no ConnectionId", monitor.Id);
+            return;
+        }
+
+        if (!Guid.TryParse(watchTarget.ConnectionId, out var connectionId))
+        {
+            _logger.LogWarning("Monitor {MonitorId} has invalid ConnectionId: {ConnectionId}", monitor.Id, watchTarget.ConnectionId);
+            return;
+        }
+
+        var connection = await db.Connections.FirstOrDefaultAsync(c => c.Id == connectionId, ct);
+        if (connection is null)
+        {
+            _logger.LogWarning("Monitor {MonitorId} references non-existent connection {ConnectionId}", monitor.Id, connectionId);
+            monitor.State = "error";
+            monitor.LastPolledAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+            return;
+        }
+
+        // Decrypt credentials
+        var encryptor = serviceProvider.GetRequiredService<ICredentialEncryptor>();
+        var clientFactory = serviceProvider.GetRequiredService<ITransferClientFactory>();
+
+        byte[]? decryptedPassword = null;
+        if (connection.PasswordEncrypted is not null)
+        {
+            var passwordStr = encryptor.Decrypt(connection.PasswordEncrypted);
+            decryptedPassword = System.Text.Encoding.UTF8.GetBytes(passwordStr);
+        }
+
+        byte[]? sshPrivateKey = null;
+        if (connection.SshKeyId is not null)
+        {
+            var sshKey = await db.SshKeys.FirstOrDefaultAsync(k => k.Id == connection.SshKeyId && !k.IsDeleted, ct);
+            if (sshKey?.PrivateKeyData is not null)
+            {
+                sshPrivateKey = sshKey.PrivateKeyData;
+            }
+        }
+
+        IReadOnlyList<RemoteFileInfo> remoteFiles;
+        await using var client = clientFactory.Create(connection, decryptedPassword, sshPrivateKey);
+        try
+        {
+            await client.ConnectAsync(ct);
+            remoteFiles = await client.ListDirectoryAsync(watchTarget.Path, ct);
+        }
+        catch (AuthenticationException ex)
+        {
+            _logger.LogError(ex, "Monitor {MonitorId} authentication failure connecting to {Host}:{Port}",
+                monitor.Id, connection.Host, connection.Port);
+            monitor.State = "error";
+            monitor.LastPolledAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+            return;
+        }
+        catch (Exception ex) when (ex is Renci.SshNet.Common.SshAuthenticationException
+                                     or Renci.SshNet.Common.SshConnectionException)
+        {
+            _logger.LogError(ex, "Monitor {MonitorId} SSH auth/connection failure connecting to {Host}:{Port}",
+                monitor.Id, connection.Host, connection.Port);
+            monitor.State = "error";
+            monitor.LastPolledAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+            return;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Monitor {MonitorId} failed to list remote directory {Path} on {Host}:{Port}",
+                monitor.Id, watchTarget.Path, connection.Host, connection.Port);
+            await HandleFailureAsync(db, monitor, ct);
+            return;
+        }
+        finally
+        {
+            try { await client.DisconnectAsync(); }
+            catch { /* best-effort disconnect */ }
+        }
+
+        // Filter to files only (exclude directories)
+        var files = remoteFiles.Where(f => !f.IsDirectory).ToList();
+
+        // Apply glob patterns
+        var matchedFiles = ApplyRemotePatterns(files, monitor.FilePatterns);
+
+        // Apply stability window — only include files that haven't been modified recently
+        if (monitor.StabilityWindowSec > 0)
+        {
+            var stableThreshold = DateTime.UtcNow.AddSeconds(-monitor.StabilityWindowSec);
+            var unstableCount = matchedFiles.Count;
+            matchedFiles = matchedFiles
+                .Where(f => f.LastModified <= stableThreshold)
+                .ToList();
+
+            var skippedCount = unstableCount - matchedFiles.Count;
+            if (skippedCount > 0)
+            {
+                _logger.LogDebug(
+                    "Monitor {MonitorId} skipped {SkippedCount} remote file(s) not yet stable (window: {WindowSec}s)",
+                    monitor.Id, skippedCount, monitor.StabilityWindowSec);
+            }
+        }
+
+        // Get existing file log entries for this monitor
+        var existingLogs = await db.MonitorFileLogs
+            .Where(l => l.MonitorId == monitor.Id)
+            .Select(l => new { l.FilePath, l.LastModified })
+            .ToDictionaryAsync(l => l.FilePath, l => l.LastModified, ct);
+
+        var triggerEvents = (TriggerEvent)monitor.TriggerEvents;
+        var detectedFiles = new List<(RemoteFileInfo Info, string Event)>();
+
+        foreach (var file in matchedFiles)
+        {
+            // Build a consistent file path for log comparison: {remotePath}/{fileName}
+            var remoteFilePath = watchTarget.Path.TrimEnd('/') + "/" + file.Name;
+
+            if (triggerEvents.HasFlag(TriggerEvent.FileExists))
+            {
+                detectedFiles.Add((file, "file_exists"));
+            }
+            else if (!existingLogs.ContainsKey(remoteFilePath) && triggerEvents.HasFlag(TriggerEvent.FileCreated))
+            {
+                detectedFiles.Add((file, "file_created"));
+            }
+            else if (existingLogs.TryGetValue(remoteFilePath, out var lastMod) &&
+                     file.LastModified != lastMod &&
+                     triggerEvents.HasFlag(TriggerEvent.FileModified))
+            {
+                detectedFiles.Add((file, "file_modified"));
+            }
+        }
+
+        pollStopwatch.Stop();
+
+        if (detectedFiles.Count == 0)
+        {
+            monitor.LastPolledAt = DateTime.UtcNow;
+            monitor.LastPollDurationMs = pollStopwatch.ElapsedMilliseconds;
+            monitor.LastPollFileCount = matchedFiles.Count;
+            monitor.ConsecutiveFailureCount = 0;
+            await db.SaveChangesAsync(ct);
+            return;
+        }
+
+        _logger.LogInformation(
+            "Monitor {MonitorId} detected {FileCount} remote file(s) in {Path} on {Host}",
+            monitor.Id, detectedFiles.Count, watchTarget.Path, connection.Host);
+
+        // Trigger jobs
+        var executionService = serviceProvider.GetRequiredService<ExecutionService>();
+
+        if (monitor.BatchMode)
+        {
+            // All files → one execution per bound job
+            foreach (var binding in monitor.Bindings)
+            {
+                var triggerResult = await executionService.TriggerAsync(
+                    binding.JobId,
+                    $"monitor:{monitor.Id}",
+                    ct);
+
+                var executionId = triggerResult.Data?.Id;
+
+                foreach (var (file, eventType) in detectedFiles)
+                {
+                    var remoteFilePath = watchTarget.Path.TrimEnd('/') + "/" + file.Name;
+
+                    db.MonitorFileLogs.Add(new MonitorFileLog
+                    {
+                        Id = Guid.CreateVersion7(),
+                        MonitorId = monitor.Id,
+                        FilePath = remoteFilePath,
+                        FileSize = file.Size,
+                        LastModified = file.LastModified,
+                        TriggeredAt = DateTime.UtcNow,
+                        ExecutionId = executionId,
+                    });
+                }
+            }
+        }
+        else
+        {
+            // One execution per file per bound job
+            foreach (var (file, eventType) in detectedFiles)
+            {
+                var remoteFilePath = watchTarget.Path.TrimEnd('/') + "/" + file.Name;
+
+                foreach (var binding in monitor.Bindings)
+                {
+                    var triggerResult = await executionService.TriggerAsync(
+                        binding.JobId,
+                        $"monitor:{monitor.Id}",
+                        ct);
+
+                    db.MonitorFileLogs.Add(new MonitorFileLog
+                    {
+                        Id = Guid.CreateVersion7(),
+                        MonitorId = monitor.Id,
+                        FilePath = remoteFilePath,
+                        FileSize = file.Size,
+                        LastModified = file.LastModified,
+                        TriggeredAt = DateTime.UtcNow,
+                        ExecutionId = triggerResult.Data?.Id,
+                    });
+                }
+            }
+        }
+
+        monitor.LastPolledAt = DateTime.UtcNow;
+        monitor.LastPollDurationMs = pollStopwatch.ElapsedMilliseconds;
+        monitor.LastPollFileCount = detectedFiles.Count;
         monitor.ConsecutiveFailureCount = 0;
         await db.SaveChangesAsync(ct);
     }
@@ -232,6 +488,33 @@ public class MonitorPollingService : BackgroundService
     }
 
     private List<FileInfo> ApplyPatterns(List<FileInfo> files, string? patternsJson)
+    {
+        if (string.IsNullOrWhiteSpace(patternsJson))
+            return files;
+
+        try
+        {
+            var patterns = JsonSerializer.Deserialize<string[]>(patternsJson);
+            if (patterns is null || patterns.Length == 0)
+                return files;
+
+            var matcher = new Matcher();
+            foreach (var pattern in patterns)
+            {
+                matcher.AddInclude(pattern);
+            }
+
+            return files
+                .Where(f => matcher.Match(f.Name).HasMatches)
+                .ToList();
+        }
+        catch
+        {
+            return files;
+        }
+    }
+
+    private List<RemoteFileInfo> ApplyRemotePatterns(List<RemoteFileInfo> files, string? patternsJson)
     {
         if (string.IsNullOrWhiteSpace(patternsJson))
             return files;

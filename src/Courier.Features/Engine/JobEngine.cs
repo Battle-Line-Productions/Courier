@@ -5,6 +5,7 @@ using Courier.Domain.Entities;
 using Courier.Domain.Enums;
 using Courier.Features.AuditLog;
 using Courier.Features.Engine.Protocols;
+using Courier.Features.Events;
 using Courier.Features.Notifications;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -23,8 +24,9 @@ public class JobEngine
     private readonly ILogger<JobEngine> _logger;
     private readonly AuditService _audit;
     private readonly NotificationDispatcher _dispatcher;
+    private readonly DomainEventService _events;
 
-    public JobEngine(CourierDbContext db, StepTypeRegistry registry, JobConnectionRegistry connectionRegistry, JobWorkspace workspace, IOptions<WorkspaceSettings> workspaceSettings, ILogger<JobEngine> logger, AuditService audit, NotificationDispatcher dispatcher)
+    public JobEngine(CourierDbContext db, StepTypeRegistry registry, JobConnectionRegistry connectionRegistry, JobWorkspace workspace, IOptions<WorkspaceSettings> workspaceSettings, ILogger<JobEngine> logger, AuditService audit, NotificationDispatcher dispatcher, DomainEventService events)
     {
         _db = db;
         _registry = registry;
@@ -34,6 +36,7 @@ public class JobEngine
         _logger = logger;
         _audit = audit;
         _dispatcher = dispatcher;
+        _events = events;
     }
 
     private enum FlowSignal { Continue, Abort, Halt }
@@ -141,6 +144,8 @@ public class JobEngine
             isResumed ? "ExecutionResumed" : "ExecutionStarted",
             details: new { jobId = execution.JobId }, ct: cancellationToken);
 
+        _events.Record("JobStarted", "job_execution", executionId, new { jobId = execution.JobId });
+
         try
         {
             var signal = await ExecuteNodesAsync(executionPlan, run, skipCompleted: isResumed, cancellationToken);
@@ -155,6 +160,10 @@ public class JobEngine
                 await _audit.LogAsync(AuditableEntityType.JobExecution, executionId, executionOp,
                     details: new { jobId = execution.JobId, state = execution.State.ToString().ToLowerInvariant() },
                     ct: cancellationToken);
+
+                var domainEventType = run.AllSucceeded ? "JobCompleted" : "JobFailed";
+                _events.Record(domainEventType, "job_execution", executionId, new { jobId = execution.JobId, state = execution.State.ToString().ToLowerInvariant() });
+                await _db.SaveChangesAsync(cancellationToken);
 
                 var notifEventType = run.AllSucceeded ? "job_completed" : "job_failed";
                 await DispatchJobNotificationAsync(execution, notifEventType, cancellationToken);
@@ -224,6 +233,7 @@ public class JobEngine
             _logger.LogInformation("Execution {ExecutionId} paused before step {StepName}", run.Execution.Id, step.Name);
             await _audit.LogAsync(AuditableEntityType.JobExecution, run.Execution.Id, "ExecutionPaused",
                 details: new { beforeStep = step.Name }, ct: ct);
+            _events.Record("JobPaused", "job_execution", run.Execution.Id, new { jobId = run.Execution.JobId, beforeStep = step.Name });
             return FlowSignal.Halt;
         }
 
@@ -238,6 +248,7 @@ public class JobEngine
             _logger.LogInformation("Execution {ExecutionId} cancelled before step {StepName}", run.Execution.Id, step.Name);
             await _audit.LogAsync(AuditableEntityType.JobExecution, run.Execution.Id, "ExecutionCancelled",
                 details: new { beforeStep = step.Name }, ct: ct);
+            _events.Record("JobCancelled", "job_execution", run.Execution.Id, new { jobId = run.Execution.JobId, beforeStep = step.Name });
             await DispatchJobNotificationAsync(run.Execution, "job_cancelled", ct);
             return FlowSignal.Halt;
         }
@@ -298,6 +309,7 @@ public class JobEngine
 
             await _audit.LogAsync(AuditableEntityType.StepExecution, stepExecution.Id, "StepCompleted",
                 details: new { stepType = step.TypeKey, durationMs = sw.ElapsedMilliseconds }, ct: ct);
+            _events.Record("StepCompleted", "step_execution", stepExecution.Id, new { stepType = step.TypeKey, durationMs = sw.ElapsedMilliseconds });
 
             run.Execution.ContextSnapshot = JsonSerializer.Serialize(run.Context.Snapshot());
             await _db.SaveChangesAsync(ct);
@@ -314,6 +326,7 @@ public class JobEngine
 
         await _audit.LogAsync(AuditableEntityType.StepExecution, stepExecution.Id, "StepFailed",
             details: new { error = result.ErrorMessage, stepType = step.TypeKey }, ct: ct);
+        _events.Record("StepFailed", "step_execution", stepExecution.Id, new { error = result.ErrorMessage, stepType = step.TypeKey });
 
         if (run.FailurePolicy.Type != FailurePolicyType.SkipAndContinue)
             await DispatchJobNotificationAsync(run.Execution, "step_failed", ct,
@@ -324,6 +337,133 @@ public class JobEngine
             _logger.LogInformation("Failure policy is SkipAndContinue. Continuing to next step.");
             await _db.SaveChangesAsync(ct);
             return FlowSignal.Continue;
+        }
+
+        if (run.FailurePolicy.Type == FailurePolicyType.RetryStep)
+        {
+            var maxRetries = run.FailurePolicy.MaxRetries;
+            for (var attempt = 1; attempt <= maxRetries; attempt++)
+            {
+                var delay = run.FailurePolicy.GetBackoffDelay(attempt - 1);
+                _logger.LogInformation(
+                    "RetryStep: attempt {Attempt}/{Max} for step '{StepName}' after {Delay}s backoff",
+                    attempt, maxRetries, step.Name, delay.TotalSeconds);
+
+                await Task.Delay(delay, ct);
+
+                // Create a new step execution for the retry
+                var retryStepExecution = new StepExecution
+                {
+                    Id = Guid.NewGuid(),
+                    JobExecutionId = run.Execution.Id,
+                    JobStepId = step.Id,
+                    StepOrder = step.StepOrder,
+                    State = StepExecutionState.Running,
+                    StartedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow,
+                    RetryAttempt = attempt,
+                    IterationIndex = run.Context.CurrentIterationIndex,
+                };
+                _db.StepExecutions.Add(retryStepExecution);
+                await _db.SaveChangesAsync(ct);
+
+                var retrySw = Stopwatch.StartNew();
+                StepResult retryResult;
+
+                try
+                {
+                    var retryHandler = _registry.Resolve(step.TypeKey);
+                    var retryConfig = new StepConfiguration(step.Configuration);
+
+                    using var retryTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    retryTimeoutCts.CancelAfter(TimeSpan.FromSeconds(step.TimeoutSeconds));
+
+                    retryResult = await retryHandler.ExecuteAsync(retryConfig, run.Context, retryTimeoutCts.Token);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    retryResult = StepResult.Fail($"Step '{step.Name}' timed out after {step.TimeoutSeconds}s (retry {attempt})");
+                }
+                catch (Exception ex)
+                {
+                    retryResult = StepResult.Fail(ex.Message, ex.StackTrace);
+                }
+
+                retrySw.Stop();
+                retryStepExecution.DurationMs = retrySw.ElapsedMilliseconds;
+
+                if (retryResult.Success)
+                {
+                    retryStepExecution.State = StepExecutionState.Completed;
+                    retryStepExecution.CompletedAt = DateTime.UtcNow;
+                    retryStepExecution.BytesProcessed = retryResult.BytesProcessed;
+
+                    if (retryResult.Outputs is not null)
+                    {
+                        retryStepExecution.OutputData = JsonSerializer.Serialize(retryResult.Outputs);
+                        foreach (var kvp in retryResult.Outputs)
+                            run.Context.Set($"{step.StepOrder}.{kvp.Key}", kvp.Value);
+                    }
+
+                    _logger.LogInformation("Step '{StepName}' succeeded on retry attempt {Attempt}", step.Name, attempt);
+                    await _audit.LogAsync(AuditableEntityType.StepExecution, retryStepExecution.Id, "StepRetrySucceeded",
+                        details: new { attempt, stepType = step.TypeKey, durationMs = retrySw.ElapsedMilliseconds }, ct: ct);
+
+                    run.Execution.ContextSnapshot = JsonSerializer.Serialize(run.Context.Snapshot());
+                    await _db.SaveChangesAsync(ct);
+                    return FlowSignal.Continue;
+                }
+
+                retryStepExecution.State = StepExecutionState.Failed;
+                retryStepExecution.CompletedAt = DateTime.UtcNow;
+                retryStepExecution.ErrorMessage = retryResult.ErrorMessage;
+                retryStepExecution.ErrorStackTrace = retryResult.ErrorStackTrace;
+
+                _logger.LogWarning("Step '{StepName}' retry {Attempt}/{Max} failed: {Error}",
+                    step.Name, attempt, maxRetries, retryResult.ErrorMessage);
+                await _db.SaveChangesAsync(ct);
+            }
+
+            _logger.LogWarning("Step '{StepName}' exhausted all {Max} retry attempts", step.Name, maxRetries);
+        }
+
+        if (run.FailurePolicy.Type == FailurePolicyType.RetryJob)
+        {
+            var currentAttempt = run.Execution.RetryAttempt ?? 0;
+            if (currentAttempt < run.FailurePolicy.MaxRetries)
+            {
+                _logger.LogInformation(
+                    "RetryJob: scheduling re-execution attempt {Attempt}/{Max} for job {JobId}",
+                    currentAttempt + 1, run.FailurePolicy.MaxRetries, run.Execution.JobId);
+
+                // Mark current execution as failed
+                run.Execution.State = JobExecutionState.Failed;
+                run.Execution.CompletedAt = DateTime.UtcNow;
+
+                // Create a new queued execution with incremented retry attempt
+                var retryExecution = new JobExecution
+                {
+                    Id = Guid.CreateVersion7(),
+                    JobId = run.Execution.JobId,
+                    State = JobExecutionState.Queued,
+                    QueuedAt = DateTime.UtcNow,
+                    TriggeredBy = $"retry:{run.Execution.Id}",
+                    RetryAttempt = currentAttempt + 1,
+                    CreatedAt = DateTime.UtcNow,
+                };
+                _db.JobExecutions.Add(retryExecution);
+                await _db.SaveChangesAsync(ct);
+
+                await _audit.LogAsync(AuditableEntityType.JobExecution, retryExecution.Id, "ExecutionRetryQueued",
+                    details: new { originalExecutionId = run.Execution.Id, attempt = currentAttempt + 1 }, ct: ct);
+
+                _events.Record("JobFailed", "job_execution", run.Execution.Id, new { jobId = run.Execution.JobId, state = "failed", retryQueued = true });
+                await _db.SaveChangesAsync(ct);
+
+                return FlowSignal.Halt;
+            }
+
+            _logger.LogWarning("Job {JobId} exhausted all {Max} retry attempts", run.Execution.JobId, run.FailurePolicy.MaxRetries);
         }
 
         run.AllSucceeded = false;
@@ -500,7 +640,11 @@ public class JobEngine
     {
         try
         {
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+            };
             return JsonSerializer.Deserialize<FailurePolicy>(json, options) ?? new FailurePolicy();
         }
         catch

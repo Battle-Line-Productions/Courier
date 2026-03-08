@@ -7,6 +7,12 @@ public class ZipCompressionProvider : ICompressionProvider
     private const int BufferSize = 81920; // 80KB
     private const long ProgressIntervalBytes = 10 * 1024 * 1024; // 10MB
 
+    // Decompression bomb protection limits
+    private const long MaxTotalExtractedSize = 10L * 1024 * 1024 * 1024; // 10 GB
+    private const int MaxFileCount = 10_000;
+    private const long MaxCompressionRatio = 100; // 100:1
+    private const long MaxSingleEntrySize = 5L * 1024 * 1024 * 1024; // 5 GB
+
     public string FormatKey => "zip";
 
     public async Task<CompressionResult> CompressAsync(
@@ -30,50 +36,60 @@ public class ZipCompressionProvider : ICompressionProvider
             long totalBytesProcessed = 0;
             long lastProgressReport = 0;
 
-            await using var outputStream = File.Create(request.OutputPath);
-            using var zipStream = new ZipOutputStream(outputStream);
-
-            if (!string.IsNullOrEmpty(request.Password))
+            // Scope the ZIP streams so they are closed before any post-compression split
             {
-                zipStream.Password = request.Password;
-            }
-
-            zipStream.SetLevel(6); // Default compression level
-
-            var buffer = new byte[BufferSize];
-
-            foreach (var sourcePath in request.SourcePaths)
-            {
-                ct.ThrowIfCancellationRequested();
-
-                var entryName = Path.GetFileName(sourcePath);
-                var entry = new ZipEntry(entryName)
-                {
-                    DateTime = File.GetLastWriteTime(sourcePath),
-                };
+                await using var outputStream = File.Create(request.OutputPath);
+                using var zipStream = new ZipOutputStream(outputStream);
 
                 if (!string.IsNullOrEmpty(request.Password))
                 {
-                    entry.AESKeySize = 256;
+                    zipStream.Password = request.Password;
                 }
 
-                zipStream.PutNextEntry(entry);
+                zipStream.SetLevel(6); // Default compression level
 
-                await using var inputStream = File.OpenRead(sourcePath);
-                int bytesRead;
-                while ((bytesRead = await inputStream.ReadAsync(buffer, ct)) > 0)
+                var buffer = new byte[BufferSize];
+
+                foreach (var sourcePath in request.SourcePaths)
                 {
-                    await zipStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
-                    totalBytesProcessed += bytesRead;
+                    ct.ThrowIfCancellationRequested();
 
-                    if (progress is not null && totalBytesProcessed - lastProgressReport >= ProgressIntervalBytes)
+                    var entryName = Path.GetFileName(sourcePath);
+                    var entry = new ZipEntry(entryName)
                     {
-                        progress.Report(new CompressionProgress(totalBytesProcessed, 0, "Compressing"));
-                        lastProgressReport = totalBytesProcessed;
-                    }
-                }
+                        DateTime = File.GetLastWriteTime(sourcePath),
+                    };
 
-                zipStream.CloseEntry();
+                    if (!string.IsNullOrEmpty(request.Password))
+                    {
+                        entry.AESKeySize = 256;
+                    }
+
+                    zipStream.PutNextEntry(entry);
+
+                    await using var inputStream = File.OpenRead(sourcePath);
+                    int bytesRead;
+                    while ((bytesRead = await inputStream.ReadAsync(buffer, ct)) > 0)
+                    {
+                        await zipStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+                        totalBytesProcessed += bytesRead;
+
+                        if (progress is not null && totalBytesProcessed - lastProgressReport >= ProgressIntervalBytes)
+                        {
+                            progress.Report(new CompressionProgress(totalBytesProcessed, 0, "Compressing"));
+                            lastProgressReport = totalBytesProcessed;
+                        }
+                    }
+
+                    zipStream.CloseEntry();
+                }
+            }
+
+            // Split archive into parts if requested (streams are closed at this point)
+            if (request.SplitMaxSizeBytes is > 0)
+            {
+                var splitParts = await SplitFileAsync(request.OutputPath, request.SplitMaxSizeBytes.Value, ct);
+                return new CompressionResult(true, totalBytesProcessed, request.OutputPath, null, null, splitParts);
             }
 
             return new CompressionResult(true, totalBytesProcessed, request.OutputPath, null, null);
@@ -105,6 +121,8 @@ public class ZipCompressionProvider : ICompressionProvider
             long totalBytesProcessed = 0;
             long lastProgressReport = 0;
             var extractedFiles = new List<string>();
+
+            var archiveSize = new FileInfo(request.ArchivePath).Length;
 
             using var zipFile = await Task.Run(() => new ZipFile(request.ArchivePath), ct);
 
@@ -138,21 +156,50 @@ public class ZipCompressionProvider : ICompressionProvider
 
                 await using var entryStream = zipFile.GetInputStream(entry);
                 await using var outputFileStream = File.Create(outputPath);
+                long entryBytesWritten = 0;
                 int bytesRead;
                 while ((bytesRead = await entryStream.ReadAsync(buffer, ct)) > 0)
                 {
                     await outputFileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
                     totalBytesProcessed += bytesRead;
+                    entryBytesWritten += bytesRead;
 
                     if (progress is not null && totalBytesProcessed - lastProgressReport >= ProgressIntervalBytes)
                     {
                         progress.Report(new CompressionProgress(totalBytesProcessed, 0, "Extracting"));
                         lastProgressReport = totalBytesProcessed;
                     }
+
+                    // Check single entry size limit
+                    if (entryBytesWritten > MaxSingleEntrySize)
+                        return new CompressionResult(false, totalBytesProcessed, request.OutputDirectory, null,
+                            "Decompression bomb detected: single entry exceeds 5 GB limit");
                 }
 
+                // Check total extracted size limit
+                if (totalBytesProcessed > MaxTotalExtractedSize)
+                    return new CompressionResult(false, totalBytesProcessed, request.OutputDirectory, null,
+                        "Decompression bomb detected: total extracted size exceeds 10 GB limit");
+
                 extractedFiles.Add(outputPath);
+
+                // Check file count limit
+                if (extractedFiles.Count > MaxFileCount)
+                    return new CompressionResult(false, totalBytesProcessed, request.OutputDirectory, null,
+                        "Decompression bomb detected: archive contains more than 10000 files");
+
+                // Check compression ratio limit
+                if (archiveSize > 0 && totalBytesProcessed / archiveSize > MaxCompressionRatio)
+                    return new CompressionResult(false, totalBytesProcessed, request.OutputDirectory, null,
+                        "Decompression bomb detected: compression ratio exceeds 100:1");
             }
+
+            // Integrity verification: SharpZipLib automatically verifies CRC-32 checksums
+            // during extraction via GetInputStream(). If any entry's CRC does not match,
+            // a ZipException is thrown before we reach this point. When VerifyIntegrity is
+            // true, extraction itself serves as the integrity check — no additional pass needed.
+            // The VerifyIntegrity flag is preserved for future use (e.g., post-extraction
+            // re-read verification or hash-based checks for non-ZIP formats).
 
             return new CompressionResult(true, totalBytesProcessed, request.OutputDirectory, extractedFiles, null);
         }
@@ -170,6 +217,57 @@ public class ZipCompressionProvider : ICompressionProvider
         {
             return new CompressionResult(false, 0, request.OutputDirectory, null, ex.Message);
         }
+    }
+
+    private static async Task<List<string>> SplitFileAsync(string filePath, long maxSizeBytes, CancellationToken ct)
+    {
+        var fileInfo = new FileInfo(filePath);
+        if (fileInfo.Length <= maxSizeBytes)
+            return [filePath]; // No split needed — file is already within the size limit
+
+        var parts = new List<string>();
+        var baseName = Path.GetFileNameWithoutExtension(filePath);
+        var dir = Path.GetDirectoryName(filePath)!;
+
+        // Write part 0 to a temp file to avoid conflicting with the source read stream
+        var tempPart0 = Path.Combine(dir, $"{baseName}.z00.tmp");
+
+        await using (var sourceStream = File.OpenRead(filePath))
+        {
+            var buffer = new byte[BufferSize];
+            var partNumber = 0;
+
+            while (sourceStream.Position < sourceStream.Length)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var partName = partNumber == 0
+                    ? tempPart0
+                    : Path.Combine(dir, $"{baseName}.z{partNumber:D2}");
+
+                var bytesRemaining = maxSizeBytes;
+                await using var partStream = File.Create(partName);
+
+                while (bytesRemaining > 0 && sourceStream.Position < sourceStream.Length)
+                {
+                    var toRead = (int)Math.Min(buffer.Length, bytesRemaining);
+                    var bytesRead = await sourceStream.ReadAsync(buffer.AsMemory(0, toRead), ct);
+                    if (bytesRead == 0) break;
+
+                    await partStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+                    bytesRemaining -= bytesRead;
+                }
+
+                parts.Add(partNumber == 0 ? filePath : partName);
+                partNumber++;
+            }
+        }
+
+        // Replace the original file with the first part
+        File.Delete(filePath);
+        File.Move(tempPart0, filePath);
+
+        return parts;
     }
 
     public async Task<ArchiveContents> InspectAsync(string archivePath, CancellationToken ct)

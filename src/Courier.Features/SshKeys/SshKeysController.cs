@@ -1,4 +1,5 @@
 using Courier.Domain.Common;
+using Courier.Features.Keys;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -210,6 +211,89 @@ public class SshKeysController : ControllerBase
             {
                 ErrorCodes.KeyNotFound => NotFound(result),
                 ErrorCodes.KeyAlreadyActive or ErrorCodes.InvalidKeyTransition => Conflict(result),
+                _ => StatusCode(500, result)
+            };
+        }
+
+        return Ok(result);
+    }
+
+    // --- Share Link Endpoints ---
+
+    [HttpPost("{id:guid}/share")]
+    [Authorize(Roles = "admin")]
+    public async Task<ActionResult<ApiResponse<ShareLinkResponse>>> CreateShareLink(
+        Guid id,
+        [FromBody] CreateShareLinkRequest request,
+        [FromServices] KeyShareService keyShareService,
+        CancellationToken ct)
+    {
+        var createdBy = User.FindFirst("name")?.Value ?? "system";
+        var result = await keyShareService.CreateShareLinkAsync(id, "ssh", createdBy, request.ExpiryDays, ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ShareLinksDisabled => StatusCode(403, result),
+                ErrorCodes.KeyNotFound => NotFound(result),
+                _ => StatusCode(500, result)
+            };
+        }
+
+        return Created($"/api/v1/ssh-keys/{id}/share/{result.Data!.LinkId}", result);
+    }
+
+    [HttpGet("{id:guid}/share")]
+    [Authorize(Roles = "admin")]
+    public async Task<ActionResult<ApiResponse<List<ShareLinkListItem>>>> ListShareLinks(
+        Guid id,
+        [FromServices] KeyShareService keyShareService,
+        CancellationToken ct)
+    {
+        var result = await keyShareService.ListShareLinksAsync(id, "ssh", ct);
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:guid}/share/{linkId:guid}")]
+    [Authorize(Roles = "admin")]
+    public async Task<ActionResult<ApiResponse>> RevokeShareLink(
+        Guid id,
+        Guid linkId,
+        [FromServices] KeyShareService keyShareService,
+        CancellationToken ct)
+    {
+        var result = await keyShareService.RevokeShareLinkAsync(linkId, ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ShareLinkNotFound => NotFound(result),
+                ErrorCodes.ShareLinkRevoked => Conflict(result),
+                _ => StatusCode(500, result)
+            };
+        }
+
+        return Ok(result);
+    }
+
+    [HttpGet("shared/{token}")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<SharedKeyResponse>>> GetSharedKey(
+        string token,
+        [FromServices] KeyShareService keyShareService,
+        CancellationToken ct)
+    {
+        var result = await keyShareService.GetSharedKeyAsync(token, "ssh", ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ShareLinksDisabled => StatusCode(403, result),
+                ErrorCodes.ShareLinkInvalidToken => NotFound(result),
+                ErrorCodes.KeyNotFound => NotFound(result),
                 _ => StatusCode(500, result)
             };
         }

@@ -18,16 +18,26 @@ public class PartitionHealthCheck : IHealthCheck
         CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
-        var currentPartition = $"audit_log_entries_{now:yyyy_MM}";
         var nextMonth = now.AddMonths(1);
-        var nextPartition = $"audit_log_entries_{nextMonth:yyyy_MM}";
+        var currentSuffix = now.ToString("yyyy_MM");
+        var nextSuffix = nextMonth.ToString("yyyy_MM");
+
+        var requiredPartitions = new[]
+        {
+            $"audit_log_entries_{currentSuffix}",
+            $"audit_log_entries_{nextSuffix}",
+            $"job_executions_{currentSuffix}",
+            $"job_executions_{nextSuffix}",
+            $"step_executions_{currentSuffix}",
+            $"step_executions_{nextSuffix}",
+        };
 
         var missing = new List<string>();
 
         var connection = _db.Database.GetDbConnection();
         await connection.OpenAsync(cancellationToken);
 
-        foreach (var partition in new[] { currentPartition, nextPartition })
+        foreach (var partition in requiredPartitions)
         {
             await using var cmd = connection.CreateCommand();
             cmd.CommandText = "SELECT COUNT(*) FROM pg_tables WHERE schemaname = 'public' AND tablename = @name";

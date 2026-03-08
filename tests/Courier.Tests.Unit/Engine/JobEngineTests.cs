@@ -4,6 +4,7 @@ using Courier.Domain.Enums;
 using Courier.Features.AuditLog;
 using Courier.Features.Engine;
 using Courier.Features.Engine.Protocols;
+using Courier.Features.Events;
 using Courier.Features.Notifications;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -74,7 +75,7 @@ public class JobEngineTests
             .Returns(StepResult.Ok(bytesProcessed: 1024));
 
         var registry = new StepTypeRegistry([mockStep]);
-        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), new JobWorkspace(NullLogger<JobWorkspace>.Instance), Options.Create(new WorkspaceSettings()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), new JobWorkspace(NullLogger<JobWorkspace>.Instance), Options.Create(new WorkspaceSettings()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance), new DomainEventService(db));
 
         await engine.ExecuteAsync(execution.Id, CancellationToken.None);
 
@@ -98,7 +99,7 @@ public class JobEngineTests
             .Returns(StepResult.Fail("Disk full"));
 
         var registry = new StepTypeRegistry([mockStep]);
-        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), new JobWorkspace(NullLogger<JobWorkspace>.Instance), Options.Create(new WorkspaceSettings()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), new JobWorkspace(NullLogger<JobWorkspace>.Instance), Options.Create(new WorkspaceSettings()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance), new DomainEventService(db));
 
         await engine.ExecuteAsync(execution.Id, CancellationToken.None);
 
@@ -117,7 +118,7 @@ public class JobEngineTests
         var (job, step, execution) = SeedJobWithStep(db, typeKey: "nonexistent.step");
 
         var registry = new StepTypeRegistry([]);
-        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), new JobWorkspace(NullLogger<JobWorkspace>.Instance), Options.Create(new WorkspaceSettings()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), new JobWorkspace(NullLogger<JobWorkspace>.Instance), Options.Create(new WorkspaceSettings()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance), new DomainEventService(db));
 
         await engine.ExecuteAsync(execution.Id, CancellationToken.None);
 
@@ -145,7 +146,7 @@ public class JobEngineTests
         var registry = new StepTypeRegistry([mockStep]);
         var workspace = new JobWorkspace(NullLogger<JobWorkspace>.Instance);
         var settings = new WorkspaceSettings { BaseDirectory = Path.Combine(Path.GetTempPath(), $"engine-test-{Guid.NewGuid()}") };
-        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), workspace, Options.Create(settings), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), workspace, Options.Create(settings), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance), new DomainEventService(db));
 
         await engine.ExecuteAsync(execution.Id, CancellationToken.None);
 
@@ -168,7 +169,7 @@ public class JobEngineTests
         var workspace = new JobWorkspace(NullLogger<JobWorkspace>.Instance);
         var baseDir = Path.Combine(Path.GetTempPath(), $"engine-test-{Guid.NewGuid()}");
         var settings = new WorkspaceSettings { BaseDirectory = baseDir, CleanupOnCompletion = true };
-        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), workspace, Options.Create(settings), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), workspace, Options.Create(settings), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance), new DomainEventService(db));
 
         await engine.ExecuteAsync(execution.Id, CancellationToken.None);
 
@@ -192,7 +193,7 @@ public class JobEngineTests
         var workspace = new JobWorkspace(NullLogger<JobWorkspace>.Instance);
         var baseDir = Path.Combine(Path.GetTempPath(), $"engine-test-{Guid.NewGuid()}");
         var settings = new WorkspaceSettings { BaseDirectory = baseDir, CleanupOnCompletion = true };
-        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), workspace, Options.Create(settings), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), workspace, Options.Create(settings), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance), new DomainEventService(db));
 
         await engine.ExecuteAsync(execution.Id, CancellationToken.None);
 
@@ -212,7 +213,7 @@ public class JobEngineTests
             .Returns<StepResult>(_ => throw new IOException("Network connection lost"));
 
         var registry = new StepTypeRegistry([mockStep]);
-        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), new JobWorkspace(NullLogger<JobWorkspace>.Instance), Options.Create(new WorkspaceSettings()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), new JobWorkspace(NullLogger<JobWorkspace>.Instance), Options.Create(new WorkspaceSettings()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance), new DomainEventService(db));
 
         await engine.ExecuteAsync(execution.Id, CancellationToken.None);
 
@@ -256,7 +257,7 @@ public class JobEngineTests
             .Returns(StepResult.Fail("First step failed"), StepResult.Ok(bytesProcessed: 0));
 
         var registry = new StepTypeRegistry([mockStep]);
-        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), new JobWorkspace(NullLogger<JobWorkspace>.Instance), Options.Create(new WorkspaceSettings()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance));
+        var engine = new JobEngine(db, registry, new JobConnectionRegistry(Substitute.For<ITransferClientFactory>()), new JobWorkspace(NullLogger<JobWorkspace>.Instance), Options.Create(new WorkspaceSettings()), NullLogger<JobEngine>.Instance, new AuditService(db), new NotificationDispatcher(db, [], NullLogger<NotificationDispatcher>.Instance), new DomainEventService(db));
 
         await engine.ExecuteAsync(execution.Id, CancellationToken.None);
 

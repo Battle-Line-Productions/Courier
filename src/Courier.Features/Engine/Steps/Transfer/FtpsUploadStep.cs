@@ -21,6 +21,24 @@ public class FtpsUploadStep : TransferStepBase
 
         var localPath = ResolveContextRef(config.GetString("local_path"), context);
         var remotePath = config.GetString("remote_path");
+        var idempotency = config.GetStringOrDefault("idempotency", "overwrite");
+
+        if (idempotency == "skip_if_exists")
+        {
+            var remoteDir = Path.GetDirectoryName(remotePath)?.Replace('\\', '/') ?? "/";
+            var remoteFileName = Path.GetFileName(remotePath);
+            var listing = await client!.ListDirectoryAsync(remoteDir, ct);
+            if (listing.Any(f => !f.IsDirectory && f.Name == remoteFileName))
+            {
+                return StepResult.Ok(0, new()
+                {
+                    ["uploaded_file"] = remotePath,
+                    ["skipped"] = "true",
+                    ["reason"] = "file_exists"
+                });
+            }
+        }
+
         var request = new UploadRequest(
             localPath, remotePath,
             AtomicUpload: config.GetBoolOrDefault("atomic_upload", true),

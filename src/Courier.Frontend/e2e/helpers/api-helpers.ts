@@ -3,17 +3,44 @@ import { TEST_ADMIN } from "../global-setup";
 
 const API_BASE_URL = process.env.API_URL || "http://localhost:5000";
 
+// Cache auth tokens per APIRequestContext to avoid redundant login calls.
+// Tokens are short-lived (test lifetime) so staleness is not a concern.
+const tokenCache = new WeakMap<APIRequestContext, string>();
+
 export async function getAuthToken(
   request: APIRequestContext
 ): Promise<string> {
-  const response = await request.post(`${API_BASE_URL}/api/v1/auth/login`, {
-    data: {
-      username: TEST_ADMIN.username,
-      password: TEST_ADMIN.password,
-    },
-  });
-  const body = await response.json();
-  return body.data.accessToken;
+  const cached = tokenCache.get(request);
+  if (cached) return cached;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const response = await request.post(`${API_BASE_URL}/api/v1/auth/login`, {
+      data: {
+        username: TEST_ADMIN.username,
+        password: TEST_ADMIN.password,
+      },
+    });
+
+    if (response.status() === 429 || !response.ok()) {
+      const delay = response.status() === 429
+        ? parseInt(response.headers()["retry-after"] || "2", 10) * 1000
+        : 1000;
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+
+    try {
+      const body = await response.json();
+      const token = body.data.accessToken;
+      tokenCache.set(request, token);
+      return token;
+    } catch {
+      await new Promise((r) => setTimeout(r, 1000));
+      continue;
+    }
+  }
+
+  throw new Error(`getAuthToken failed after 5 retries`);
 }
 
 function authHeaders(token: string) {

@@ -205,6 +205,16 @@ public class PgpKeyService
         }
 
         var dto = MapToDto(key);
+
+        if (key.SuccessorKeyId.HasValue)
+        {
+            var successorName = await _db.PgpKeys
+                .Where(k => k.Id == key.SuccessorKeyId.Value)
+                .Select(k => k.Name)
+                .FirstOrDefaultAsync(ct);
+            dto = dto with { SuccessorKeyName = successorName };
+        }
+
         dto = dto with { Tags = await TagHelper.GetTagsForEntityAsync(_db, "pgp_key", id, ct) };
         return new ApiResponse<PgpKeyDto> { Data = dto };
     }
@@ -460,6 +470,76 @@ public class PgpKeyService
         await _db.SaveChangesAsync(ct);
 
         return new ApiResponse<PgpKeyDto> { Data = MapToDto(key) };
+    }
+
+    public async Task<ApiResponse> SetSuccessorAsync(Guid keyId, Guid successorKeyId, CancellationToken ct = default)
+    {
+        if (keyId == successorKeyId)
+        {
+            return new ApiResponse
+            {
+                Error = ErrorMessages.Create(ErrorCodes.KeySuccessorSelfReference, "A key cannot be its own successor.")
+            };
+        }
+
+        var key = await _db.PgpKeys.FindAsync([keyId], ct);
+
+        if (key is null)
+        {
+            return new ApiResponse
+            {
+                Error = ErrorMessages.Create(ErrorCodes.KeyNotFound, $"PGP key with id '{keyId}' not found.")
+            };
+        }
+
+        var successor = await _db.PgpKeys.FindAsync([successorKeyId], ct);
+
+        if (successor is null)
+        {
+            return new ApiResponse
+            {
+                Error = ErrorMessages.Create(ErrorCodes.KeyNotFound, $"Successor PGP key with id '{successorKeyId}' not found.")
+            };
+        }
+
+        if (successor.Status is "retired" or "revoked")
+        {
+            return new ApiResponse
+            {
+                Error = ErrorMessages.Create(ErrorCodes.KeySuccessorInvalidStatus,
+                    $"Cannot set a successor key with status '{successor.Status}'. Successor must be active or expiring.")
+            };
+        }
+
+        // Detect circular chains: walk the successor chain from the proposed successor
+        var visited = new HashSet<Guid> { keyId };
+        Guid? currentId = successorKeyId;
+        while (currentId.HasValue)
+        {
+            if (!visited.Add(currentId.Value))
+            {
+                return new ApiResponse
+                {
+                    Error = ErrorMessages.Create(ErrorCodes.KeySuccessorCircularChain,
+                        "Setting this successor would create a circular chain.")
+                };
+            }
+
+            currentId = await _db.PgpKeys
+                .Where(k => k.Id == currentId.Value && !k.IsDeleted)
+                .Select(k => k.SuccessorKeyId)
+                .FirstOrDefaultAsync(ct);
+        }
+
+        key.SuccessorKeyId = successorKeyId;
+        key.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+
+        await _audit.LogAsync(AuditableEntityType.PgpKey, keyId, "SuccessorSet",
+            details: new { SuccessorKeyId = successorKeyId, SuccessorKeyName = successor.Name }, ct: ct);
+
+        return new ApiResponse();
     }
 
     // --- Key generation helpers ---

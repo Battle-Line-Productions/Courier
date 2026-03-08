@@ -17,6 +17,10 @@ public record MonitorDto
     public int ConsecutiveFailureCount { get; init; }
     public required string State { get; init; }
     public DateTime? LastPolledAt { get; init; }
+    public long? LastPollDurationMs { get; init; }
+    public int? LastPollFileCount { get; init; }
+    public DateTime? LastOverflowAt { get; init; }
+    public int OverflowCount24h { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
     public List<MonitorJobBindingDto> Bindings { get; init; } = [];

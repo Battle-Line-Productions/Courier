@@ -19,6 +19,7 @@ public class JobExecution
     public string? CancelReason { get; set; }
     public string? RequestedState { get; set; }
     public string ContextSnapshot { get; set; } = "{}";
+    public int? RetryAttempt { get; set; }
     public DateTime CreatedAt { get; set; }
 
     public Guid? ChainExecutionId { get; set; }

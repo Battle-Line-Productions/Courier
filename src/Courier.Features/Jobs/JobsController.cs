@@ -386,6 +386,35 @@ public class JobsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("{id:guid}/versions")]
+    public async Task<ActionResult<ApiResponse<List<JobVersionDto>>>> GetVersions(Guid id, CancellationToken ct)
+    {
+        var result = await _jobService.GetVersionsAsync(id, ct);
+
+        if (!result.Success)
+            return NotFound(result);
+
+        return Ok(result);
+    }
+
+    [HttpGet("{id:guid}/versions/{versionNumber:int}")]
+    public async Task<ActionResult<ApiResponse<JobVersionDto>>> GetVersion(Guid id, int versionNumber, CancellationToken ct)
+    {
+        var result = await _jobService.GetVersionAsync(id, versionNumber, ct);
+
+        if (!result.Success)
+        {
+            return result.Error!.Code switch
+            {
+                ErrorCodes.ResourceNotFound => NotFound(result),
+                ErrorCodes.JobVersionNotFound => NotFound(result),
+                _ => StatusCode(500, result)
+            };
+        }
+
+        return Ok(result);
+    }
+
     [HttpGet("{jobId:guid}/dependencies")]
     public async Task<ActionResult<ApiResponse<List<JobDependencyDto>>>> ListDependencies(
         Guid jobId,

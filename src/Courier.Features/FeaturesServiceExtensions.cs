@@ -24,6 +24,9 @@ using Courier.Features.Chains;
 using Courier.Features.Tags;
 using Courier.Features.Notifications;
 using Courier.Features.Notifications.Channels;
+using Courier.Features.Events;
+using Courier.Features.Keys;
+using Courier.Features.Security;
 using Courier.Features.Settings;
 using Courier.Features.Setup;
 using Courier.Features.Users;
@@ -61,6 +64,9 @@ public static class FeaturesServiceExtensions
 
         // Compression services
         services.AddScoped<ICompressionProvider, ZipCompressionProvider>();
+        services.AddScoped<ICompressionProvider, TarCompressionProvider>();
+        services.AddScoped<ICompressionProvider, GzipCompressionProvider>();
+        services.AddScoped<ICompressionProvider, TarGzCompressionProvider>();
         services.AddScoped<CompressionProviderRegistry>();
 
         // File operation step handlers (3)
@@ -108,10 +114,12 @@ public static class FeaturesServiceExtensions
 
         // Connections
         services.AddScoped<ConnectionService>();
+        services.AddScoped<KnownHostService>();
 
         // Keys
         services.AddScoped<PgpKeyService>();
         services.AddScoped<SshKeyService>();
+        services.AddScoped<KeyShareService>();
 
         // Monitors
         services.AddScoped<MonitorService>();
@@ -153,6 +161,12 @@ public static class FeaturesServiceExtensions
         services.AddScoped<INotificationChannel, EmailNotificationChannel>();
         services.Configure<SmtpSettings>(configuration.GetSection("Smtp"));
         services.AddHttpClient("Webhooks");
+
+        // Domain Events
+        services.AddScoped<DomainEventService>();
+
+        // Security
+        services.AddSingleton<FipsEnforcer>();
 
         // Encryption
         services.Configure<EncryptionSettings>(configuration.GetSection("Encryption"));

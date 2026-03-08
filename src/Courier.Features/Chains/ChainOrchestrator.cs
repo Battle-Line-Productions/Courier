@@ -1,5 +1,6 @@
 using Courier.Domain.Entities;
 using Courier.Domain.Enums;
+using Courier.Features.Events;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -10,11 +11,13 @@ public class ChainOrchestrator
 {
     private readonly CourierDbContext _db;
     private readonly ILogger<ChainOrchestrator> _logger;
+    private readonly DomainEventService _events;
 
-    public ChainOrchestrator(CourierDbContext db, ILogger<ChainOrchestrator> logger)
+    public ChainOrchestrator(CourierDbContext db, ILogger<ChainOrchestrator> logger, DomainEventService events)
     {
         _db = db;
         _logger = logger;
+        _events = events;
     }
 
     public async Task EvaluateChainProgressAsync(Guid jobExecutionId, CancellationToken ct = default)
@@ -116,6 +119,9 @@ public class ChainOrchestrator
 
             chainExecution.State = anyFailed ? ChainExecutionState.Failed : ChainExecutionState.Completed;
             chainExecution.CompletedAt = DateTime.UtcNow;
+
+            var chainEventType = anyFailed ? "ChainFailed" : "ChainCompleted";
+            _events.Record(chainEventType, "chain_execution", chainExecution.Id, new { chainId = chainExecution.ChainId, state = chainExecution.State.ToString().ToLowerInvariant() });
 
             await _db.SaveChangesAsync(ct);
 

@@ -19,11 +19,12 @@ public class FileUnzipStep : CompressionStepBase
                 : throw new InvalidOperationException("output_directory is required when no workspace is available");
         var password = config.GetStringOrDefault("password");
         var format = config.GetStringOrDefault("format", "zip")!;
+        var verifyIntegrity = config.GetBoolOrDefault("verify_integrity", true);
 
         var provider = ProviderRegistry.GetProvider(format);
 
         var result = await provider.DecompressAsync(
-            new DecompressRequest(archivePath, outputDirectory, password), null, ct);
+            new DecompressRequest(archivePath, outputDirectory, password, verifyIntegrity), null, ct);
 
         if (!result.Success)
             return StepResult.Fail(result.ErrorMessage!);

@@ -55,6 +55,9 @@ public class CourierApiFactory : WebApplicationFactory<Courier.Api.Program>, IAs
     {
         builder.UseEnvironment("Development");
 
+        // Use a low auth rate limit so integration tests can trigger 429 with few requests
+        builder.UseSetting("RateLimiting:AuthPermitsPerMinute", "10");
+
         builder.ConfigureServices(services =>
         {
             // Remove the MigrationRunner so it doesn't run again

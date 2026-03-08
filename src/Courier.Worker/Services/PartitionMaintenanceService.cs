@@ -55,7 +55,7 @@ public class PartitionMaintenanceService : BackgroundService
 
         var now = DateTime.UtcNow;
 
-        // Create partitions for current month + next 2 months
+        // Create audit log partitions for current month + next 2 months
         for (var i = 0; i < 3; i++)
         {
             var targetDate = now.AddMonths(i);
@@ -63,20 +63,42 @@ public class PartitionMaintenanceService : BackgroundService
             cmd.Parameters.Add(new NpgsqlParameter { Value = DateOnly.FromDateTime(targetDate).ToDateTime(TimeOnly.MinValue) });
             await cmd.ExecuteNonQueryAsync(ct);
 
-            _logger.LogDebug("Ensured partition exists for {Month}", targetDate.ToString("yyyy-MM"));
+            _logger.LogDebug("Ensured audit partition exists for {Month}", targetDate.ToString("yyyy-MM"));
         }
 
-        // Read retention setting (informational in V1)
-        await using var retentionCmd = new NpgsqlCommand(
-            "SELECT value FROM system_settings WHERE key = 'audit.partition_retention_months'",
-            connection);
-        var retentionValue = await retentionCmd.ExecuteScalarAsync(ct);
-        if (retentionValue is string retention)
+        // Create execution table partitions for current month + next 2 months
+        for (var i = 0; i < 3; i++)
         {
-            _logger.LogInformation("Partition retention policy: {Months} months (archive/drop deferred to V2)", retention);
+            var targetDate = now.AddMonths(i);
+            await using var cmd = new NpgsqlCommand("SELECT create_execution_monthly_partitions($1::date)", connection);
+            cmd.Parameters.Add(new NpgsqlParameter { Value = DateOnly.FromDateTime(targetDate).ToDateTime(TimeOnly.MinValue) });
+            await cmd.ExecuteNonQueryAsync(ct);
+
+            _logger.LogDebug("Ensured execution partitions exist for {Month}", targetDate.ToString("yyyy-MM"));
         }
+
+        // Read retention settings (informational in V1)
+        await LogRetentionSettingAsync(connection, "audit.partition_retention_months", "Audit log", ct);
+        await LogRetentionSettingAsync(connection, "execution.partition_retention_months", "Execution", ct);
 
         _logger.LogInformation("Partition maintenance completed successfully");
+    }
+
+    private async Task LogRetentionSettingAsync(
+        NpgsqlConnection connection,
+        string settingKey,
+        string label,
+        CancellationToken ct)
+    {
+        await using var cmd = new NpgsqlCommand(
+            "SELECT value FROM system_settings WHERE key = $1",
+            connection);
+        cmd.Parameters.Add(new NpgsqlParameter { Value = settingKey });
+        var retentionValue = await cmd.ExecuteScalarAsync(ct);
+        if (retentionValue is string retention)
+        {
+            _logger.LogInformation("{Label} partition retention policy: {Months} months (archive/drop deferred to V2)", label, retention);
+        }
     }
 
     internal static TimeSpan GetDelayUntilNextRun(DateTime? now = null)

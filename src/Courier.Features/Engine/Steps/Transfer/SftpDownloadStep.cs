@@ -28,6 +28,18 @@ public class SftpDownloadStep : TransferStepBase
         else
             localPath = Path.Combine(Path.GetTempPath(), Path.GetFileName(remotePath));
 
+        var idempotency = config.GetStringOrDefault("idempotency", "overwrite");
+
+        if (idempotency == "skip_if_exists" && File.Exists(localPath))
+        {
+            return StepResult.Ok(0, new()
+            {
+                ["downloaded_file"] = localPath,
+                ["skipped"] = "true",
+                ["reason"] = "file_exists"
+            });
+        }
+
         var request = new DownloadRequest(
             remotePath, localPath,
             ResumePartial: config.GetBoolOrDefault("resume_partial"),

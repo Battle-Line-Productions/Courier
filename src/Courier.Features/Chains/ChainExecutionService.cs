@@ -2,6 +2,7 @@ using Courier.Domain.Common;
 using Courier.Domain.Entities;
 using Courier.Domain.Enums;
 using Courier.Features.AuditLog;
+using Courier.Features.Events;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,11 +12,13 @@ public class ChainExecutionService
 {
     private readonly CourierDbContext _db;
     private readonly AuditService _audit;
+    private readonly DomainEventService _events;
 
-    public ChainExecutionService(CourierDbContext db, AuditService audit)
+    public ChainExecutionService(CourierDbContext db, AuditService audit, DomainEventService events)
     {
         _db = db;
         _audit = audit;
+        _events = events;
     }
 
     public async Task<ApiResponse<ChainExecutionDto>> TriggerAsync(Guid chainId, string triggeredBy, CancellationToken ct = default)
@@ -84,6 +87,8 @@ public class ChainExecutionService
 
         await _audit.LogAsync(AuditableEntityType.ChainExecution, chainExecution.Id, "Triggered",
             details: new { ChainName = chain.Name, triggeredBy, EntryPoints = entryPoints.Count }, ct: ct);
+
+        await _events.RecordAsync("ChainStarted", "chain_execution", chainExecution.Id, new { chainId, chainName = chain.Name, triggeredBy }, ct);
 
         return new ApiResponse<ChainExecutionDto> { Data = MapToDto(chainExecution, chain.Members) };
     }

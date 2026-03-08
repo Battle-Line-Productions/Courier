@@ -3,6 +3,7 @@ using Courier.Domain.Entities;
 using Courier.Domain.Enums;
 using Courier.Features.AuditLog;
 using Courier.Features.Chains;
+using Courier.Features.Events;
 using Courier.Features.Jobs;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -53,7 +54,7 @@ public class ChainExecutionTests
         using var db = CreateInMemoryContext();
         var audit = new AuditService(db);
         var (chain, job1Id, _, _) = await SetupChainWithThreeJobs(db, audit);
-        var executionService = new ChainExecutionService(db, audit);
+        var executionService = new ChainExecutionService(db, audit, new DomainEventService(db));
 
         // Act
         var result = await executionService.TriggerAsync(chain.Id, "test-user");
@@ -82,7 +83,7 @@ public class ChainExecutionTests
             [new() { JobId = job.Data!.Id, ExecutionOrder = 1 }]);
         await chainService.SetEnabledAsync(chain.Data.Id, false);
 
-        var executionService = new ChainExecutionService(db, audit);
+        var executionService = new ChainExecutionService(db, audit, new DomainEventService(db));
 
         // Act
         var result = await executionService.TriggerAsync(chain.Data.Id, "test-user");
@@ -99,8 +100,8 @@ public class ChainExecutionTests
         using var db = CreateInMemoryContext();
         var audit = new AuditService(db);
         var (chain, job1Id, job2Id, _) = await SetupChainWithThreeJobs(db, audit);
-        var executionService = new ChainExecutionService(db, audit);
-        var orchestrator = new ChainOrchestrator(db, NullLogger<ChainOrchestrator>.Instance);
+        var executionService = new ChainExecutionService(db, audit, new DomainEventService(db));
+        var orchestrator = new ChainOrchestrator(db, NullLogger<ChainOrchestrator>.Instance, new DomainEventService(db));
 
         var triggered = await executionService.TriggerAsync(chain.Id, "test");
         var firstJobExec = await db.JobExecutions
@@ -130,8 +131,8 @@ public class ChainExecutionTests
         using var db = CreateInMemoryContext();
         var audit = new AuditService(db);
         var (chain, job1Id, job2Id, job3Id) = await SetupChainWithThreeJobs(db, audit);
-        var executionService = new ChainExecutionService(db, audit);
-        var orchestrator = new ChainOrchestrator(db, NullLogger<ChainOrchestrator>.Instance);
+        var executionService = new ChainExecutionService(db, audit, new DomainEventService(db));
+        var orchestrator = new ChainOrchestrator(db, NullLogger<ChainOrchestrator>.Instance, new DomainEventService(db));
 
         var triggered = await executionService.TriggerAsync(chain.Id, "test");
         var firstJobExec = await db.JobExecutions
@@ -181,8 +182,8 @@ public class ChainExecutionTests
             new() { JobId = job2.Data!.Id, ExecutionOrder = 2, DependsOnMemberIndex = 0, RunOnUpstreamFailure = true },
         });
 
-        var executionService = new ChainExecutionService(db, audit);
-        var orchestrator = new ChainOrchestrator(db, NullLogger<ChainOrchestrator>.Instance);
+        var executionService = new ChainExecutionService(db, audit, new DomainEventService(db));
+        var orchestrator = new ChainOrchestrator(db, NullLogger<ChainOrchestrator>.Instance, new DomainEventService(db));
 
         var triggered = await executionService.TriggerAsync(chain.Data.Id, "test");
         var firstJobExec = await db.JobExecutions
@@ -219,8 +220,8 @@ public class ChainExecutionTests
         await chainService.ReplaceMembersAsync(chain.Data!.Id,
             [new() { JobId = job1.Data!.Id, ExecutionOrder = 1 }]);
 
-        var executionService = new ChainExecutionService(db, audit);
-        var orchestrator = new ChainOrchestrator(db, NullLogger<ChainOrchestrator>.Instance);
+        var executionService = new ChainExecutionService(db, audit, new DomainEventService(db));
+        var orchestrator = new ChainOrchestrator(db, NullLogger<ChainOrchestrator>.Instance, new DomainEventService(db));
 
         var triggered = await executionService.TriggerAsync(chain.Data.Id, "test");
         var jobExec = await db.JobExecutions

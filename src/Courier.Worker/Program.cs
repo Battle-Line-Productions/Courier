@@ -41,8 +41,14 @@ builder.Services.AddHostedService<JobQueueProcessor>();
 // Monitor polling service
 builder.Services.AddHostedService<MonitorPollingService>();
 
+// Key expiry checker (daily — transitions active → expiring → retired)
+builder.Services.AddHostedService<KeyExpiryService>();
+
 // Partition maintenance (weekly, pre-creates monthly partitions)
 builder.Services.AddHostedService<PartitionMaintenanceService>();
+
+// Stuck execution recovery (runs on startup + every 5 minutes)
+builder.Services.AddHostedService<StuckExecutionRecoveryService>();
 
 // Quartz.NET persistent store
 builder.Services.AddQuartz(q =>

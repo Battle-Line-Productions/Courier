@@ -13,9 +13,54 @@ public class FileMoveStep : IJobStep
     {
         var sourcePath = ContextResolver.Resolve(config.GetString("source_path"), context);
         var destPath = ContextResolver.Resolve(config.GetString("destination_path"), context);
+        var idempotency = config.GetStringOrDefault("idempotency", "overwrite");
 
         if (!File.Exists(sourcePath))
+        {
+            // For move with idempotency: if source is gone but dest exists, the move already completed
+            if (idempotency is "skip_if_exists" or "resume" && File.Exists(destPath))
+            {
+                return Task.FromResult(StepResult.Ok(
+                    bytesProcessed: 0,
+                    outputs: new Dictionary<string, object>
+                    {
+                        ["moved_file"] = destPath,
+                        ["skipped"] = "true",
+                        ["reason"] = "already_complete"
+                    }));
+            }
+
             return Task.FromResult(StepResult.Fail($"Source file not found: {sourcePath}"));
+        }
+
+        if (idempotency == "skip_if_exists" && File.Exists(destPath))
+        {
+            return Task.FromResult(StepResult.Ok(
+                bytesProcessed: 0,
+                outputs: new Dictionary<string, object>
+                {
+                    ["moved_file"] = destPath,
+                    ["skipped"] = "true",
+                    ["reason"] = "file_exists"
+                }));
+        }
+
+        if (idempotency == "resume" && File.Exists(destPath))
+        {
+            var sourceSize = new FileInfo(sourcePath).Length;
+            var destSize = new FileInfo(destPath).Length;
+            if (sourceSize == destSize)
+            {
+                return Task.FromResult(StepResult.Ok(
+                    bytesProcessed: 0,
+                    outputs: new Dictionary<string, object>
+                    {
+                        ["moved_file"] = destPath,
+                        ["skipped"] = "true",
+                        ["reason"] = "already_complete"
+                    }));
+            }
+        }
 
         var destDir = Path.GetDirectoryName(destPath);
         if (!string.IsNullOrEmpty(destDir))

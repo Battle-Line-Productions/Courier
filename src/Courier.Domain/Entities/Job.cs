@@ -18,4 +18,5 @@ public class Job
     public List<JobSchedule> Schedules { get; set; } = [];
     public List<JobDependency> UpstreamDependencies { get; set; } = [];
     public List<JobDependency> DownstreamDependencies { get; set; } = [];
+    public List<JobVersion> Versions { get; set; } = [];
 }

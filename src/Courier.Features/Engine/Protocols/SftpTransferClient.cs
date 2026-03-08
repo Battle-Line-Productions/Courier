@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using System.Text.Json;
 using Courier.Domain.Entities;
 using Courier.Domain.Protocols;
 using Renci.SshNet;
@@ -43,6 +44,8 @@ public class SftpTransferClient : ITransferClient
         {
             Timeout = TimeSpan.FromSeconds(_connection.ConnectTimeoutSec)
         };
+
+        ApplySshAlgorithmEnforcement(connectionInfo);
 
         _client = new SftpClient(connectionInfo);
         _client.OperationTimeout = TimeSpan.FromSeconds(_connection.OperationTimeoutSec);
@@ -420,6 +423,70 @@ public class SftpTransferClient : ITransferClient
     {
         if (_client is null || !_client.IsConnected)
             throw new InvalidOperationException("SFTP client is not connected. Call ConnectAsync first.");
+    }
+
+    /// <summary>
+    /// Parses the Connection's SshAlgorithms JSON and removes any algorithms from the
+    /// ConnectionInfo dictionaries that are not in the allowed list. If SshAlgorithms is
+    /// null or empty, SSH.NET defaults are left untouched.
+    /// </summary>
+    private void ApplySshAlgorithmEnforcement(ConnectionInfo connectionInfo)
+    {
+        if (string.IsNullOrWhiteSpace(_connection.SshAlgorithms))
+            return;
+
+        SshAlgorithmPreferences? prefs;
+        try
+        {
+            prefs = JsonSerializer.Deserialize<SshAlgorithmPreferences>(
+                _connection.SshAlgorithms,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch (JsonException)
+        {
+            // Malformed JSON — fall back to SSH.NET defaults rather than blocking connections
+            return;
+        }
+
+        if (prefs is null)
+            return;
+
+        if (prefs.KeyExchange is { Count: > 0 })
+            FilterAlgorithms(connectionInfo.KeyExchangeAlgorithms, prefs.KeyExchange);
+
+        if (prefs.Encryption is { Count: > 0 })
+            FilterAlgorithms(connectionInfo.Encryptions, prefs.Encryption);
+
+        if (prefs.Hmac is { Count: > 0 })
+            FilterAlgorithms(connectionInfo.HmacAlgorithms, prefs.Hmac);
+
+        if (prefs.HostKey is { Count: > 0 })
+            FilterAlgorithms(connectionInfo.HostKeyAlgorithms, prefs.HostKey);
+    }
+
+    /// <summary>
+    /// Removes entries from the SSH.NET algorithm dictionary whose keys are not in the
+    /// allowed list. This preserves SSH.NET's internal factory functions while restricting
+    /// which algorithms can be negotiated during the handshake.
+    /// </summary>
+    private static void FilterAlgorithms<T>(IDictionary<string, T> algorithms, List<string> allowed)
+    {
+        var allowedSet = new HashSet<string>(allowed, StringComparer.OrdinalIgnoreCase);
+        var toRemove = algorithms.Keys.Where(k => !allowedSet.Contains(k)).ToList();
+
+        foreach (var key in toRemove)
+            algorithms.Remove(key);
+    }
+
+    /// <summary>
+    /// Deserialization target for the SshAlgorithms JSON stored on the Connection entity.
+    /// </summary>
+    private sealed class SshAlgorithmPreferences
+    {
+        public List<string>? KeyExchange { get; set; }
+        public List<string>? Encryption { get; set; }
+        public List<string>? Hmac { get; set; }
+        public List<string>? HostKey { get; set; }
     }
 
     private async Task DeleteDirectoryRecursiveAsync(string path, CancellationToken ct)

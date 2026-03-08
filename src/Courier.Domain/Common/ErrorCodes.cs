@@ -20,6 +20,9 @@ public static class ErrorCodes
     public const int InvalidCronExpression = 2021;
     public const int ScheduleJobMismatch = 2023;
 
+    // Job Versions (2030-2039)
+    public const int JobVersionNotFound = 2030;
+
     // Execution Control (2040-2049)
     public const int ExecutionCannotBePaused = 2040;
     public const int ExecutionCannotBeResumed = 2041;
@@ -32,6 +35,9 @@ public static class ErrorCodes
     public const int HostUnreachable = 3003;
     public const int ConnectionInUse = 3010;
     public const int InvalidProtocolConfig = 3011;
+    public const int KnownHostNotFound = 3020;
+    public const int DuplicateKnownHostFingerprint = 3021;
+    public const int KnownHostAlreadyApproved = 3022;
 
     // Keys (4000-4999)
     public const int KeyNotFound = 4000;
@@ -43,6 +49,16 @@ public static class ErrorCodes
     public const int KeyAlreadyActive = 4012;
     public const int KeyInUseByConnection = 4020;
     public const int InvalidKeyTransition = 4030;
+    public const int KeySuccessorSelfReference = 4031;
+    public const int KeySuccessorCircularChain = 4032;
+    public const int KeySuccessorInvalidStatus = 4033;
+
+    // Key Share Links (4040-4049)
+    public const int ShareLinkNotFound = 4040;
+    public const int ShareLinkExpired = 4041;
+    public const int ShareLinkRevoked = 4042;
+    public const int ShareLinksDisabled = 4043;
+    public const int ShareLinkInvalidToken = 4044;
 
     // Transfer Operations (5000-5999)
     public const int TransferFailed = 5000;
@@ -148,6 +164,7 @@ public static class ErrorMessages
         [ErrorCodes.ScheduleNotFound] = "Schedule not found",
         [ErrorCodes.InvalidCronExpression] = "Invalid cron expression",
         [ErrorCodes.ScheduleJobMismatch] = "Schedule does not belong to this job",
+        [ErrorCodes.JobVersionNotFound] = "Job version not found",
         [ErrorCodes.ExecutionCannotBePaused] = "Execution cannot be paused",
         [ErrorCodes.ExecutionCannotBeResumed] = "Execution cannot be resumed",
         [ErrorCodes.ExecutionCannotBeCancelled] = "Execution cannot be cancelled",
@@ -157,6 +174,9 @@ public static class ErrorMessages
         [ErrorCodes.HostUnreachable] = "Host unreachable",
         [ErrorCodes.ConnectionInUse] = "Connection in use",
         [ErrorCodes.InvalidProtocolConfig] = "Invalid protocol configuration",
+        [ErrorCodes.KnownHostNotFound] = "Known host not found",
+        [ErrorCodes.DuplicateKnownHostFingerprint] = "Duplicate known host fingerprint",
+        [ErrorCodes.KnownHostAlreadyApproved] = "Known host already approved",
         [ErrorCodes.KeyNotFound] = "Key not found",
         [ErrorCodes.KeyGenerationFailed] = "Key generation failed",
         [ErrorCodes.KeyImportFailed] = "Key import failed",
@@ -166,6 +186,14 @@ public static class ErrorMessages
         [ErrorCodes.KeyAlreadyActive] = "Key already active",
         [ErrorCodes.KeyInUseByConnection] = "Key in use by connection",
         [ErrorCodes.InvalidKeyTransition] = "Invalid key status transition",
+        [ErrorCodes.KeySuccessorSelfReference] = "Cannot set key as its own successor",
+        [ErrorCodes.KeySuccessorCircularChain] = "Circular successor chain detected",
+        [ErrorCodes.KeySuccessorInvalidStatus] = "Successor key has invalid status",
+        [ErrorCodes.ShareLinkNotFound] = "Share link not found",
+        [ErrorCodes.ShareLinkExpired] = "Share link expired",
+        [ErrorCodes.ShareLinkRevoked] = "Share link revoked",
+        [ErrorCodes.ShareLinksDisabled] = "Public key share links are disabled",
+        [ErrorCodes.ShareLinkInvalidToken] = "Invalid share link token",
         [ErrorCodes.TransferFailed] = "Transfer failed",
         [ErrorCodes.ConnectionNotFound] = "Connection not found",
         [ErrorCodes.ProtocolMismatch] = "Protocol mismatch",

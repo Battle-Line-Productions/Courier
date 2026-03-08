@@ -25,3 +25,13 @@ public record JobDto
     public DateTime UpdatedAt { get; init; }
     public List<TagSummaryDto> Tags { get; init; } = [];
 }
+
+public record JobVersionDto
+{
+    public Guid Id { get; init; }
+    public Guid JobId { get; init; }
+    public int VersionNumber { get; init; }
+    public string ConfigSnapshot { get; init; } = "{}";
+    public string? CreatedBy { get; init; }
+    public DateTime CreatedAt { get; init; }
+}

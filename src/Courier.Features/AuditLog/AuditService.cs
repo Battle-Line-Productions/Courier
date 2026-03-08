@@ -25,6 +25,7 @@ public class AuditService
         [AuditableEntityType.ChainExecution] = "chain_execution",
         [AuditableEntityType.NotificationRule] = "notification_rule",
         [AuditableEntityType.User] = "user",
+        [AuditableEntityType.KnownHost] = "known_host",
     };
 
     public AuditService(CourierDbContext db)

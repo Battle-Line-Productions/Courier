@@ -3,19 +3,22 @@ namespace Courier.Features.Engine.Compression;
 public record CompressRequest(
     IReadOnlyList<string> SourcePaths,
     string OutputPath,
-    string? Password);
+    string? Password,
+    long? SplitMaxSizeBytes = null);
 
 public record DecompressRequest(
     string ArchivePath,
     string OutputDirectory,
-    string? Password);
+    string? Password,
+    bool VerifyIntegrity = true);
 
 public record CompressionResult(
     bool Success,
     long BytesProcessed,
     string OutputPath,
     IReadOnlyList<string>? ExtractedFiles,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    IReadOnlyList<string>? SplitParts = null);
 
 public record CompressionProgress(
     long BytesProcessed,

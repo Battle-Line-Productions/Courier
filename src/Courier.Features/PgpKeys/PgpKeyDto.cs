@@ -16,6 +16,7 @@ public record PgpKeyDto
     public bool HasPrivateKey { get; init; }
     public DateTime? ExpiresAt { get; init; }
     public Guid? SuccessorKeyId { get; init; }
+    public string? SuccessorKeyName { get; init; }
     public string? CreatedBy { get; init; }
     public string? Notes { get; init; }
     public DateTime CreatedAt { get; init; }
@@ -47,3 +48,5 @@ public record UpdatePgpKeyRequest
     public string? Purpose { get; init; }
     public string? Notes { get; init; }
 }
+
+public record SetSuccessorRequest(Guid SuccessorKeyId);

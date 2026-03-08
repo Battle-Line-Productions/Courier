@@ -2,11 +2,11 @@
   "cookies": [],
   "origins": [
     {
-      "origin": "http://localhost:51764",
+      "origin": "http://localhost:49975",
       "localStorage": [
         {
           "name": "courier_refresh_token",
-          "value": "AN5T+X9G0L/dL3WkEavkM4wQeQXm0QoW9dJGcZnrQSc="
+          "value": "aTuxyIl+zvHZHq+5QeT5RhQTA2F+sPHJ5D2RE7NrV4A="
         }
       ]
     }

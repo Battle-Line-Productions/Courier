@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Courier.Domain.Common;
 using Courier.Domain.Entities;
 using Courier.Domain.Enums;
@@ -109,9 +110,41 @@ public class JobService
         job.CurrentVersion++;
         job.UpdatedAt = DateTime.UtcNow;
 
+        // Create version snapshot
+        var steps = await _db.JobSteps
+            .Where(s => s.JobId == job.Id)
+            .OrderBy(s => s.StepOrder)
+            .ToListAsync(ct);
+
+        var snapshot = new
+        {
+            name = job.Name,
+            description = job.Description,
+            failurePolicy = job.FailurePolicy,
+            steps = steps.Select(s => new
+            {
+                name = s.Name,
+                typeKey = s.TypeKey,
+                stepOrder = s.StepOrder,
+                configuration = s.Configuration,
+                timeoutSeconds = s.TimeoutSeconds,
+            }).ToList(),
+        };
+
+        var version = new JobVersion
+        {
+            Id = Guid.CreateVersion7(),
+            JobId = job.Id,
+            VersionNumber = job.CurrentVersion,
+            ConfigSnapshot = JsonSerializer.Serialize(snapshot),
+            CreatedBy = "system",
+            CreatedAt = DateTime.UtcNow,
+        };
+        _db.JobVersions.Add(version);
+
         await _db.SaveChangesAsync(ct);
 
-        await _audit.LogAsync(AuditableEntityType.Job, id, "Updated", details: new { name, description }, ct: ct);
+        await _audit.LogAsync(AuditableEntityType.Job, id, "Updated", details: new { name, description, version = job.CurrentVersion }, ct: ct);
 
         return new ApiResponse<JobDto> { Data = MapToDto(job) };
     }
@@ -136,6 +169,47 @@ public class JobService
         return new ApiResponse();
     }
 
+    public async Task<ApiResponse<List<JobVersionDto>>> GetVersionsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        var job = await _db.Jobs.FirstOrDefaultAsync(j => j.Id == jobId, ct);
+
+        if (job is null)
+            return new ApiResponse<List<JobVersionDto>>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.ResourceNotFound, $"Job with id '{jobId}' not found.")
+            };
+
+        var versions = await _db.JobVersions
+            .Where(v => v.JobId == jobId)
+            .OrderByDescending(v => v.VersionNumber)
+            .Select(v => MapVersionToDto(v))
+            .ToListAsync(ct);
+
+        return new ApiResponse<List<JobVersionDto>> { Data = versions };
+    }
+
+    public async Task<ApiResponse<JobVersionDto>> GetVersionAsync(Guid jobId, int versionNumber, CancellationToken ct = default)
+    {
+        var job = await _db.Jobs.FirstOrDefaultAsync(j => j.Id == jobId, ct);
+
+        if (job is null)
+            return new ApiResponse<JobVersionDto>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.ResourceNotFound, $"Job with id '{jobId}' not found.")
+            };
+
+        var version = await _db.JobVersions
+            .FirstOrDefaultAsync(v => v.JobId == jobId && v.VersionNumber == versionNumber, ct);
+
+        if (version is null)
+            return new ApiResponse<JobVersionDto>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.JobVersionNotFound, $"Version {versionNumber} not found for job '{jobId}'.")
+            };
+
+        return new ApiResponse<JobVersionDto> { Data = MapVersionToDto(version) };
+    }
+
     private static JobDto MapToDto(Job job) => new()
     {
         Id = job.Id,
@@ -145,5 +219,15 @@ public class JobService
         IsEnabled = job.IsEnabled,
         CreatedAt = job.CreatedAt,
         UpdatedAt = job.UpdatedAt,
+    };
+
+    private static JobVersionDto MapVersionToDto(JobVersion v) => new()
+    {
+        Id = v.Id,
+        JobId = v.JobId,
+        VersionNumber = v.VersionNumber,
+        ConfigSnapshot = v.ConfigSnapshot,
+        CreatedBy = v.CreatedBy,
+        CreatedAt = v.CreatedAt,
     };
 }

@@ -15,6 +15,10 @@ public class FileMonitor
     public int ConsecutiveFailureCount { get; set; }
     public string State { get; set; } = "active";
     public DateTime? LastPolledAt { get; set; }
+    public long? LastPollDurationMs { get; set; }
+    public int? LastPollFileCount { get; set; }
+    public DateTime? LastOverflowAt { get; set; }
+    public int OverflowCount24h { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public bool IsDeleted { get; set; }

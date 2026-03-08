@@ -16,14 +16,28 @@ public class FileZipStep : CompressionStepBase
         var password = config.GetStringOrDefault("password");
         var format = config.GetStringOrDefault("format", "zip")!;
 
+        // Convert split_max_size_mb (megabytes) to bytes for the compression provider
+        long? splitMaxSizeBytes = config.Has("split_max_size_mb")
+            ? config.GetLong("split_max_size_mb") * 1024 * 1024
+            : null;
+
         var provider = ProviderRegistry.GetProvider(format);
 
         var result = await provider.CompressAsync(
-            new CompressRequest(sourcePaths, outputPath, password), null, ct);
+            new CompressRequest(sourcePaths, outputPath, password, splitMaxSizeBytes), null, ct);
 
-        return result.Success
-            ? StepResult.Ok(result.BytesProcessed, new() { ["archive_path"] = result.OutputPath })
-            : StepResult.Fail(result.ErrorMessage!);
+        if (!result.Success)
+            return StepResult.Fail(result.ErrorMessage!);
+
+        var outputs = new Dictionary<string, object> { ["archive_path"] = result.OutputPath };
+
+        if (result.SplitParts is { Count: > 1 })
+        {
+            outputs["split_parts"] = result.SplitParts;
+            outputs["split_count"] = result.SplitParts.Count;
+        }
+
+        return StepResult.Ok(result.BytesProcessed, outputs);
     }
 
     public override Task<StepResult> ValidateAsync(StepConfiguration config)

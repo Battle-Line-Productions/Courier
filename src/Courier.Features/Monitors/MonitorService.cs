@@ -420,6 +420,10 @@ public class MonitorService
         ConsecutiveFailureCount = m.ConsecutiveFailureCount,
         State = m.State,
         LastPolledAt = m.LastPolledAt,
+        LastPollDurationMs = m.LastPollDurationMs,
+        LastPollFileCount = m.LastPollFileCount,
+        LastOverflowAt = m.LastOverflowAt,
+        OverflowCount24h = m.OverflowCount24h,
         CreatedAt = m.CreatedAt,
         UpdatedAt = m.UpdatedAt,
         Bindings = m.Bindings.Select(b => new MonitorJobBindingDto
