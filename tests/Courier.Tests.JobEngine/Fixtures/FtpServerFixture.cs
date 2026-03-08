@@ -15,8 +15,7 @@ public class FtpServerFixture : IAsyncLifetime
 
     public FtpServerFixture()
     {
-        _container = new ContainerBuilder()
-            .WithImage("fauria/vsftpd")
+        _container = new ContainerBuilder("fauria/vsftpd")
             .WithEnvironment("FTP_USER", "testuser")
             .WithEnvironment("FTP_PASS", "testpass")
             .WithEnvironment("PASV_ADDRESS", "127.0.0.1")
@@ -34,11 +33,11 @@ public class FtpServerFixture : IAsyncLifetime
             .WithPortBinding(21108, 21108)
             .WithPortBinding(21109, 21109)
             .WithPortBinding(21110, 21110)
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(21))
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(21))
             .Build();
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await _container.StartAsync();
 
@@ -71,7 +70,7 @@ public class FtpServerFixture : IAsyncLifetime
             $"FTP server did not become ready within 30 seconds. Last error: {lastException?.GetType().Name}: {lastException?.Message}");
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         await _container.DisposeAsync();
     }

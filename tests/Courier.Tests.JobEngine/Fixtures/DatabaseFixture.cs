@@ -8,8 +8,7 @@ namespace Courier.Tests.JobEngine.Fixtures;
 
 public class DatabaseFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
-        .WithImage("postgres:16-alpine")
+    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine")
         .Build();
 
     public string ConnectionString => _postgres.GetConnectionString();
@@ -22,7 +21,7 @@ public class DatabaseFixture : IAsyncLifetime
         return new CourierDbContext(options);
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await _postgres.StartAsync();
 
@@ -45,7 +44,7 @@ public class DatabaseFixture : IAsyncLifetime
         await cmd.ExecuteNonQueryAsync();
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         await _postgres.DisposeAsync();
     }

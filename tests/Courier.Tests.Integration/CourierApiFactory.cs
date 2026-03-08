@@ -19,11 +19,10 @@ namespace Courier.Tests.Integration;
 
 public class CourierApiFactory : WebApplicationFactory<Courier.Api.Program>, IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
-        .WithImage("postgres:16-alpine")
+    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine")
         .Build();
 
-    async Task IAsyncLifetime.InitializeAsync()
+    async ValueTask IAsyncLifetime.InitializeAsync()
     {
         await _postgres.StartAsync();
 
@@ -85,7 +84,7 @@ public class CourierApiFactory : WebApplicationFactory<Courier.Api.Program>, IAs
         });
     }
 
-    async Task IAsyncLifetime.DisposeAsync()
+    async ValueTask IAsyncDisposable.DisposeAsync()
     {
         await _postgres.DisposeAsync();
     }

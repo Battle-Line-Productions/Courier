@@ -120,7 +120,7 @@ public class DependencyTests
             $"Migrations should not depend on Features. Failing types: {FormatFailures(result)}");
     }
 
-    private static string FormatFailures(TestResult result)
+    private static string FormatFailures(NetArchTest.Rules.TestResult result)
     {
         if (result.FailingTypes == null) return "(none)";
         return string.Join(", ", result.FailingTypes.Select(t => t.FullName));

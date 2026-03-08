@@ -15,19 +15,18 @@ public class SftpServerFixture : IAsyncLifetime
 
     public SftpServerFixture()
     {
-        _container = new ContainerBuilder()
-            .WithImage("linuxserver/openssh-server:latest")
+        _container = new ContainerBuilder("linuxserver/openssh-server:latest")
             .WithEnvironment("PUID", "1000")
             .WithEnvironment("PGID", "1000")
             .WithEnvironment("USER_NAME", "testuser")
             .WithEnvironment("USER_PASSWORD", "testpass")
             .WithEnvironment("PASSWORD_ACCESS", "true")
             .WithPortBinding(2222, assignRandomHostPort: true)
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(2222))
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(2222))
             .Build();
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await _container.StartAsync();
 
@@ -68,7 +67,7 @@ public class SftpServerFixture : IAsyncLifetime
             $"SFTP server did not become ready within 30 seconds. Last error: {lastException?.GetType().Name}: {lastException?.Message}");
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         await _container.DisposeAsync();
     }
