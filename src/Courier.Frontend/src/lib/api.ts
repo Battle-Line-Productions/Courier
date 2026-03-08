@@ -64,6 +64,7 @@ import type {
   NewPasswordRequest,
   AuthSettingsDto,
   UpdateAuthSettingsRequest,
+  StepTypeMetadataDto,
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -142,6 +143,11 @@ class ApiClient {
 
   async deleteJob(id: string): Promise<ApiResponse<void>> {
     return this.request(`/api/v1/jobs/${id}`, { method: "DELETE" });
+  }
+
+  // Step Types
+  async listStepTypes(): Promise<ApiResponse<StepTypeMetadataDto[]>> {
+    return this.request("/api/v1/step-types");
   }
 
   // Steps

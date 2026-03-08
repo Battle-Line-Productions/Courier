@@ -9,6 +9,7 @@ public class JobStep
     public string TypeKey { get; set; } = string.Empty;
     public string Configuration { get; set; } = "{}";
     public int TimeoutSeconds { get; set; } = 300;
+    public string? Alias { get; set; }
 
     public Job Job { get; set; } = null!;
 }

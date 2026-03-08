@@ -7,6 +7,7 @@ public record AddJobStepRequest
     public int StepOrder { get; init; }
     public string Configuration { get; init; } = "{}";
     public int TimeoutSeconds { get; init; } = 300;
+    public string? Alias { get; init; }
 }
 
 public record ReplaceJobStepsRequest
@@ -21,6 +22,7 @@ public record StepInput
     public int StepOrder { get; init; }
     public string Configuration { get; init; } = "{}";
     public int TimeoutSeconds { get; init; } = 300;
+    public string? Alias { get; init; }
 }
 
 public record JobStepDto
@@ -32,4 +34,5 @@ public record JobStepDto
     public required string TypeKey { get; init; }
     public string Configuration { get; init; } = "{}";
     public int TimeoutSeconds { get; init; }
+    public string? Alias { get; init; }
 }

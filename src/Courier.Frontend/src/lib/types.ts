@@ -53,6 +53,7 @@ export interface JobStepDto {
   typeKey: string;
   configuration: string;
   timeoutSeconds: number;
+  alias?: string;
 }
 
 export interface JobExecutionDto {
@@ -148,6 +149,30 @@ export interface StepInput {
   stepOrder: number;
   configuration: string;
   timeoutSeconds: number;
+  alias?: string;
+}
+
+export interface StepOutputMeta {
+  key: string;
+  description: string;
+  valueType: string;
+  conditional: boolean;
+}
+
+export interface StepInputMeta {
+  key: string;
+  description: string;
+  required: boolean;
+  supportsContextRef: boolean;
+}
+
+export interface StepTypeMetadataDto {
+  typeKey: string;
+  displayName: string;
+  category: string;
+  description: string;
+  outputs?: StepOutputMeta[];
+  inputs?: StepInputMeta[];
 }
 
 export interface ReplaceJobStepsRequest {

@@ -4,157 +4,24 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, X, GripVertical } from "lucide-react";
+import { Plus } from "lucide-react";
 import { StepConfigForm, parseStepConfig, serializeStepConfig } from "./step-config-form";
+import { StepTypePicker } from "./step-type-picker";
+import { StepPipeline } from "./step-pipeline";
+import { getCategoryMeta, getStepTypeLabel, STEP_TYPE_GROUPS } from "./step-constants";
 
 export interface StepFormData {
   name: string;
   typeKey: string;
   configuration: string;
   timeoutSeconds: number;
+  alias?: string;
 }
 
 interface StepBuilderProps {
   steps: StepFormData[];
   onChange: (steps: StepFormData[]) => void;
-}
-
-const STEP_TYPE_GROUPS = [
-  {
-    label: "File Operations",
-    types: [
-      { value: "file.copy", label: "File Copy" },
-      { value: "file.move", label: "File Move" },
-      { value: "file.zip", label: "File Zip (Compress)" },
-      { value: "file.unzip", label: "File Unzip (Extract)" },
-      { value: "file.delete", label: "File Delete" },
-    ],
-  },
-  {
-    label: "SFTP",
-    types: [
-      { value: "sftp.upload", label: "SFTP Upload" },
-      { value: "sftp.download", label: "SFTP Download" },
-      { value: "sftp.list", label: "SFTP List" },
-      { value: "sftp.mkdir", label: "SFTP Create Directory" },
-      { value: "sftp.rmdir", label: "SFTP Remove Directory" },
-    ],
-  },
-  {
-    label: "FTP",
-    types: [
-      { value: "ftp.upload", label: "FTP Upload" },
-      { value: "ftp.download", label: "FTP Download" },
-      { value: "ftp.list", label: "FTP List" },
-      { value: "ftp.mkdir", label: "FTP Create Directory" },
-      { value: "ftp.rmdir", label: "FTP Remove Directory" },
-    ],
-  },
-  {
-    label: "FTPS",
-    types: [
-      { value: "ftps.upload", label: "FTPS Upload" },
-      { value: "ftps.download", label: "FTPS Download" },
-      { value: "ftps.list", label: "FTPS List" },
-      { value: "ftps.mkdir", label: "FTPS Create Directory" },
-      { value: "ftps.rmdir", label: "FTPS Remove Directory" },
-    ],
-  },
-  {
-    label: "PGP Crypto",
-    types: [
-      { value: "pgp.encrypt", label: "PGP Encrypt" },
-      { value: "pgp.decrypt", label: "PGP Decrypt" },
-      { value: "pgp.sign", label: "PGP Sign" },
-      { value: "pgp.verify", label: "PGP Verify" },
-    ],
-  },
-  {
-    label: "Azure",
-    types: [
-      { value: "azure_function.execute", label: "Azure Function Execute" },
-    ],
-  },
-  {
-    label: "Flow Control",
-    types: [
-      { value: "flow.foreach", label: "For Each (Loop)" },
-      { value: "flow.if", label: "If (Condition)" },
-      { value: "flow.else", label: "Else" },
-      { value: "flow.end", label: "End Block" },
-    ],
-  },
-];
-
-function getStepSummary(step: StepFormData): string | null {
-  const config = parseStepConfig(step.configuration, step.typeKey);
-
-  if (step.typeKey === "flow.foreach") {
-    return (config.source as string) || null;
-  }
-
-  if (step.typeKey === "flow.if") {
-    const left = config.left as string;
-    const op = config.operator as string;
-    const right = config.right as string;
-    if (left && op) return right ? `${left} ${op} ${right}` : `${left} ${op}`;
-    return null;
-  }
-
-  if (step.typeKey === "flow.else" || step.typeKey === "flow.end") {
-    return null;
-  }
-
-  if (step.typeKey === "azure_function.execute") {
-    const fn = config.functionName as string;
-    return fn ? fn : null;
-  }
-
-  if (step.typeKey === "file.zip") {
-    const src = config.sourcePath as string;
-    const out = config.outputPath as string;
-    if (src) return `${src} \u2192 ${out}`;
-    return null;
-  }
-
-  if (step.typeKey === "file.unzip") {
-    const archive = config.archivePath as string;
-    const out = config.outputDirectory as string;
-    if (archive) return `${archive} \u2192 ${out}`;
-    return null;
-  }
-
-  if (step.typeKey === "file.delete") {
-    const path = config.path as string;
-    return path || null;
-  }
-
-  // Transfer upload/download steps
-  const op = step.typeKey.split(".")[1];
-  if (op === "upload" || op === "download") {
-    const local = config.localPath as string;
-    const remote = config.remotePath as string;
-    if (local && remote) return op === "upload" ? `${local} \u2192 ${remote}` : `${remote} \u2192 ${local}`;
-    return remote || local || null;
-  }
-
-  // Transfer list/mkdir/rmdir
-  if (op === "list" || op === "mkdir" || op === "rmdir") {
-    return (config.remotePath as string) || null;
-  }
-
-  // PGP steps
-  if (step.typeKey.startsWith("pgp.")) {
-    return (config.inputPath as string) || null;
-  }
-
-  // File copy/move steps
-  const src = config.sourcePath as string;
-  const dst = config.destinationPath as string;
-  if (src) return `${src} \u2192 ${dst}`;
-  return null;
 }
 
 export function StepBuilder({ steps, onChange }: StepBuilderProps) {
@@ -165,11 +32,12 @@ export function StepBuilder({ steps, onChange }: StepBuilderProps) {
     typeKey: "file.copy",
     configuration: "{}",
     timeoutSeconds: 300,
+    alias: "",
   });
 
   function addStep() {
     onChange([...steps, { ...draft }]);
-    setDraft({ name: "", typeKey: "file.copy", configuration: "{}", timeoutSeconds: 300 });
+    setDraft({ name: "", typeKey: "file.copy", configuration: "{}", timeoutSeconds: 300, alias: "" });
     setAdding(false);
   }
 
@@ -189,38 +57,42 @@ export function StepBuilder({ steps, onChange }: StepBuilderProps) {
     const newSteps = [...steps];
     const [moved] = newSteps.splice(from, 1);
     newSteps.splice(to, 0, moved);
+
+    // Build old→new order mapping (1-based step orders)
+    const rewriteMap = new Map<number, number>();
+    // After splice, the positions shifted. Track which original index is now at which position.
+    const originalIndices = steps.map((_, i) => i);
+    const reordered = [...originalIndices];
+    const [movedIdx] = reordered.splice(from, 1);
+    reordered.splice(to, 0, movedIdx);
+    for (let i = 0; i < reordered.length; i++) {
+      const oldOrder = reordered[i] + 1; // 1-based
+      const newOrder = i + 1;
+      if (oldOrder !== newOrder) {
+        rewriteMap.set(oldOrder, newOrder);
+      }
+    }
+
+    // Rewrite context references in all step configurations
+    if (rewriteMap.size > 0) {
+      for (let i = 0; i < newSteps.length; i++) {
+        let config = newSteps[i].configuration;
+        for (const [oldOrder, newOrder] of rewriteMap) {
+          const pattern = new RegExp(`context:${oldOrder}\\.`, "g");
+          config = config.replace(pattern, `context:${newOrder}.`);
+        }
+        if (config !== newSteps[i].configuration) {
+          newSteps[i] = { ...newSteps[i], configuration: config };
+        }
+      }
+    }
+
     onChange(newSteps);
     if (editingIndex === from) setEditingIndex(to);
   }
 
-  function handleTypeChange(step: StepFormData, index: number | null, newTypeKey: string) {
-    const updated = { ...step, typeKey: newTypeKey, configuration: "{}" };
-    if (index !== null) {
-      updateStep(index, updated);
-    } else {
-      setDraft(updated);
-    }
-  }
-
-  function renderTypeSelect(value: string, onChangeValue: (v: string) => void) {
-    return (
-      <select
-        value={value}
-        onChange={(e) => onChangeValue(e.target.value)}
-        className="rounded-md border bg-background px-3 py-1.5 text-sm"
-      >
-        {STEP_TYPE_GROUPS.map((group) => (
-          <optgroup key={group.label} label={group.label}>
-            {group.types.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
-    );
-  }
+  const draftMeta = getCategoryMeta(draft.typeKey);
+  const DraftIcon = draftMeta.icon;
 
   return (
     <div className="space-y-3">
@@ -238,167 +110,91 @@ export function StepBuilder({ steps, onChange }: StepBuilderProps) {
         </Button>
       </div>
 
-      {steps.length === 0 && !adding && (
-        <p className="text-sm text-muted-foreground py-4 text-center">
-          No steps yet. Add a step to define what this job does.
-        </p>
-      )}
-
-      {steps.map((step, index) => {
-        const config = parseStepConfig(step.configuration, step.typeKey);
-        const isEditing = editingIndex === index;
-        const summary = getStepSummary(step);
-
-        return (
-          <Card key={index}>
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex flex-col gap-1 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => moveStep(index, index - 1)}
-                    disabled={index === 0}
-                    className="text-muted-foreground hover:text-foreground disabled:opacity-30 text-xs"
-                  >
-                    &#9650;
-                  </button>
-                  <GripVertical className="h-4 w-4 text-muted-foreground" />
-                  <button
-                    type="button"
-                    onClick={() => moveStep(index, index + 1)}
-                    disabled={index === steps.length - 1}
-                    className="text-muted-foreground hover:text-foreground disabled:opacity-30 text-xs"
-                  >
-                    &#9660;
-                  </button>
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-muted-foreground tabular-nums">
-                      {index + 1}.
-                    </span>
-                    {isEditing ? (
-                      <Input
-                        value={step.name}
-                        onChange={(e) =>
-                          updateStep(index, { ...step, name: e.target.value })
-                        }
-                        className="h-7 text-sm"
-                      />
-                    ) : (
-                      <span className="font-medium">{step.name}</span>
-                    )}
-                    <Badge variant="secondary" className="text-xs font-mono">
-                      {step.typeKey}
-                    </Badge>
-                  </div>
-
-                  {isEditing ? (
-                    <>
-                      <div className="mt-2 grid gap-1.5">
-                        <Label className="text-xs">Step Type</Label>
-                        {renderTypeSelect(step.typeKey, (v) => handleTypeChange(step, index, v))}
-                      </div>
-                      <StepConfigForm
-                        typeKey={step.typeKey}
-                        config={config}
-                        onChange={(c) =>
-                          updateStep(index, {
-                            ...step,
-                            configuration: serializeStepConfig(c, step.typeKey),
-                          })
-                        }
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="mt-2"
-                        onClick={() => setEditingIndex(null)}
-                      >
-                        Done
-                      </Button>
-                    </>
-                  ) : (
-                    summary && (
-                      <p className="mt-1 text-sm text-muted-foreground font-mono">
-                        {summary}
-                      </p>
-                    )
-                  )}
-                </div>
-
-                <div className="flex gap-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() =>
-                      setEditingIndex(isEditing ? null : index)
-                    }
-                  >
-                    <Pencil className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-destructive"
-                    onClick={() => removeStep(index)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+      <StepPipeline
+        steps={steps}
+        editingIndex={editingIndex}
+        onEdit={setEditingIndex}
+        onUpdate={updateStep}
+        onRemove={removeStep}
+        onMove={moveStep}
+        onAddClick={() => setAdding(true)}
+      />
 
       {adding && (
-        <Card className="border-dashed">
-          <CardContent className="p-4 space-y-3">
-            <div className="grid gap-1.5">
-              <Label className="text-xs">Step Name</Label>
-              <Input
-                placeholder="e.g., Copy invoice files"
-                value={draft.name}
-                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label className="text-xs">Step Type</Label>
-              {renderTypeSelect(draft.typeKey, (v) => handleTypeChange(draft, null, v))}
-            </div>
-            <StepConfigForm
-              typeKey={draft.typeKey}
-              config={parseStepConfig(draft.configuration, draft.typeKey)}
-              onChange={(c) =>
-                setDraft({ ...draft, configuration: serializeStepConfig(c, draft.typeKey) })
+        <div className="rounded-lg border-2 border-dashed border-primary/30 bg-card p-4 space-y-3">
+          <div className="grid gap-1.5">
+            <Label className="text-xs">Step Name</Label>
+            <Input
+              placeholder="e.g., Copy invoice files"
+              value={draft.name}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs">Step Type</Label>
+            <StepTypePicker
+              value={draft.typeKey}
+              onChange={(v) => setDraft({ ...draft, typeKey: v, configuration: "{}" })}
+              trigger={
+                <button
+                  type="button"
+                  className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors w-full text-left"
+                >
+                  <div className={`rounded-md p-1 ${draftMeta.color} text-white`}>
+                    <DraftIcon className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="font-medium">{getStepTypeLabel(draft.typeKey)}</span>
+                  <Badge variant="secondary" className="ml-auto text-xs font-mono">
+                    {draft.typeKey}
+                  </Badge>
+                </button>
               }
             />
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                onClick={addStep}
-                disabled={!draft.name.trim()}
-              >
-                Add
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setAdding(false)}
-              >
-                Cancel
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            {/* Hidden native select for E2E test backward compatibility */}
+            <select
+              className="sr-only"
+              value={draft.typeKey}
+              onChange={(e) =>
+                setDraft({ ...draft, typeKey: e.target.value, configuration: "{}" })
+              }
+            >
+              {STEP_TYPE_GROUPS.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.types.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+          <StepConfigForm
+            typeKey={draft.typeKey}
+            config={parseStepConfig(draft.configuration, draft.typeKey)}
+            onChange={(c) =>
+              setDraft({ ...draft, configuration: serializeStepConfig(c, draft.typeKey) })
+            }
+          />
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={addStep}
+              disabled={!draft.name.trim()}
+            >
+              Add
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setAdding(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );

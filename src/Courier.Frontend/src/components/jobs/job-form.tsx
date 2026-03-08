@@ -138,11 +138,7 @@ export function JobForm({ job, existingSteps }: JobFormProps) {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="pt-6">
-          <StepBuilder steps={steps} onChange={setSteps} />
-        </CardContent>
-      </Card>
+      <StepBuilder steps={steps} onChange={setSteps} />
 
       <div className="flex justify-end gap-3">
         <Button variant="outline" type="button" asChild>

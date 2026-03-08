@@ -17,6 +17,14 @@ public class JobStepService
         if (job is null)
             return new ApiResponse<JobStepDto> { Error = ErrorMessages.Create(ErrorCodes.ResourceNotFound, $"Job '{jobId}' not found.") };
 
+        if (!string.IsNullOrEmpty(request.Alias))
+        {
+            var aliasExists = await _db.JobSteps.AnyAsync(
+                s => s.JobId == jobId && s.Alias == request.Alias, ct);
+            if (aliasExists)
+                return new ApiResponse<JobStepDto> { Error = ErrorMessages.Create(ErrorCodes.DuplicateResource, $"Alias '{request.Alias}' is already used by another step in this job.") };
+        }
+
         var step = new JobStep
         {
             Id = Guid.NewGuid(),
@@ -26,6 +34,7 @@ public class JobStepService
             TypeKey = request.TypeKey,
             Configuration = request.Configuration,
             TimeoutSeconds = request.TimeoutSeconds,
+            Alias = request.Alias,
         };
 
         _db.JobSteps.Add(step);
@@ -59,6 +68,13 @@ public class JobStepService
                 Error = ErrorMessages.Create(ErrorCodes.ResourceNotFound, $"Job '{jobId}' not found.")
             };
 
+        var aliases = steps.Where(s => !string.IsNullOrEmpty(s.Alias)).Select(s => s.Alias!).ToList();
+        if (aliases.Count != aliases.Distinct(StringComparer.OrdinalIgnoreCase).Count())
+            return new ApiResponse<List<JobStepDto>>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.ValidationFailed, "Step aliases must be unique within a job.")
+            };
+
         var existingSteps = await _db.JobSteps
             .Where(s => s.JobId == jobId)
             .ToListAsync(ct);
@@ -73,6 +89,7 @@ public class JobStepService
             StepOrder = s.StepOrder,
             Configuration = s.Configuration,
             TimeoutSeconds = s.TimeoutSeconds,
+            Alias = s.Alias,
         }).ToList();
 
         _db.JobSteps.AddRange(newSteps);
@@ -93,5 +110,6 @@ public class JobStepService
         TypeKey = s.TypeKey,
         Configuration = s.Configuration,
         TimeoutSeconds = s.TimeoutSeconds,
+        Alias = s.Alias,
     };
 }

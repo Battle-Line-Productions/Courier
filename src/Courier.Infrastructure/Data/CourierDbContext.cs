@@ -103,6 +103,7 @@ public class CourierDbContext : DbContext
             entity.Property(e => e.TypeKey).HasColumnName("type_key").IsRequired();
             entity.Property(e => e.Configuration).HasColumnName("configuration").HasColumnType("jsonb");
             entity.Property(e => e.TimeoutSeconds).HasColumnName("timeout_seconds").HasDefaultValue(300);
+            entity.Property(e => e.Alias).HasColumnName("alias");
 
             entity.HasOne(e => e.Job).WithMany(j => j.Steps).HasForeignKey(e => e.JobId);
             entity.HasIndex(e => new { e.JobId, e.StepOrder }).IsUnique();

@@ -302,7 +302,11 @@ public class JobEngine
             {
                 stepExecution.OutputData = JsonSerializer.Serialize(result.Outputs);
                 foreach (var kvp in result.Outputs)
+                {
                     run.Context.Set($"{step.StepOrder}.{kvp.Key}", kvp.Value);
+                    if (!string.IsNullOrEmpty(step.Alias))
+                        run.Context.Set($"{step.Alias}.{kvp.Key}", kvp.Value);
+                }
             }
 
             _logger.LogInformation("Step {StepName} completed in {DurationMs}ms", step.Name, sw.ElapsedMilliseconds);
@@ -402,7 +406,11 @@ public class JobEngine
                     {
                         retryStepExecution.OutputData = JsonSerializer.Serialize(retryResult.Outputs);
                         foreach (var kvp in retryResult.Outputs)
+                        {
                             run.Context.Set($"{step.StepOrder}.{kvp.Key}", kvp.Value);
+                            if (!string.IsNullOrEmpty(step.Alias))
+                                run.Context.Set($"{step.Alias}.{kvp.Key}", kvp.Value);
+                        }
                     }
 
                     _logger.LogInformation("Step '{StepName}' succeeded on retry attempt {Attempt}", step.Name, attempt);
