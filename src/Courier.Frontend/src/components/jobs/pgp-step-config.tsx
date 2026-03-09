@@ -147,7 +147,7 @@ export function PgpEncryptForm({
   config: PgpEncryptConfig;
   onChange: (config: PgpEncryptConfig) => void;
 }) {
-  const [browsing, setBrowsing] = useState(false);
+  const [browsing, setBrowsing] = useState<"input" | "output" | null>(null);
 
   return (
     <div className="grid gap-3 pt-2">
@@ -159,7 +159,7 @@ export function PgpEncryptForm({
             value={config.inputPath}
             onChange={(e) => onChange({ ...config, inputPath: e.target.value })}
           />
-          <Button type="button" variant="outline" size="icon" onClick={() => setBrowsing(true)} title="Browse filesystem">
+          <Button type="button" variant="outline" size="icon" onClick={() => setBrowsing("input")} title="Browse filesystem">
             <FolderOpen className="size-4" />
           </Button>
         </div>
@@ -169,18 +169,22 @@ export function PgpEncryptForm({
           <Label className="text-xs">Output Path</Label>
           <FieldTooltip text="Optional. Defaults to input path with .pgp extension." />
         </div>
-        <Input
-          placeholder="/data/encrypted/report.csv.pgp"
-          value={config.outputPath}
-          onChange={(e) => onChange({ ...config, outputPath: e.target.value })}
-        />
+        <div className="flex gap-1.5">
+          <Input
+            placeholder="/data/encrypted/report.csv.pgp"
+            value={config.outputPath}
+            onChange={(e) => onChange({ ...config, outputPath: e.target.value })}
+          />
+          <Button type="button" variant="outline" size="icon" onClick={() => setBrowsing("output")} title="Browse filesystem">
+            <FolderOpen className="size-4" />
+          </Button>
+        </div>
       </div>
       <PgpMultiKeyPicker
         label="Recipient Keys"
         tooltip="Public keys of recipients who should be able to decrypt this file."
         values={config.recipientKeyIds}
         onChange={(ids) => onChange({ ...config, recipientKeyIds: ids })}
-        keyTypeFilter="public_key"
       />
       <PgpKeyPicker
         label="Signing Key (optional)"
@@ -215,7 +219,14 @@ export function PgpEncryptForm({
         </div>
       </div>
 
-      <FileBrowserDialog open={browsing} onOpenChange={setBrowsing} onSelect={(path) => onChange({ ...config, inputPath: path })} />
+      <FileBrowserDialog
+        open={browsing !== null}
+        onOpenChange={(open) => { if (!open) setBrowsing(null); }}
+        onSelect={(path) => {
+          if (browsing === "input") onChange({ ...config, inputPath: path });
+          else if (browsing === "output") onChange({ ...config, outputPath: path });
+        }}
+      />
     </div>
   );
 }
@@ -261,7 +272,7 @@ export function PgpDecryptForm({
   config: PgpDecryptConfig;
   onChange: (config: PgpDecryptConfig) => void;
 }) {
-  const [browsing, setBrowsing] = useState(false);
+  const [browsing, setBrowsing] = useState<"input" | "output" | null>(null);
 
   return (
     <div className="grid gap-3 pt-2">
@@ -273,7 +284,7 @@ export function PgpDecryptForm({
             value={config.inputPath}
             onChange={(e) => onChange({ ...config, inputPath: e.target.value })}
           />
-          <Button type="button" variant="outline" size="icon" onClick={() => setBrowsing(true)} title="Browse filesystem">
+          <Button type="button" variant="outline" size="icon" onClick={() => setBrowsing("input")} title="Browse filesystem">
             <FolderOpen className="size-4" />
           </Button>
         </div>
@@ -283,11 +294,16 @@ export function PgpDecryptForm({
           <Label className="text-xs">Output Path</Label>
           <FieldTooltip text="Optional. Defaults to input path without .pgp extension." />
         </div>
-        <Input
-          placeholder="/data/decrypted/report.csv"
-          value={config.outputPath}
-          onChange={(e) => onChange({ ...config, outputPath: e.target.value })}
-        />
+        <div className="flex gap-1.5">
+          <Input
+            placeholder="/data/decrypted/report.csv"
+            value={config.outputPath}
+            onChange={(e) => onChange({ ...config, outputPath: e.target.value })}
+          />
+          <Button type="button" variant="outline" size="icon" onClick={() => setBrowsing("output")} title="Browse filesystem">
+            <FolderOpen className="size-4" />
+          </Button>
+        </div>
       </div>
       <PgpKeyPicker
         label="Private Key"
@@ -306,7 +322,14 @@ export function PgpDecryptForm({
         Verify signature (if signed)
       </label>
 
-      <FileBrowserDialog open={browsing} onOpenChange={setBrowsing} onSelect={(path) => onChange({ ...config, inputPath: path })} />
+      <FileBrowserDialog
+        open={browsing !== null}
+        onOpenChange={(open) => { if (!open) setBrowsing(null); }}
+        onSelect={(path) => {
+          if (browsing === "input") onChange({ ...config, inputPath: path });
+          else if (browsing === "output") onChange({ ...config, outputPath: path });
+        }}
+      />
     </div>
   );
 }
@@ -351,7 +374,7 @@ export function PgpSignForm({
   config: PgpSignConfig;
   onChange: (config: PgpSignConfig) => void;
 }) {
-  const [browsing, setBrowsing] = useState(false);
+  const [browsing, setBrowsing] = useState<"input" | "output" | null>(null);
 
   return (
     <div className="grid gap-3 pt-2">
@@ -363,7 +386,7 @@ export function PgpSignForm({
             value={config.inputPath}
             onChange={(e) => onChange({ ...config, inputPath: e.target.value })}
           />
-          <Button type="button" variant="outline" size="icon" onClick={() => setBrowsing(true)} title="Browse filesystem">
+          <Button type="button" variant="outline" size="icon" onClick={() => setBrowsing("input")} title="Browse filesystem">
             <FolderOpen className="size-4" />
           </Button>
         </div>
@@ -373,11 +396,16 @@ export function PgpSignForm({
           <Label className="text-xs">Output Path</Label>
           <FieldTooltip text="Optional. Defaults based on sign mode (e.g., .sig for detached)." />
         </div>
-        <Input
-          placeholder="/data/reports/report.csv.sig"
-          value={config.outputPath}
-          onChange={(e) => onChange({ ...config, outputPath: e.target.value })}
-        />
+        <div className="flex gap-1.5">
+          <Input
+            placeholder="/data/reports/report.csv.sig"
+            value={config.outputPath}
+            onChange={(e) => onChange({ ...config, outputPath: e.target.value })}
+          />
+          <Button type="button" variant="outline" size="icon" onClick={() => setBrowsing("output")} title="Browse filesystem">
+            <FolderOpen className="size-4" />
+          </Button>
+        </div>
       </div>
       <PgpKeyPicker
         label="Signing Key"
@@ -428,7 +456,14 @@ export function PgpSignForm({
         </div>
       </div>
 
-      <FileBrowserDialog open={browsing} onOpenChange={setBrowsing} onSelect={(path) => onChange({ ...config, inputPath: path })} />
+      <FileBrowserDialog
+        open={browsing !== null}
+        onOpenChange={(open) => { if (!open) setBrowsing(null); }}
+        onSelect={(path) => {
+          if (browsing === "input") onChange({ ...config, inputPath: path });
+          else if (browsing === "output") onChange({ ...config, outputPath: path });
+        }}
+      />
     </div>
   );
 }
@@ -511,7 +546,6 @@ export function PgpVerifyForm({
         tooltip="Restrict verification to these specific public keys. Leave empty to accept any known key."
         values={config.signerKeyIds}
         onChange={(ids) => onChange({ ...config, signerKeyIds: ids })}
-        keyTypeFilter="public_key"
       />
 
       <FileBrowserDialog

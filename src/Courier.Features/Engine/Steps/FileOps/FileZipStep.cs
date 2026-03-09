@@ -16,6 +16,22 @@ public class FileZipStep : CompressionStepBase
         var password = config.GetStringOrDefault("password");
         var format = config.GetStringOrDefault("format", "zip")!;
 
+        // If output_path is a directory, generate a filename from the source file(s)
+        if (Directory.Exists(outputPath))
+        {
+            var baseName = sourcePaths.Length == 1
+                ? Path.GetFileNameWithoutExtension(sourcePaths[0])
+                : "archive";
+            var extension = format switch
+            {
+                "tar.gz" or "tgz" => ".tar.gz",
+                "tar" => ".tar",
+                "gz" or "gzip" => ".gz",
+                _ => $".{format}"
+            };
+            outputPath = Path.Combine(outputPath, baseName + extension);
+        }
+
         // Convert split_max_size_mb (megabytes) to bytes for the compression provider
         long? splitMaxSizeBytes = config.Has("split_max_size_mb")
             ? config.GetLong("split_max_size_mb") * 1024 * 1024

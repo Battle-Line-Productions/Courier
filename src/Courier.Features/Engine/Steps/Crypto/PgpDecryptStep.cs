@@ -13,7 +13,12 @@ public class PgpDecryptStep : CryptoStepBase
     {
         var inputPath = ResolveContextRef(config.GetString("input_path"), context);
         var outputPath = config.GetStringOrDefault("output_path", inputPath + ".dec")!;
+        outputPath = ResolveContextRef(outputPath, context);
         var privateKeyId = Guid.Parse(config.GetString("private_key_id"));
+
+        // If output_path is a directory, generate filename from input file
+        if (Directory.Exists(outputPath))
+            outputPath = Path.Combine(outputPath, Path.GetFileName(inputPath) + ".dec");
         var verifySignature = config.GetBoolOrDefault("verify_signature", false);
 
         var result = await CryptoProvider.DecryptAsync(

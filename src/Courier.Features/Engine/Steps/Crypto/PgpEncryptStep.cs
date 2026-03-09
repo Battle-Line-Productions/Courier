@@ -13,9 +13,17 @@ public class PgpEncryptStep : CryptoStepBase
     {
         var inputPath = ResolveContextRef(config.GetString("input_path"), context);
         var outputPath = config.GetStringOrDefault("output_path", inputPath + ".pgp")!;
+        outputPath = ResolveContextRef(outputPath, context);
         var recipientIds = config.GetStringArray("recipient_key_ids").Select(Guid.Parse).ToList();
         var signingKeyId = config.Has("signing_key_id") ? Guid.Parse(config.GetString("signing_key_id")) : (Guid?)null;
         var format = config.GetStringOrDefault("output_format", "binary") == "armored" ? OutputFormat.Armored : OutputFormat.Binary;
+
+        if (recipientIds.Count == 0)
+            return StepResult.Fail("No recipient keys specified. PGP encryption requires at least one recipient_key_ids entry.");
+
+        // If output_path is a directory, generate filename from input file
+        if (Directory.Exists(outputPath))
+            outputPath = Path.Combine(outputPath, Path.GetFileName(inputPath) + ".pgp");
 
         var result = await CryptoProvider.EncryptAsync(
             new EncryptRequest(inputPath, outputPath, recipientIds, signingKeyId, format), null, ct);
