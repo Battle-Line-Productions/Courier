@@ -20,7 +20,8 @@ public class ExecutionControlTests
         return new CourierDbContext(options);
     }
 
-    private static async Task<(CourierDbContext db, ExecutionService service, Guid executionId)> SetupExecutionAsync(JobExecutionState state)
+    private static async Task<(CourierDbContext db, ExecutionService service, Guid executionId)> SetupExecutionAsync(
+        JobExecutionState state, string? requestedState = null)
     {
         var db = CreateInMemoryContext();
         var service = new ExecutionService(db, new AuditService(db));
@@ -43,6 +44,10 @@ public class ExecutionControlTests
             StartedAt = state == JobExecutionState.Running ? DateTime.UtcNow : null,
             CreatedAt = DateTime.UtcNow,
         };
+
+        if (requestedState != null)
+            execution.RequestedState = requestedState;
+
         db.JobExecutions.Add(execution);
         await db.SaveChangesAsync();
 
@@ -184,5 +189,46 @@ public class ExecutionControlTests
         // Assert
         result.Success.ShouldBeFalse();
         result.Error!.Code.ShouldBe(ErrorCodes.ExecutionCannotBeCancelled);
+    }
+
+    [Fact]
+    public async Task CancelExecution_RunningWithStaleCancelRequest_ForceTransitionsToCancelled()
+    {
+        // Arrange — simulates engine crash: Running + RequestedState already "cancelled"
+        var (db, service, executionId) = await SetupExecutionAsync(JobExecutionState.Running, requestedState: "cancelled");
+
+        // Act — second cancel attempt should force-transition
+        var result = await service.CancelExecutionAsync(executionId, "admin", "Engine crashed", CancellationToken.None);
+
+        // Assert
+        result.Success.ShouldBeTrue();
+        result.Data!.State.ShouldBe("cancelled");
+
+        var execution = await db.JobExecutions.FindAsync(executionId);
+        execution!.State.ShouldBe(JobExecutionState.Cancelled);
+        execution.CancelledAt.ShouldNotBeNull();
+        execution.CompletedAt.ShouldNotBeNull();
+        execution.RequestedState.ShouldBeNull();
+        execution.CancelledBy.ShouldBe("admin");
+        execution.CancelReason.ShouldBe("Engine crashed");
+    }
+
+    [Fact]
+    public async Task CancelExecution_RunningWithPauseRequest_OverwritesWithCancelSignal()
+    {
+        // Arrange — Running with a pending pause request
+        var (db, service, executionId) = await SetupExecutionAsync(JobExecutionState.Running, requestedState: "paused");
+
+        // Act — cancel should overwrite the pause signal (not force-cancel since RequestedState != "cancelled")
+        var result = await service.CancelExecutionAsync(executionId, "admin", "No longer needed", CancellationToken.None);
+
+        // Assert
+        result.Success.ShouldBeTrue();
+        result.Data!.State.ShouldBe("running"); // Still running — engine will acknowledge
+
+        var execution = await db.JobExecutions.FindAsync(executionId);
+        execution!.RequestedState.ShouldBe("cancelled");
+        execution.CancelledBy.ShouldBe("admin");
+        execution.CancelReason.ShouldBe("No longer needed");
     }
 }

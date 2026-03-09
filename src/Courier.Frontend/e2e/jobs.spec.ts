@@ -1004,8 +1004,8 @@ test.describe("Jobs - Step Builder", () => {
         typeKey: "file.copy",
         stepOrder: 1,
         configuration: JSON.stringify({
-          sourcePath: "/old/source",
-          destinationPath: "/old/dest",
+          source_path: "/old/source",
+          destination_path: "/old/dest",
         }),
       },
     ]);
@@ -1131,6 +1131,214 @@ test.describe("Jobs - Step Builder", () => {
     // The dialog should have some close mechanism — press Escape
     await authenticatedPage.keyboard.press("Escape");
     await expect(dialog).not.toBeVisible();
+  });
+
+  test("step alias shows auto-generated reference ID on edit", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    const jobName = `e2e-alias-${Date.now()}`;
+    const job = await createTestJob(apiHelper.request, { name: jobName });
+
+    await addJobSteps(apiHelper.request, job.id, [
+      {
+        name: "Copy Invoice Files",
+        typeKey: "file.copy",
+        stepOrder: 1,
+        configuration: JSON.stringify({
+          source_path: "/data/in",
+          destination_path: "/data/out",
+        }),
+      },
+    ]);
+
+    try {
+      await authenticatedPage.goto(`/jobs/${job.id}/edit`);
+
+      await expect(
+        authenticatedPage.getByRole("heading", { name: "Edit Job" })
+      ).toBeVisible({ timeout: 10_000 });
+
+      // Expand the step by clicking the edit (pencil) button
+      const editButton = authenticatedPage.locator("button").filter({
+        has: authenticatedPage.locator("svg.lucide-pencil"),
+      }).first();
+      await editButton.click();
+
+      // The Reference ID label should be visible for output-producing steps
+      await expect(
+        authenticatedPage.getByText("Reference ID:")
+      ).toBeVisible();
+
+      // The alias input should show the auto-generated placeholder from the step name
+      // "Copy Invoice Files" → "copy_invoice_files"
+      const aliasInput = authenticatedPage.locator("input[placeholder='copy_invoice_files']");
+      await expect(aliasInput).toBeVisible();
+
+      // The reference preview should show context:{alias}.<output>
+      await expect(
+        authenticatedPage.locator("code").filter({ hasText: "context:copy_invoice_files." })
+      ).toBeVisible();
+    } finally {
+      await deleteTestJob(apiHelper.request, job.id);
+    }
+  });
+
+  test("step alias can be overridden with custom value", async ({
+    authenticatedPage,
+    apiHelper,
+  }) => {
+    const jobName = `e2e-alias-custom-${Date.now()}`;
+    const job = await createTestJob(apiHelper.request, { name: jobName });
+
+    await addJobSteps(apiHelper.request, job.id, [
+      {
+        name: "Copy Files",
+        typeKey: "file.copy",
+        stepOrder: 1,
+        configuration: JSON.stringify({
+          source_path: "/data/in",
+          destination_path: "/data/out",
+        }),
+      },
+    ]);
+
+    try {
+      await authenticatedPage.goto(`/jobs/${job.id}/edit`);
+
+      await expect(
+        authenticatedPage.getByRole("heading", { name: "Edit Job" })
+      ).toBeVisible({ timeout: 10_000 });
+
+      // Expand the step
+      const editButton = authenticatedPage.locator("button").filter({
+        has: authenticatedPage.locator("svg.lucide-pencil"),
+      }).first();
+      await editButton.click();
+
+      // Type a custom alias
+      const aliasInput = authenticatedPage.locator("input[placeholder='copy_files']");
+      await expect(aliasInput).toBeVisible();
+      await aliasInput.fill("my_copy");
+
+      // The reference preview should update to the custom alias
+      await expect(
+        authenticatedPage.locator("code").filter({ hasText: "context:my_copy." })
+      ).toBeVisible();
+
+      // Click Done to collapse the step editor
+      await authenticatedPage
+        .getByRole("button", { name: "Done" })
+        .click();
+
+      // Save the job
+      await authenticatedPage
+        .getByRole("button", { name: "Save Changes" })
+        .click();
+
+      await expect(
+        authenticatedPage.locator("[data-sonner-toast]", {
+          hasText: "Job updated",
+        })
+      ).toBeVisible({ timeout: 10_000 });
+
+      // Verify redirect back to detail page
+      await expect(authenticatedPage).toHaveURL(new RegExp(`/jobs/${job.id}$`));
+    } finally {
+      await deleteTestJob(apiHelper.request, job.id);
+    }
+  });
+
+  test("context variable panel shows preceding step outputs", async ({
+    authenticatedPage,
+  }) => {
+    await authenticatedPage.goto("/jobs/new");
+
+    await expect(
+      authenticatedPage.getByRole("heading", { name: "Create Job" })
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Add first step — file.copy (produces "copied_file" output)
+    await authenticatedPage
+      .getByRole("button", { name: "Add Step" })
+      .click();
+    await authenticatedPage
+      .getByPlaceholder("e.g., Copy invoice files")
+      .fill("Download Report");
+    await authenticatedPage
+      .getByRole("button", { name: "Add", exact: true })
+      .click();
+    await expect(
+      authenticatedPage.getByText("Download Report")
+    ).toBeVisible();
+
+    // Add second step — this should show the context variable panel
+    await authenticatedPage
+      .getByRole("button", { name: "Add Step" })
+      .click();
+    await authenticatedPage
+      .getByPlaceholder("e.g., Copy invoice files")
+      .fill("Upload Report");
+
+    // The "Available Variables" panel should be visible with preceding step outputs
+    await expect(
+      authenticatedPage.getByText("Available Variables")
+    ).toBeVisible();
+
+    // Should show the first step's output variable
+    // "context:download_report.copied_file" (auto-aliased from "Download Report")
+    await expect(
+      authenticatedPage.locator("code").filter({ hasText: "context:download_report.copied_file" })
+    ).toBeVisible();
+
+    // The description should be visible
+    await expect(
+      authenticatedPage.getByText("Destination file path")
+    ).toBeVisible();
+  });
+
+  test("context variable panel copy-to-clipboard works", async ({
+    authenticatedPage,
+  }) => {
+    await authenticatedPage.goto("/jobs/new");
+
+    await expect(
+      authenticatedPage.getByRole("heading", { name: "Create Job" })
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Add first step
+    await authenticatedPage
+      .getByRole("button", { name: "Add Step" })
+      .click();
+    await authenticatedPage
+      .getByPlaceholder("e.g., Copy invoice files")
+      .fill("Copy Source");
+    await authenticatedPage
+      .getByRole("button", { name: "Add", exact: true })
+      .click();
+    await expect(
+      authenticatedPage.getByText("Copy Source")
+    ).toBeVisible();
+
+    // Add second step to show the variable panel
+    await authenticatedPage
+      .getByRole("button", { name: "Add Step" })
+      .click();
+    await authenticatedPage
+      .getByPlaceholder("e.g., Copy invoice files")
+      .fill("Next Step");
+
+    // Click the variable row to copy it
+    const variableRow = authenticatedPage.locator("button").filter({
+      hasText: "context:copy_source.copied_file",
+    });
+    await expect(variableRow).toBeVisible();
+    await variableRow.click();
+
+    // Should show "Copied!" feedback
+    await expect(
+      authenticatedPage.getByText("Copied!")
+    ).toBeVisible();
   });
 
   test("step config: azure_function.execute shows function config fields", async ({

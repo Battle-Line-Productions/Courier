@@ -52,6 +52,67 @@ public class FileCopyStepTests : IDisposable
         new FileCopyStep().TypeKey.ShouldBe("file.copy");
     }
 
+    [Fact]
+    public async Task Execute_DestinationIsDirectory_CopiesWithSourceFilename()
+    {
+        var sourceFile = Path.Combine(_tempDir, "source.txt");
+        var destDir = Path.Combine(_tempDir, "outdir");
+        Directory.CreateDirectory(destDir);
+        await File.WriteAllTextAsync(sourceFile, "hello world");
+
+        var config = new StepConfiguration($$"""{"source_path": "{{sourceFile.Replace("\\", "\\\\")}}", "destination_path": "{{destDir.Replace("\\", "\\\\")}}"}""");
+        var context = new JobContext();
+        var step = new FileCopyStep();
+
+        var result = await step.ExecuteAsync(config, context, CancellationToken.None);
+
+        result.Success.ShouldBeTrue();
+        var expectedDest = Path.Combine(destDir, "source.txt");
+        File.Exists(expectedDest).ShouldBeTrue();
+        (await File.ReadAllTextAsync(expectedDest)).ShouldBe("hello world");
+        File.Exists(sourceFile).ShouldBeTrue(); // source preserved
+    }
+
+    [Fact]
+    public async Task Execute_SkipIfExists_DestinationIsDirectory_SkipsWhenFileExists()
+    {
+        var sourceFile = Path.Combine(_tempDir, "source.txt");
+        var destDir = Path.Combine(_tempDir, "outdir");
+        Directory.CreateDirectory(destDir);
+        await File.WriteAllTextAsync(sourceFile, "hello world");
+        await File.WriteAllTextAsync(Path.Combine(destDir, "source.txt"), "existing");
+
+        var config = new StepConfiguration($$"""{"source_path": "{{sourceFile.Replace("\\", "\\\\")}}", "destination_path": "{{destDir.Replace("\\", "\\\\")}}", "idempotency": "skip_if_exists"}""");
+        var context = new JobContext();
+        var step = new FileCopyStep();
+
+        var result = await step.ExecuteAsync(config, context, CancellationToken.None);
+
+        result.Success.ShouldBeTrue();
+        result.Outputs!["skipped"].ShouldBe("true");
+        // Original file in dest dir should be untouched
+        (await File.ReadAllTextAsync(Path.Combine(destDir, "source.txt"))).ShouldBe("existing");
+    }
+
+    [Fact]
+    public async Task Execute_WithCamelCaseConfigKeys_CopiesSuccessfully()
+    {
+        var sourceFile = Path.Combine(_tempDir, "source.txt");
+        var destFile = Path.Combine(_tempDir, "dest.txt");
+        await File.WriteAllTextAsync(sourceFile, "camel case config");
+
+        // Uses camelCase keys — the bug that caused KeyNotFoundException
+        var config = new StepConfiguration($$"""{"sourcePath": "{{sourceFile.Replace("\\", "\\\\")}}", "destinationPath": "{{destFile.Replace("\\", "\\\\")}}"}""");
+        var context = new JobContext();
+        var step = new FileCopyStep();
+
+        var result = await step.ExecuteAsync(config, context, CancellationToken.None);
+
+        result.Success.ShouldBeTrue();
+        File.Exists(destFile).ShouldBeTrue();
+        (await File.ReadAllTextAsync(destFile)).ShouldBe("camel case config");
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_tempDir))

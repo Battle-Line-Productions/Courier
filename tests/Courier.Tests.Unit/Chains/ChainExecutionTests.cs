@@ -241,4 +241,84 @@ public class ChainExecutionTests
         chainExec!.State.ShouldBe(ChainExecutionState.Completed);
         chainExec.CompletedAt.ShouldNotBeNull();
     }
+
+    [Fact]
+    public async Task EvaluateChainProgress_AnyMemberFailed_MarksChainFailed()
+    {
+        // Arrange
+        using var db = CreateInMemoryContext();
+        var audit = new AuditService(db);
+        var jobService = new JobService(db, audit);
+        var chainService = new ChainService(db, audit);
+
+        var job1 = await jobService.CreateAsync(new CreateJobRequest { Name = "Solo Fail" });
+        var chain = await chainService.CreateAsync(new CreateChainRequest { Name = "FailChain" });
+        await chainService.ReplaceMembersAsync(chain.Data!.Id,
+            [new() { JobId = job1.Data!.Id, ExecutionOrder = 1 }]);
+
+        var executionService = new ChainExecutionService(db, audit, new DomainEventService(db));
+        var orchestrator = new ChainOrchestrator(db, NullLogger<ChainOrchestrator>.Instance, new DomainEventService(db));
+
+        var triggered = await executionService.TriggerAsync(chain.Data.Id, "test");
+        var jobExec = await db.JobExecutions
+            .FirstAsync(e => e.ChainExecutionId == triggered.Data!.Id);
+
+        // Simulate failure
+        jobExec.State = JobExecutionState.Failed;
+        jobExec.CompletedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        // Act
+        await orchestrator.EvaluateChainProgressAsync(jobExec.Id);
+
+        // Assert
+        var chainExec = await db.ChainExecutions.FindAsync(triggered.Data!.Id);
+        chainExec.ShouldNotBeNull();
+        chainExec!.State.ShouldBe(ChainExecutionState.Failed);
+        chainExec.CompletedAt.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task EvaluateChainProgress_AlreadyQueuedMember_SkipsDuplicate()
+    {
+        // Arrange
+        using var db = CreateInMemoryContext();
+        var audit = new AuditService(db);
+        var (chain, job1Id, job2Id, _) = await SetupChainWithThreeJobs(db, audit);
+        var executionService = new ChainExecutionService(db, audit, new DomainEventService(db));
+        var orchestrator = new ChainOrchestrator(db, NullLogger<ChainOrchestrator>.Instance, new DomainEventService(db));
+
+        var triggered = await executionService.TriggerAsync(chain.Id, "test");
+        var chainExecutionId = triggered.Data!.Id;
+
+        // Pre-create a Job2 execution (as if it was already queued)
+        var existingJob2Exec = new JobExecution
+        {
+            Id = Guid.NewGuid(),
+            JobId = job2Id,
+            JobVersionNumber = 1,
+            TriggeredBy = "pre-existing",
+            State = JobExecutionState.Queued,
+            QueuedAt = DateTime.UtcNow,
+            ChainExecutionId = chainExecutionId,
+            CreatedAt = DateTime.UtcNow,
+        };
+        db.JobExecutions.Add(existingJob2Exec);
+
+        var firstJobExec = await db.JobExecutions
+            .FirstAsync(e => e.ChainExecutionId == chainExecutionId && e.JobId == job1Id);
+        firstJobExec.State = JobExecutionState.Completed;
+        firstJobExec.CompletedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        // Act
+        await orchestrator.EvaluateChainProgressAsync(firstJobExec.Id);
+
+        // Assert — should NOT have created a duplicate Job2 execution
+        var job2Executions = await db.JobExecutions
+            .Where(e => e.ChainExecutionId == chainExecutionId && e.JobId == job2Id)
+            .ToListAsync();
+        job2Executions.Count.ShouldBe(1);
+        job2Executions[0].Id.ShouldBe(existingJob2Exec.Id);
+    }
 }

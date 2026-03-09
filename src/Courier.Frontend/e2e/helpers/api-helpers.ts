@@ -91,6 +91,7 @@ export async function addJobSteps(
     stepOrder: number;
     configuration: string;
     timeoutSeconds?: number;
+    alias?: string;
   }>
 ) {
   const token = await getAuthToken(request);

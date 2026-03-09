@@ -110,4 +110,55 @@ public class StepConfigurationTests
         var config = new StepConfiguration("""{"key":"value"}""");
         config.Raw.ShouldBe("""{"key":"value"}""");
     }
+
+    // --- camelCase fallback regression tests (Bug: frontend sends camelCase, backend reads snake_case) ---
+
+    [Fact]
+    public void GetString_WithCamelCaseKey_FallsBackSuccessfully()
+    {
+        var config = new StepConfiguration("""{"sourcePath": "f.txt"}""");
+        config.GetString("source_path").ShouldBe("f.txt");
+    }
+
+    [Fact]
+    public void GetBool_WithCamelCaseKey_FallsBackSuccessfully()
+    {
+        var config = new StepConfiguration("""{"overwriteExisting": true}""");
+        config.GetBool("overwrite_existing").ShouldBeTrue();
+    }
+
+    [Fact]
+    public void GetInt_WithCamelCaseKey_FallsBackSuccessfully()
+    {
+        var config = new StepConfiguration("""{"retryCount": 3}""");
+        config.GetInt("retry_count").ShouldBe(3);
+    }
+
+    [Fact]
+    public void GetStringOrDefault_WithCamelCaseKey_ReturnsValueNotDefault()
+    {
+        var config = new StepConfiguration("""{"destinationPath": "/out"}""");
+        config.GetStringOrDefault("destination_path", "/def").ShouldBe("/out");
+    }
+
+    [Fact]
+    public void Has_WithCamelCaseKey_ReturnsTrue()
+    {
+        var config = new StepConfiguration("""{"sourcePath": "f.txt"}""");
+        config.Has("source_path").ShouldBeTrue();
+    }
+
+    [Fact]
+    public void GetStringArray_WithCamelCaseKey_FallsBackSuccessfully()
+    {
+        var config = new StepConfiguration("""{"filePatterns": ["*.csv"]}""");
+        config.GetStringArray("file_patterns").ShouldBe(new[] { "*.csv" });
+    }
+
+    [Fact]
+    public void GetString_PreferExactSnakeCaseKey_WhenBothFormatsExist()
+    {
+        var config = new StepConfiguration("""{"source_path": "snake.txt", "sourcePath": "camel.txt"}""");
+        config.GetString("source_path").ShouldBe("snake.txt");
+    }
 }
