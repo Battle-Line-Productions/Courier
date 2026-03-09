@@ -27,6 +27,7 @@ dotnet test Courier.slnx                                                        
 dotnet test tests/Courier.Tests.Unit                                               # Fast, no Docker
 dotnet test tests/Courier.Tests.Architecture                                       # Dependency rule enforcement
 dotnet test tests/Courier.Tests.Integration                                        # Requires Docker (Testcontainers)
+dotnet test tests/Courier.Tests.JobEngine                                          # Engine pipeline tests, no Docker
 dotnet test tests/Courier.Tests.Unit --filter "FullyQualifiedName~JobServiceTests" # Single class
 ```
 
@@ -91,9 +92,9 @@ Api / Worker  →  Features  →  Infrastructure  →  Domain (BCL-only, zero Nu
 
 - `IJobStep` interface: `TypeKey` property + `ExecuteAsync(StepConfiguration, JobContext, CancellationToken)`.
 - Step type keys: `"file.copy"`, `"sftp.upload"`, `"pgp.encrypt"`, etc.
-- `StepConfiguration` wraps `JsonElement` with typed accessors (`GetString`, `GetBool`, `GetStringArray`).
-- `JobContext` is a key-value bag passed through all steps; outputs keyed as `"{stepOrder}.{outputKey}"`.
-- `context:` prefix in config values references prior step outputs (e.g., `"context:1.uploaded_file"`).
+- `StepConfiguration` wraps `JsonElement` with typed accessors (`GetString`, `GetBool`, `GetStringArray`). Supports snake_case/camelCase fallback — `GetString("source_path")` finds `sourcePath` if exact key missing.
+- `JobContext` is a key-value bag passed through all steps; outputs keyed as `"{alias}.{outputKey}"` where alias is a slugified step name (e.g., `download-report.downloaded_file`).
+- `context:` prefix in config values references prior step outputs (e.g., `"context:download-report.downloaded_file"`). Steps can have custom aliases set via the UI.
 - `JobConnectionRegistry` pools transfer client connections within a single job execution.
 
 ### Encryption
@@ -105,6 +106,7 @@ Api / Worker  →  Features  →  Infrastructure  →  Domain (BCL-only, zero Nu
 ### Testing
 
 - **Unit**: InMemory EF database (unique per test), NSubstitute for mocking, Shouldly assertions.
+- **JobEngine**: End-to-end engine pipeline tests (context resolution, crypto, file ops, flow control, transfer steps, failure policies). InMemory EF, no Docker.
 - **Integration**: `WebApplicationFactory<Courier.Api.Program>` + Testcontainers PostgreSQL. Factory removes all `IHostedService` registrations and replaces EF connection.
 - **Architecture**: NetArchTest enforces dependency rules (Domain has zero external deps, etc.).
 - **E2E (Playwright)**: Browser-based tests against a running Aspire stack. See [E2E Tests](#e2e-tests-playwright) section below.
@@ -166,6 +168,8 @@ npx playwright test
 - Cleanup in `finally` blocks via API helpers
 - Toast assertions: `page.locator('[data-sonner-toast]').filter({ hasText: "..." })`
 - Confirm dialogs: `page.getByRole('dialog')` then click confirm button inside
+- Step config keys in E2E tests must use **snake_case** (e.g., `source_path`, `destination_path`) — the backend expects snake_case, the frontend converts camelCase form state to snake_case before sending
+- `apiHelper.addJobSteps()` supports an optional `alias` field per step for custom step aliases
 
 **Reading test results correctly (IMPORTANT):**
 Playwright's default `line` and `dot` reporters use ANSI escape codes that overwrite previous lines. When captured via `tail` or `tee`, the summary counts appear garbled or incomplete. To get accurate results:
