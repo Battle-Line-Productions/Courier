@@ -144,6 +144,16 @@ public static class ErrorCodes
     public const int WeakPassword = 10012;
     public const int InvalidCurrentPassword = 10013;
     public const int UserNotFound = 10014;
+
+    // Feedback / GitHub (11000-11099)
+    public const int GitHubApiUnavailable = 11000;
+    public const int GitHubAuthFailed = 11001;
+    public const int GitHubRateLimited = 11002;
+    public const int GitHubIssueNotFound = 11003;
+    public const int GitHubValidationFailed = 11004;
+    public const int GitHubNotConfigured = 11005;
+    public const int GitHubAccountNotLinked = 11006;
+    public const int GitHubOAuthFailed = 11007;
 }
 
 public static class ErrorMessages
@@ -254,6 +264,16 @@ public static class ErrorMessages
         [ErrorCodes.WeakPassword] = "Password does not meet requirements",
         [ErrorCodes.InvalidCurrentPassword] = "Invalid current password",
         [ErrorCodes.UserNotFound] = "User not found",
+
+        // Feedback / GitHub
+        [ErrorCodes.GitHubApiUnavailable] = "GitHub API unavailable",
+        [ErrorCodes.GitHubAuthFailed] = "GitHub authentication failed",
+        [ErrorCodes.GitHubRateLimited] = "GitHub rate limit exceeded",
+        [ErrorCodes.GitHubIssueNotFound] = "GitHub issue not found",
+        [ErrorCodes.GitHubValidationFailed] = "GitHub validation failed",
+        [ErrorCodes.GitHubNotConfigured] = "GitHub integration not configured",
+        [ErrorCodes.GitHubAccountNotLinked] = "GitHub account not linked",
+        [ErrorCodes.GitHubOAuthFailed] = "GitHub OAuth failed",
     };
 
     public static ApiError Create(int code, string message, IReadOnlyList<FieldError>? details = null)

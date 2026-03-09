@@ -39,6 +39,8 @@ function useBreadcrumbs() {
     else if (label === "ssh") label = "SSH";
     else if (label === "logs") label = "Logs";
     else if (label === "import") label = "Import";
+    else if (label === "feedback") label = "Feedback";
+    else if (label === "github-callback") label = "GitHub";
     else if (label.match(/^[0-9a-f-]{36}$/)) label = "Detail";
 
     crumbs.push({ label, href });

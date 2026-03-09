@@ -16,6 +16,7 @@ import {
   Tag,
   Link2,
   Bell,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -31,6 +32,7 @@ const navItems = [
   { label: "Tags", href: "/tags", icon: Tag, active: true },
   { label: "Notifications", href: "/notifications", icon: Bell, active: true },
   { label: "Audit", href: "/audit", icon: FileText, active: true },
+  { label: "Feedback", href: "/feedback", icon: MessageSquare, active: true },
 ];
 
 const bottomItems = [
