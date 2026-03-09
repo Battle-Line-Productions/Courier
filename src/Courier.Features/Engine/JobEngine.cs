@@ -116,6 +116,13 @@ public class JobEngine
             executionId, _workspaceSettings.BaseDirectory, existingWorkspacePath);
         context.Set("workspace", workspacePath);
 
+        // System variables (job.* namespace)
+        context.Set("job.workspace", workspacePath);
+        context.Set("job.execution_id", executionId.ToString());
+        context.Set("job.name", execution.Job.Name);
+        context.Set("job.started_at", (execution.StartedAt ?? DateTime.UtcNow).ToString("O"));
+        context.Set("job.attempt", (execution.RetryAttempt ?? 0).ToString());
+
         // Parse steps into execution tree
         List<ExecutionNode> executionPlan;
         try

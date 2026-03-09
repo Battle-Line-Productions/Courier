@@ -7,6 +7,9 @@ namespace Courier.Features.Jobs;
 
 public class JobStepService
 {
+    private static readonly HashSet<string> ReservedAliases =
+        new(StringComparer.OrdinalIgnoreCase) { "job", "loop" };
+
     private readonly CourierDbContext _db;
 
     public JobStepService(CourierDbContext db) => _db = db;
@@ -19,6 +22,9 @@ public class JobStepService
 
         if (!string.IsNullOrEmpty(request.Alias))
         {
+            if (ReservedAliases.Contains(request.Alias))
+                return new ApiResponse<JobStepDto> { Error = ErrorMessages.Create(ErrorCodes.ValidationFailed, $"Alias '{request.Alias}' is reserved and cannot be used as a step alias.") };
+
             var aliasExists = await _db.JobSteps.AnyAsync(
                 s => s.JobId == jobId && s.Alias == request.Alias, ct);
             if (aliasExists)
@@ -73,6 +79,13 @@ public class JobStepService
             return new ApiResponse<List<JobStepDto>>
             {
                 Error = ErrorMessages.Create(ErrorCodes.ValidationFailed, "Step aliases must be unique within a job.")
+            };
+
+        var reservedAlias = aliases.FirstOrDefault(a => ReservedAliases.Contains(a));
+        if (reservedAlias is not null)
+            return new ApiResponse<List<JobStepDto>>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.ValidationFailed, $"Alias '{reservedAlias}' is reserved and cannot be used as a step alias.")
             };
 
         var existingSteps = await _db.JobSteps

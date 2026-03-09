@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Copy, Check, Variable } from "lucide-react";
+import { ChevronDown, ChevronRight, Copy, Check, Variable, Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { STEP_OUTPUT_META, getStepTypeLabel, getEffectiveAlias } from "./step-constants";
+import { STEP_OUTPUT_META, SYSTEM_VARIABLES, getStepTypeLabel, getEffectiveAlias } from "./step-constants";
 import type { StepFormData } from "./step-builder";
 
 interface ContextVariablePanelProps {
@@ -28,10 +28,6 @@ export function ContextVariablePanel({ steps, currentStepIndex }: ContextVariabl
     }))
     .filter(({ outputs, step }) => outputs.length > 0 && !step.typeKey.startsWith("flow."));
 
-  if (precedingSteps.length === 0 && !isInsideLoop) {
-    return null;
-  }
-
   function copyToClipboard(key: string) {
     navigator.clipboard.writeText(key);
     setCopiedKey(key);
@@ -49,7 +45,7 @@ export function ContextVariablePanel({ steps, currentStepIndex }: ContextVariabl
         <Variable className="h-3.5 w-3.5" />
         Available Variables
         <Badge variant="secondary" className="ml-auto text-xs">
-          {precedingSteps.reduce((n, s) => n + s.outputs.length, 0) + (isInsideLoop ? 2 : 0)}
+          {SYSTEM_VARIABLES.length + precedingSteps.reduce((n, s) => n + s.outputs.length, 0) + (isInsideLoop ? 2 : 0)}
         </Badge>
       </button>
 
@@ -58,6 +54,26 @@ export function ContextVariablePanel({ steps, currentStepIndex }: ContextVariabl
           <p className="text-[11px] text-muted-foreground">
             Click a variable to copy it, then paste into any config field above.
           </p>
+
+          {/* System Variables */}
+          <div className="space-y-1">
+            <div className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+              <Settings className="h-3 w-3" /> System Variables
+            </div>
+            {SYSTEM_VARIABLES.map((v) => {
+              const fullKey = `context:${v.key}`;
+              return (
+                <VariableRow
+                  key={v.key}
+                  variableKey={fullKey}
+                  description={v.description}
+                  copiedKey={copiedKey}
+                  onCopy={copyToClipboard}
+                />
+              );
+            })}
+          </div>
+
           {precedingSteps.map(({ step, index, outputs }) => {
             const ref = getEffectiveAlias(step, index);
             return (

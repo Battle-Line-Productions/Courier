@@ -62,4 +62,56 @@ public class JobStepServiceTests
         result.Success.ShouldBeFalse();
         result.Error!.Code.ShouldBe(1030);
     }
+
+    [Theory]
+    [InlineData("job")]
+    [InlineData("Job")]
+    [InlineData("JOB")]
+    [InlineData("loop")]
+    [InlineData("Loop")]
+    public async Task AddStepAsync_ReservedAlias_ReturnsValidationError(string alias)
+    {
+        using var db = CreateInMemoryContext();
+        var service = new JobStepService(db);
+
+        var job = new Job { Id = Guid.NewGuid(), Name = "Test Job" };
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var result = await service.AddStepAsync(job.Id, new AddJobStepRequest
+        {
+            Name = "Test Step",
+            TypeKey = "file.copy",
+            StepOrder = 1,
+            Alias = alias,
+        }, CancellationToken.None);
+
+        result.Success.ShouldBeFalse();
+        result.Error!.Code.ShouldBe(1000);
+        result.Error.Message.ShouldContain("reserved");
+    }
+
+    [Theory]
+    [InlineData("job")]
+    [InlineData("loop")]
+    public async Task ReplaceStepsAsync_ReservedAlias_ReturnsValidationError(string alias)
+    {
+        using var db = CreateInMemoryContext();
+        var service = new JobStepService(db);
+
+        var job = new Job { Id = Guid.NewGuid(), Name = "Test Job" };
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+
+        var steps = new List<StepInput>
+        {
+            new() { Name = "Step 1", TypeKey = "file.copy", StepOrder = 1, Alias = alias }
+        };
+
+        var result = await service.ReplaceStepsAsync(job.Id, steps);
+
+        result.Success.ShouldBeFalse();
+        result.Error!.Code.ShouldBe(1000);
+        result.Error.Message.ShouldContain("reserved");
+    }
 }

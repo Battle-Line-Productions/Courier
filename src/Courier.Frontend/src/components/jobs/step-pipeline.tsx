@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Pencil, X, ChevronUp, ChevronDown, Layers } from "lucide-react";
 import { StepConfigForm, parseStepConfig, serializeStepConfig } from "./step-config-form";
 import { StepTypePicker } from "./step-type-picker";
-import { getCategoryMeta, getStepSummary, getStepTypeLabel, computeStepDepths, STEP_TYPE_GROUPS, STEP_OUTPUT_META, slugifyStepName, getEffectiveAlias } from "./step-constants";
+import { getCategoryMeta, getStepSummary, getStepTypeLabel, computeStepDepths, STEP_TYPE_GROUPS, STEP_OUTPUT_META, RESERVED_ALIASES, slugifyStepName, getEffectiveAlias } from "./step-constants";
 import { ContextVariablePanel } from "./context-variable-panel";
 import type { StepFormData } from "./step-builder";
 
@@ -209,6 +209,9 @@ export function StepPipeline({
                       <code className="text-[11px] text-muted-foreground font-mono truncate">
                         context:{getEffectiveAlias(step, index)}.<span className="text-muted-foreground/50">output</span>
                       </code>
+                      {step.alias && RESERVED_ALIASES.has(step.alias) && (
+                        <span className="text-[10px] text-amber-600 font-medium">Reserved</span>
+                      )}
                     </div>
                   )}
                   <div className="grid gap-1.5">

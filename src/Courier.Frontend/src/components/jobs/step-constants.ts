@@ -136,6 +136,16 @@ export const STEP_OUTPUT_META: Record<string, { key: string; description: string
   ],
 };
 
+export const SYSTEM_VARIABLES: { key: string; description: string; valueType: string }[] = [
+  { key: "job.workspace", description: "Execution workspace directory", valueType: "string" },
+  { key: "job.execution_id", description: "Unique execution ID", valueType: "string" },
+  { key: "job.name", description: "Job name", valueType: "string" },
+  { key: "job.started_at", description: "Execution start time (ISO 8601)", valueType: "string" },
+  { key: "job.attempt", description: "Retry attempt (0 = first run)", valueType: "string" },
+];
+
+export const RESERVED_ALIASES = new Set(["job", "loop"]);
+
 export interface CategoryMeta {
   color: string;
   bgColor: string;
@@ -208,6 +218,7 @@ export function slugifyStepName(name: string): string {
 export function getEffectiveAlias(step: StepFormData, index: number): string {
   if (step.alias) return step.alias;
   const slug = slugifyStepName(step.name);
+  if (slug && RESERVED_ALIASES.has(slug)) return `${slug}_step`;
   return slug || String(index + 1);
 }
 
