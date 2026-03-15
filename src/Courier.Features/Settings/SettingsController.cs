@@ -7,7 +7,7 @@ namespace Courier.Features.Settings;
 
 [ApiController]
 [Route("api/v1/settings")]
-[Authorize(Roles = "admin")]
+[Authorize]
 public class SettingsController : ControllerBase
 {
     private readonly SettingsService _settingsService;
@@ -25,6 +25,7 @@ public class SettingsController : ControllerBase
     }
 
     [HttpPut("auth")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse<AuthSettingsDto>>> UpdateAuthSettings(
         [FromBody] UpdateAuthSettingsRequest request,
         CancellationToken ct)

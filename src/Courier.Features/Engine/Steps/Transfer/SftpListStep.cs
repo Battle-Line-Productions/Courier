@@ -3,13 +3,14 @@ using Courier.Domain.Encryption;
 using Courier.Domain.Engine;
 using Courier.Features.Engine.Protocols;
 using Courier.Infrastructure.Data;
+using Microsoft.Extensions.Logging;
 
 namespace Courier.Features.Engine.Steps.Transfer;
 
 public class SftpListStep : TransferStepBase
 {
-    public SftpListStep(CourierDbContext db, ICredentialEncryptor encryptor, JobConnectionRegistry registry)
-        : base(db, encryptor, registry) { }
+    public SftpListStep(CourierDbContext db, ICredentialEncryptor encryptor, JobConnectionRegistry registry, ILogger<SftpListStep> logger)
+        : base(db, encryptor, registry, logger) { }
 
     public override string TypeKey => "sftp.list";
     protected override string ExpectedProtocol => "sftp";

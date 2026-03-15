@@ -84,25 +84,25 @@ public class JobEngineBuilder
             new FileUnzipStep(compressionRegistry),
 
             // SFTP transfers
-            new SftpUploadStep(_db, _encryptor, connectionRegistry),
-            new SftpDownloadStep(_db, _encryptor, connectionRegistry),
-            new SftpMkdirStep(_db, _encryptor, connectionRegistry),
-            new SftpRmdirStep(_db, _encryptor, connectionRegistry),
-            new SftpListStep(_db, _encryptor, connectionRegistry),
+            new SftpUploadStep(_db, _encryptor, connectionRegistry, NullLogger<SftpUploadStep>.Instance),
+            new SftpDownloadStep(_db, _encryptor, connectionRegistry, NullLogger<SftpDownloadStep>.Instance),
+            new SftpMkdirStep(_db, _encryptor, connectionRegistry, NullLogger<SftpMkdirStep>.Instance),
+            new SftpRmdirStep(_db, _encryptor, connectionRegistry, NullLogger<SftpRmdirStep>.Instance),
+            new SftpListStep(_db, _encryptor, connectionRegistry, NullLogger<SftpListStep>.Instance),
 
             // FTP transfers
-            new FtpUploadStep(_db, _encryptor, connectionRegistry),
-            new FtpDownloadStep(_db, _encryptor, connectionRegistry),
-            new FtpMkdirStep(_db, _encryptor, connectionRegistry),
-            new FtpRmdirStep(_db, _encryptor, connectionRegistry),
-            new FtpListStep(_db, _encryptor, connectionRegistry),
+            new FtpUploadStep(_db, _encryptor, connectionRegistry, NullLogger<FtpUploadStep>.Instance),
+            new FtpDownloadStep(_db, _encryptor, connectionRegistry, NullLogger<FtpDownloadStep>.Instance),
+            new FtpMkdirStep(_db, _encryptor, connectionRegistry, NullLogger<FtpMkdirStep>.Instance),
+            new FtpRmdirStep(_db, _encryptor, connectionRegistry, NullLogger<FtpRmdirStep>.Instance),
+            new FtpListStep(_db, _encryptor, connectionRegistry, NullLogger<FtpListStep>.Instance),
 
             // FTPS transfers
-            new FtpsUploadStep(_db, _encryptor, connectionRegistry),
-            new FtpsDownloadStep(_db, _encryptor, connectionRegistry),
-            new FtpsMkdirStep(_db, _encryptor, connectionRegistry),
-            new FtpsRmdirStep(_db, _encryptor, connectionRegistry),
-            new FtpsListStep(_db, _encryptor, connectionRegistry),
+            new FtpsUploadStep(_db, _encryptor, connectionRegistry, NullLogger<FtpsUploadStep>.Instance),
+            new FtpsDownloadStep(_db, _encryptor, connectionRegistry, NullLogger<FtpsDownloadStep>.Instance),
+            new FtpsMkdirStep(_db, _encryptor, connectionRegistry, NullLogger<FtpsMkdirStep>.Instance),
+            new FtpsRmdirStep(_db, _encryptor, connectionRegistry, NullLogger<FtpsRmdirStep>.Instance),
+            new FtpsListStep(_db, _encryptor, connectionRegistry, NullLogger<FtpsListStep>.Instance),
 
             // Crypto
             new PgpEncryptStep(cryptoProvider),

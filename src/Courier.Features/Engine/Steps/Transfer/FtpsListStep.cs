@@ -3,13 +3,14 @@ using Courier.Domain.Encryption;
 using Courier.Domain.Engine;
 using Courier.Features.Engine.Protocols;
 using Courier.Infrastructure.Data;
+using Microsoft.Extensions.Logging;
 
 namespace Courier.Features.Engine.Steps.Transfer;
 
 public class FtpsListStep : TransferStepBase
 {
-    public FtpsListStep(CourierDbContext db, ICredentialEncryptor encryptor, JobConnectionRegistry registry)
-        : base(db, encryptor, registry) { }
+    public FtpsListStep(CourierDbContext db, ICredentialEncryptor encryptor, JobConnectionRegistry registry, ILogger<FtpsListStep> logger)
+        : base(db, encryptor, registry, logger) { }
 
     public override string TypeKey => "ftps.list";
     protected override string ExpectedProtocol => "ftps";

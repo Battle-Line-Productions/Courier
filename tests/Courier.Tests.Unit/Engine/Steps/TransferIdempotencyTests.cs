@@ -6,6 +6,7 @@ using Courier.Features.Engine.Protocols;
 using Courier.Features.Engine.Steps.Transfer;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Shouldly;
 
@@ -113,7 +114,7 @@ public class TransferIdempotencyTests : IDisposable
                 new("upload.txt", "/remote/upload.txt", 100, DateTime.UtcNow, false)
             });
 
-        var step = new SftpUploadStep(_db, _encryptor, _registry);
+        var step = new SftpUploadStep(_db, _encryptor, _registry, NullLogger<SftpUploadStep>.Instance);
         var config = MakeUploadConfig(connId, localPath, "/remote/upload.txt", "skip_if_exists");
         var context = new JobContext();
 
@@ -139,7 +140,7 @@ public class TransferIdempotencyTests : IDisposable
         _mockClient.ListDirectoryAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new List<RemoteFileInfo>()); // empty directory
 
-        var step = new SftpUploadStep(_db, _encryptor, _registry);
+        var step = new SftpUploadStep(_db, _encryptor, _registry, NullLogger<SftpUploadStep>.Instance);
         var config = MakeUploadConfig(connId, localPath, "/remote/upload.txt", "skip_if_exists");
         var context = new JobContext();
 
@@ -160,7 +161,7 @@ public class TransferIdempotencyTests : IDisposable
         var localPath = Path.Combine(_tempDir, "upload.txt");
         File.WriteAllText(localPath, "data");
 
-        var step = new SftpUploadStep(_db, _encryptor, _registry);
+        var step = new SftpUploadStep(_db, _encryptor, _registry, NullLogger<SftpUploadStep>.Instance);
         var config = MakeUploadConfig(connId, localPath, "/remote/upload.txt", "overwrite");
         var context = new JobContext();
 
@@ -180,7 +181,7 @@ public class TransferIdempotencyTests : IDisposable
         var localPath = Path.Combine(_tempDir, "downloaded.txt");
         File.WriteAllText(localPath, "already here");
 
-        var step = new SftpDownloadStep(_db, _encryptor, _registry);
+        var step = new SftpDownloadStep(_db, _encryptor, _registry, NullLogger<SftpDownloadStep>.Instance);
         var config = MakeDownloadConfig(connId, "/remote/downloaded.txt", localPath, "skip_if_exists");
         var context = new JobContext();
 
@@ -201,7 +202,7 @@ public class TransferIdempotencyTests : IDisposable
         var connId = await SeedSftpConnection();
         var localPath = Path.Combine(_tempDir, "not_yet.txt"); // does not exist
 
-        var step = new SftpDownloadStep(_db, _encryptor, _registry);
+        var step = new SftpDownloadStep(_db, _encryptor, _registry, NullLogger<SftpDownloadStep>.Instance);
         var config = MakeDownloadConfig(connId, "/remote/not_yet.txt", localPath, "skip_if_exists");
         var context = new JobContext();
 
@@ -222,7 +223,7 @@ public class TransferIdempotencyTests : IDisposable
         var localPath = Path.Combine(_tempDir, "existing.txt");
         File.WriteAllText(localPath, "old data");
 
-        var step = new SftpDownloadStep(_db, _encryptor, _registry);
+        var step = new SftpDownloadStep(_db, _encryptor, _registry, NullLogger<SftpDownloadStep>.Instance);
         var config = MakeDownloadConfig(connId, "/remote/existing.txt", localPath, "overwrite");
         var context = new JobContext();
 
@@ -248,7 +249,7 @@ public class TransferIdempotencyTests : IDisposable
                 new("upload.txt", "/remote/upload.txt", 50, DateTime.UtcNow, false)
             });
 
-        var step = new FtpsUploadStep(_db, _encryptor, _registry);
+        var step = new FtpsUploadStep(_db, _encryptor, _registry, NullLogger<FtpsUploadStep>.Instance);
         var config = MakeUploadConfig(connId, localPath, "/remote/upload.txt", "skip_if_exists");
         var context = new JobContext();
 
@@ -269,7 +270,7 @@ public class TransferIdempotencyTests : IDisposable
         var localPath = Path.Combine(_tempDir, "local.txt");
         File.WriteAllText(localPath, "existing");
 
-        var step = new FtpsDownloadStep(_db, _encryptor, _registry);
+        var step = new FtpsDownloadStep(_db, _encryptor, _registry, NullLogger<FtpsDownloadStep>.Instance);
         var config = MakeDownloadConfig(connId, "/remote/local.txt", localPath, "skip_if_exists");
         var context = new JobContext();
 
@@ -291,7 +292,7 @@ public class TransferIdempotencyTests : IDisposable
         var localPath = Path.Combine(_tempDir, "upload.txt");
         File.WriteAllText(localPath, "data");
 
-        var step = new SftpUploadStep(_db, _encryptor, _registry);
+        var step = new SftpUploadStep(_db, _encryptor, _registry, NullLogger<SftpUploadStep>.Instance);
         var config = MakeUploadConfig(connId, localPath, "/remote/upload.txt"); // no idempotency
         var context = new JobContext();
 

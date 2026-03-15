@@ -2,13 +2,14 @@ using Courier.Domain.Encryption;
 using Courier.Domain.Engine;
 using Courier.Features.Engine.Protocols;
 using Courier.Infrastructure.Data;
+using Microsoft.Extensions.Logging;
 
 namespace Courier.Features.Engine.Steps.Transfer;
 
 public class SftpMkdirStep : TransferStepBase
 {
-    public SftpMkdirStep(CourierDbContext db, ICredentialEncryptor encryptor, JobConnectionRegistry registry)
-        : base(db, encryptor, registry) { }
+    public SftpMkdirStep(CourierDbContext db, ICredentialEncryptor encryptor, JobConnectionRegistry registry, ILogger<SftpMkdirStep> logger)
+        : base(db, encryptor, registry, logger) { }
 
     public override string TypeKey => "sftp.mkdir";
     protected override string ExpectedProtocol => "sftp";

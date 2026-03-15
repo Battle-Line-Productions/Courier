@@ -22,6 +22,7 @@ public class TagsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse<TagDto>>> Create(
         [FromBody] CreateTagRequest request,
         CancellationToken ct)
@@ -77,6 +78,7 @@ public class TagsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse<TagDto>>> Update(
         Guid id,
         [FromBody] UpdateTagRequest request,
@@ -112,6 +114,7 @@ public class TagsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse>> Delete(Guid id, CancellationToken ct)
     {
         var result = await _tagService.DeleteAsync(id, ct);
@@ -129,6 +132,7 @@ public class TagsController : ControllerBase
     }
 
     [HttpPost("assign")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse>> Assign(
         [FromBody] BulkTagAssignmentRequest request,
         [FromServices] IValidator<BulkTagAssignmentRequest> validator,
@@ -164,6 +168,7 @@ public class TagsController : ControllerBase
     }
 
     [HttpPost("unassign")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse>> Unassign(
         [FromBody] BulkTagAssignmentRequest request,
         [FromServices] IValidator<BulkTagAssignmentRequest> validator,

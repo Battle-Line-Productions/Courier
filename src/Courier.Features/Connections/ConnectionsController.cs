@@ -22,6 +22,7 @@ public class ConnectionsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse<ConnectionDto>>> Create(
         [FromBody] CreateConnectionRequest request,
         CancellationToken ct)
@@ -70,6 +71,7 @@ public class ConnectionsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse<ConnectionDto>>> Update(
         Guid id,
         [FromBody] UpdateConnectionRequest request,
@@ -104,6 +106,7 @@ public class ConnectionsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse>> Delete(Guid id, CancellationToken ct)
     {
         var result = await _connectionService.DeleteAsync(id, ct);
@@ -121,6 +124,7 @@ public class ConnectionsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/test")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse<ConnectionTestDto>>> TestConnection(Guid id, CancellationToken ct)
     {
         var result = await _connectionService.TestConnectionAsync(id, ct);

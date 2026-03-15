@@ -45,6 +45,7 @@ public class KnownHostsController : ControllerBase
     }
 
     [HttpPost("api/v1/connections/{connectionId:guid}/known-hosts")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse<KnownHostDto>>> Create(
         Guid connectionId,
         [FromBody] CreateKnownHostRequest request,
@@ -79,6 +80,7 @@ public class KnownHostsController : ControllerBase
     }
 
     [HttpDelete("api/v1/known-hosts/{id:guid}")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse>> Delete(Guid id, CancellationToken ct)
     {
         var result = await _knownHostService.DeleteAsync(id, ct);
@@ -96,6 +98,7 @@ public class KnownHostsController : ControllerBase
     }
 
     [HttpPost("api/v1/known-hosts/{id:guid}/approve")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse<KnownHostDto>>> Approve(Guid id, CancellationToken ct)
     {
         var approvedBy = User.FindFirst("name")?.Value ?? "system";

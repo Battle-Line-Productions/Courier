@@ -39,6 +39,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpPost("generate")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse<PgpKeyDto>>> Generate(
         [FromBody] GeneratePgpKeyRequest request,
         CancellationToken ct)
@@ -67,6 +68,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpPost("import")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse<PgpKeyDto>>> Import(
         [FromForm] ImportPgpKeyRequest request,
         IFormFile keyFile,
@@ -121,6 +123,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse<PgpKeyDto>>> Update(
         Guid id,
         [FromBody] UpdatePgpKeyRequest request,
@@ -155,6 +158,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse>> Delete(Guid id, CancellationToken ct)
     {
         var result = await _pgpKeyService.DeleteAsync(id, ct);
@@ -184,6 +188,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpPost("{id:guid}/retire")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse<PgpKeyDto>>> Retire(Guid id, CancellationToken ct)
     {
         var result = await _pgpKeyService.RetireAsync(id, ct);
@@ -202,6 +207,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpPost("{id:guid}/revoke")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse<PgpKeyDto>>> Revoke(Guid id, CancellationToken ct)
     {
         var result = await _pgpKeyService.RevokeAsync(id, ct);
@@ -220,6 +226,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpPost("{id:guid}/activate")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse<PgpKeyDto>>> Activate(Guid id, CancellationToken ct)
     {
         var result = await _pgpKeyService.ActivateAsync(id, ct);
@@ -238,6 +245,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpPost("{id:guid}/set-successor")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse>> SetSuccessor(Guid id, [FromBody] SetSuccessorRequest request, CancellationToken ct)
     {
         var result = await _pgpKeyService.SetSuccessorAsync(id, request.SuccessorKeyId, ct);

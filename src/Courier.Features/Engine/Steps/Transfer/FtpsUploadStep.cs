@@ -3,13 +3,14 @@ using Courier.Domain.Engine;
 using Courier.Domain.Protocols;
 using Courier.Features.Engine.Protocols;
 using Courier.Infrastructure.Data;
+using Microsoft.Extensions.Logging;
 
 namespace Courier.Features.Engine.Steps.Transfer;
 
 public class FtpsUploadStep : TransferStepBase
 {
-    public FtpsUploadStep(CourierDbContext db, ICredentialEncryptor encryptor, JobConnectionRegistry registry)
-        : base(db, encryptor, registry) { }
+    public FtpsUploadStep(CourierDbContext db, ICredentialEncryptor encryptor, JobConnectionRegistry registry, ILogger<FtpsUploadStep> logger)
+        : base(db, encryptor, registry, logger) { }
 
     public override string TypeKey => "ftps.upload";
     protected override string ExpectedProtocol => "ftps";
@@ -45,7 +46,7 @@ public class FtpsUploadStep : TransferStepBase
             AtomicSuffix: config.GetStringOrDefault("atomic_suffix", ".tmp")!,
             ResumePartial: config.GetBoolOrDefault("resume_partial"));
 
-        await client!.UploadAsync(request, progress: null, ct);
+        await client!.UploadAsync(request, progress: CreateProgressLogger("upload"), ct);
         var bytes = File.Exists(localPath) ? new FileInfo(localPath).Length : 0;
         return StepResult.Ok(bytes, new() { ["uploaded_file"] = remotePath });
     }

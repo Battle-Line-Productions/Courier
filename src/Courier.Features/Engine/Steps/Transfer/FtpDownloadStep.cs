@@ -3,13 +3,14 @@ using Courier.Domain.Engine;
 using Courier.Domain.Protocols;
 using Courier.Features.Engine.Protocols;
 using Courier.Infrastructure.Data;
+using Microsoft.Extensions.Logging;
 
 namespace Courier.Features.Engine.Steps.Transfer;
 
 public class FtpDownloadStep : TransferStepBase
 {
-    public FtpDownloadStep(CourierDbContext db, ICredentialEncryptor encryptor, JobConnectionRegistry registry)
-        : base(db, encryptor, registry) { }
+    public FtpDownloadStep(CourierDbContext db, ICredentialEncryptor encryptor, JobConnectionRegistry registry, ILogger<FtpDownloadStep> logger)
+        : base(db, encryptor, registry, logger) { }
 
     public override string TypeKey => "ftp.download";
     protected override string ExpectedProtocol => "ftp";
@@ -46,7 +47,7 @@ public class FtpDownloadStep : TransferStepBase
             FilePattern: config.GetStringOrDefault("file_pattern", "*")!,
             DeleteAfterDownload: config.GetBoolOrDefault("delete_after_download"));
 
-        await client!.DownloadAsync(request, progress: null, ct);
+        await client!.DownloadAsync(request, progress: CreateProgressLogger("download"), ct);
         var bytes = File.Exists(localPath) ? new FileInfo(localPath).Length : 0;
         return StepResult.Ok(bytes, new() { ["downloaded_file"] = localPath });
     }

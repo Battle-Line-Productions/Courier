@@ -22,6 +22,7 @@ public class MonitorsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse<MonitorDto>>> Create(
         [FromBody] CreateMonitorRequest request,
         CancellationToken ct)
@@ -78,6 +79,7 @@ public class MonitorsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse<MonitorDto>>> Update(
         Guid id,
         [FromBody] UpdateMonitorRequest request,
@@ -112,6 +114,7 @@ public class MonitorsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse>> Delete(Guid id, CancellationToken ct)
     {
         var result = await _monitorService.DeleteAsync(id, ct);
@@ -129,6 +132,7 @@ public class MonitorsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/activate")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse<MonitorDto>>> Activate(Guid id, CancellationToken ct)
     {
         var result = await _monitorService.ActivateAsync(id, ct);
@@ -147,6 +151,7 @@ public class MonitorsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/pause")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse<MonitorDto>>> Pause(Guid id, CancellationToken ct)
     {
         var result = await _monitorService.PauseAsync(id, ct);
@@ -165,6 +170,7 @@ public class MonitorsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/disable")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse<MonitorDto>>> Disable(Guid id, CancellationToken ct)
     {
         var result = await _monitorService.DisableAsync(id, ct);
@@ -183,6 +189,7 @@ public class MonitorsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/acknowledge-error")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse<MonitorDto>>> AcknowledgeError(Guid id, CancellationToken ct)
     {
         var result = await _monitorService.AcknowledgeErrorAsync(id, ct);

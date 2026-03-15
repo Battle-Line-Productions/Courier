@@ -6,6 +6,7 @@ using Courier.Features.Engine.Protocols;
 using Courier.Features.Engine.Steps.Transfer;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Shouldly;
 
@@ -32,7 +33,7 @@ public class TransferStepBaseTests : IDisposable
     [Fact]
     public async Task ValidateRequired_MissingKey_ReturnsFailure()
     {
-        var step = new SftpUploadStep(_db, _encryptor, _registry);
+        var step = new SftpUploadStep(_db, _encryptor, _registry, NullLogger<SftpUploadStep>.Instance);
         var config = new StepConfiguration("""{"connection_id": "00000000-0000-0000-0000-000000000001"}""");
 
         var result = await step.ValidateAsync(config);
@@ -45,7 +46,7 @@ public class TransferStepBaseTests : IDisposable
     [Fact]
     public async Task ValidateRequired_AllKeysPresent_ReturnsOk()
     {
-        var step = new SftpMkdirStep(_db, _encryptor, _registry);
+        var step = new SftpMkdirStep(_db, _encryptor, _registry, NullLogger<SftpMkdirStep>.Instance);
         var config = new StepConfiguration("""{"connection_id": "00000000-0000-0000-0000-000000000001", "remote_path": "/data"}""");
 
         var result = await step.ValidateAsync(config);
@@ -86,7 +87,7 @@ public class TransferStepBaseTests : IDisposable
     [Fact]
     public async Task ResolveClientAsync_ConnectionNotFound_ReturnsError()
     {
-        var step = new SftpUploadStep(_db, _encryptor, _registry);
+        var step = new SftpUploadStep(_db, _encryptor, _registry, NullLogger<SftpUploadStep>.Instance);
         var connectionId = Guid.NewGuid();
         var config = new StepConfiguration($$"""
         {
@@ -119,7 +120,7 @@ public class TransferStepBaseTests : IDisposable
         });
         await _db.SaveChangesAsync();
 
-        var step = new SftpUploadStep(_db, _encryptor, _registry);
+        var step = new SftpUploadStep(_db, _encryptor, _registry, NullLogger<SftpUploadStep>.Instance);
         var config = new StepConfiguration($$"""
         {
             "connection_id": "{{connectionId}}",
@@ -160,7 +161,7 @@ public class TransferStepBaseTests : IDisposable
         _factory.Create(Arg.Any<Connection>(), Arg.Any<byte[]?>(), Arg.Any<byte[]?>())
             .Returns(mockClient);
 
-        var step = new SftpMkdirStep(_db, _encryptor, _registry);
+        var step = new SftpMkdirStep(_db, _encryptor, _registry, NullLogger<SftpMkdirStep>.Instance);
         var config = new StepConfiguration($$"""
         {
             "connection_id": "{{connectionId}}",
@@ -208,7 +209,7 @@ public class TransferStepBaseTests : IDisposable
         _factory.Create(Arg.Any<Connection>(), Arg.Any<byte[]?>(), Arg.Is<byte[]?>(b => b != null))
             .Returns(mockClient);
 
-        var step = new SftpMkdirStep(_db, _encryptor, _registry);
+        var step = new SftpMkdirStep(_db, _encryptor, _registry, NullLogger<SftpMkdirStep>.Instance);
         var config = new StepConfiguration($$"""
         {
             "connection_id": "{{connectionId}}",
@@ -236,7 +237,7 @@ public class TransferStepBaseTests : IDisposable
 internal class TransferStepBase_TestHelper : TransferStepBase
 {
     public TransferStepBase_TestHelper()
-        : base(null!, null!, null!) { }
+        : base(null!, null!, null!, NullLogger<TransferStepBase_TestHelper>.Instance) { }
 
     public override string TypeKey => "test";
     protected override string ExpectedProtocol => "test";

@@ -28,6 +28,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse<JobChainDto>>> Create(
         [FromBody] CreateChainRequest request,
         CancellationToken ct)
@@ -71,6 +72,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse<JobChainDto>>> Update(
         Guid id,
         [FromBody] UpdateChainRequest request,
@@ -105,6 +107,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse>> Delete(Guid id, CancellationToken ct)
     {
         var result = await _chainService.DeleteAsync(id, ct);
@@ -122,6 +125,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpPut("{id:guid}/members")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse<List<JobChainMemberDto>>>> ReplaceMembers(
         Guid id,
         [FromBody] ReplaceChainMembersRequest request,
@@ -144,6 +148,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/execute")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse<ChainExecutionDto>>> Execute(
         Guid id,
         [FromBody] TriggerChainRequest request,
@@ -206,6 +211,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpPost("{chainId:guid}/schedules")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse<ChainScheduleDto>>> CreateSchedule(
         Guid chainId,
         [FromBody] CreateChainScheduleRequest request,
@@ -240,6 +246,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpPut("{chainId:guid}/schedules/{scheduleId:guid}")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse<ChainScheduleDto>>> UpdateSchedule(
         Guid chainId,
         Guid scheduleId,
@@ -276,6 +283,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpDelete("{chainId:guid}/schedules/{scheduleId:guid}")]
+    [Authorize(Roles = "admin,operator")]
     public async Task<ActionResult<ApiResponse>> DeleteSchedule(
         Guid chainId,
         Guid scheduleId,

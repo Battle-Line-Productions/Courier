@@ -2,13 +2,14 @@ using Courier.Domain.Encryption;
 using Courier.Domain.Engine;
 using Courier.Features.Engine.Protocols;
 using Courier.Infrastructure.Data;
+using Microsoft.Extensions.Logging;
 
 namespace Courier.Features.Engine.Steps.Transfer;
 
 public class FtpMkdirStep : TransferStepBase
 {
-    public FtpMkdirStep(CourierDbContext db, ICredentialEncryptor encryptor, JobConnectionRegistry registry)
-        : base(db, encryptor, registry) { }
+    public FtpMkdirStep(CourierDbContext db, ICredentialEncryptor encryptor, JobConnectionRegistry registry, ILogger<FtpMkdirStep> logger)
+        : base(db, encryptor, registry, logger) { }
 
     public override string TypeKey => "ftp.mkdir";
     protected override string ExpectedProtocol => "ftp";

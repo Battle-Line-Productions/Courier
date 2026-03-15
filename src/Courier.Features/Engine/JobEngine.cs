@@ -53,6 +53,9 @@ public class JobEngine
 
     public async Task ExecuteAsync(Guid executionId, CancellationToken cancellationToken)
     {
+        using var activity = CourierDiagnostics.JobEngine.StartActivity("job.execute");
+        activity?.SetTag("execution.id", executionId.ToString());
+
         var execution = await _db.JobExecutions
             .Include(e => e.Job)
             .FirstOrDefaultAsync(e => e.Id == executionId, cancellationToken);
@@ -60,8 +63,12 @@ public class JobEngine
         if (execution is null)
         {
             _logger.LogError("JobExecution {ExecutionId} not found", executionId);
+            activity?.SetStatus(ActivityStatusCode.Error, "Execution not found");
             return;
         }
+
+        activity?.SetTag("job.id", execution.JobId.ToString());
+        activity?.SetTag("job.name", execution.Job.Name);
 
         var steps = await _db.JobSteps
             .Where(s => s.JobId == execution.JobId)
@@ -186,6 +193,10 @@ public class JobEngine
                 await _workspace.DisposeAsync();
         }
 
+        if (execution.State == JobExecutionState.Failed)
+            activity?.SetStatus(ActivityStatusCode.Error, "Job execution failed");
+
+        activity?.SetTag("execution.state", execution.State.ToString().ToLowerInvariant());
         _logger.LogInformation("JobExecution {ExecutionId} finished with state {State}", executionId, execution.State);
     }
 
@@ -225,6 +236,10 @@ public class JobEngine
     private async Task<FlowSignal> ExecuteStepAsync(StepNode node, ExecutionRun run, CancellationToken ct)
     {
         var step = run.Steps[node.StepIndex];
+        using var stepActivity = CourierDiagnostics.JobEngine.StartActivity("step.execute");
+        stepActivity?.SetTag("step.type", step.TypeKey);
+        stepActivity?.SetTag("step.name", step.Name);
+        stepActivity?.SetTag("step.order", step.StepOrder);
 
         // Check for control signals before each step
         var signal = await CheckControlSignalAsync(run.Execution.Id, ct);
@@ -338,6 +353,7 @@ public class JobEngine
         stepExecution.CompletedAt = DateTime.UtcNow;
         stepExecution.ErrorMessage = result.ErrorMessage;
         stepExecution.ErrorStackTrace = result.ErrorStackTrace;
+        stepActivity?.SetStatus(ActivityStatusCode.Error, result.ErrorMessage ?? "Step failed");
 
         _logger.LogWarning("Step {StepName} failed: {Error}", step.Name, result.ErrorMessage);
 

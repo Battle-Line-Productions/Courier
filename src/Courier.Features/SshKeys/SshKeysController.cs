@@ -38,6 +38,7 @@ public class SshKeysController : ControllerBase
     }
 
     [HttpPost("generate")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse<SshKeyDto>>> Generate(
         [FromBody] GenerateSshKeyRequest request,
         CancellationToken ct)
@@ -66,6 +67,7 @@ public class SshKeysController : ControllerBase
     }
 
     [HttpPost("import")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse<SshKeyDto>>> Import(
         [FromForm] ImportSshKeyRequest request,
         IFormFile keyFile,
@@ -120,6 +122,7 @@ public class SshKeysController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse<SshKeyDto>>> Update(
         Guid id,
         [FromBody] UpdateSshKeyRequest request,
@@ -154,6 +157,7 @@ public class SshKeysController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse>> Delete(Guid id, CancellationToken ct)
     {
         var result = await _sshKeyService.DeleteAsync(id, ct);
@@ -183,6 +187,7 @@ public class SshKeysController : ControllerBase
     }
 
     [HttpPost("{id:guid}/retire")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse<SshKeyDto>>> Retire(Guid id, CancellationToken ct)
     {
         var result = await _sshKeyService.RetireAsync(id, ct);
@@ -201,6 +206,7 @@ public class SshKeysController : ControllerBase
     }
 
     [HttpPost("{id:guid}/activate")]
+    [Authorize(Roles = "admin")]
     public async Task<ActionResult<ApiResponse<SshKeyDto>>> Activate(Guid id, CancellationToken ct)
     {
         var result = await _sshKeyService.ActivateAsync(id, ct);

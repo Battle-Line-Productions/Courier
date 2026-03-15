@@ -3,6 +3,7 @@ using Courier.Features.Engine.Protocols;
 using Courier.Features.Engine.Steps.Transfer;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Shouldly;
 
@@ -42,7 +43,9 @@ public class TransferStepTypeKeyTests
     [InlineData(typeof(FtpsListStep), "ftps.list")]
     public void TypeKey_IsCorrect(Type stepType, string expectedKey)
     {
-        var step = (TransferStepBase)Activator.CreateInstance(stepType, _db, _encryptor, _registry)!;
+        var loggerType = typeof(ILogger<>).MakeGenericType(stepType);
+        var logger = Substitute.For([loggerType], []);
+        var step = (TransferStepBase)Activator.CreateInstance(stepType, _db, _encryptor, _registry, logger)!;
         step.TypeKey.ShouldBe(expectedKey);
     }
 }

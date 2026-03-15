@@ -2,6 +2,7 @@ using Courier.Domain.Encryption;
 using Courier.Domain.Entities;
 using Courier.Domain.Enums;
 using Courier.Domain.Protocols;
+using Courier.Features;
 using Courier.Features.Engine.Protocols;
 using Courier.Features.Jobs;
 using Courier.Infrastructure.Data;
@@ -86,6 +87,11 @@ public class MonitorPollingService : BackgroundService
         FileMonitor monitor,
         CancellationToken ct)
     {
+        using var activity = CourierDiagnostics.FileMonitor.StartActivity("monitor.poll");
+        activity?.SetTag("monitor.id", monitor.Id.ToString());
+        activity?.SetTag("monitor.name", monitor.Name);
+        activity?.SetTag("monitor.type", "local");
+
         var pollStopwatch = Stopwatch.StartNew();
 
         var watchTarget = ParseWatchTarget(monitor.WatchTarget);
@@ -177,6 +183,8 @@ public class MonitorPollingService : BackgroundService
             return;
         }
 
+        activity?.SetTag("files.detected", detectedFiles.Count);
+
         _logger.LogInformation(
             "Monitor {MonitorId} detected {FileCount} file(s) in {Path}",
             monitor.Id, detectedFiles.Count, watchTarget.Path);
@@ -252,6 +260,11 @@ public class MonitorPollingService : BackgroundService
         Stopwatch pollStopwatch,
         CancellationToken ct)
     {
+        using var activity = CourierDiagnostics.FileMonitor.StartActivity("monitor.poll.remote");
+        activity?.SetTag("monitor.id", monitor.Id.ToString());
+        activity?.SetTag("monitor.name", monitor.Name);
+        activity?.SetTag("monitor.type", "remote");
+
         if (string.IsNullOrEmpty(watchTarget.ConnectionId))
         {
             _logger.LogWarning("Monitor {MonitorId} has remote watch target but no ConnectionId", monitor.Id);
@@ -306,6 +319,7 @@ public class MonitorPollingService : BackgroundService
         {
             _logger.LogError(ex, "Monitor {MonitorId} authentication failure connecting to {Host}:{Port}",
                 monitor.Id, connection.Host, connection.Port);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             monitor.State = "error";
             monitor.LastPolledAt = DateTime.UtcNow;
             await db.SaveChangesAsync(ct);
@@ -316,6 +330,7 @@ public class MonitorPollingService : BackgroundService
         {
             _logger.LogError(ex, "Monitor {MonitorId} SSH auth/connection failure connecting to {Host}:{Port}",
                 monitor.Id, connection.Host, connection.Port);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             monitor.State = "error";
             monitor.LastPolledAt = DateTime.UtcNow;
             await db.SaveChangesAsync(ct);
@@ -325,6 +340,7 @@ public class MonitorPollingService : BackgroundService
         {
             _logger.LogError(ex, "Monitor {MonitorId} failed to list remote directory {Path} on {Host}:{Port}",
                 monitor.Id, watchTarget.Path, connection.Host, connection.Port);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             await HandleFailureAsync(db, monitor, ct);
             return;
         }
@@ -399,6 +415,8 @@ public class MonitorPollingService : BackgroundService
             await db.SaveChangesAsync(ct);
             return;
         }
+
+        activity?.SetTag("files.detected", detectedFiles.Count);
 
         _logger.LogInformation(
             "Monitor {MonitorId} detected {FileCount} remote file(s) in {Path} on {Host}",

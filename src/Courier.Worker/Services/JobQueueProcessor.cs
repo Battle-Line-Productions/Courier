@@ -1,10 +1,9 @@
+using System.Diagnostics;
+using Courier.Features;
 using Courier.Features.Chains;
 using Courier.Features.Engine;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Npgsql;
 
 namespace Courier.Worker.Services;
@@ -118,6 +117,10 @@ public class JobQueueProcessor : BackgroundService
                     await transaction.CommitAsync(ct);
                     return;
                 }
+
+                using var dequeueActivity = CourierDiagnostics.JobEngine.StartActivity("job.dequeue");
+                dequeueActivity?.SetTag("execution.id", executionId.Value.ToString());
+                dequeueActivity?.SetTag("job.id", jobId?.ToString());
 
                 _logger.LogInformation("Dequeued execution {ExecutionId} for job {JobId}", executionId, jobId);
 
