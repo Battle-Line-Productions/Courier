@@ -1,0 +1,96 @@
+# =============================================================================
+# Courier API — Azure Container App Definition
+# =============================================================================
+# Deploy: az containerapp create -n courier-api -g $RG --yaml infra/container-apps/api.yaml
+# Update: az containerapp update -n courier-api -g $RG --yaml infra/container-apps/api.yaml
+# =============================================================================
+
+name: courier-api
+properties:
+  managedEnvironmentId: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.App/managedEnvironments/{env}
+  configuration:
+    activeRevisionsMode: Single
+    ingress:
+      external: false          # Internal only — fronted by Azure Front Door
+      targetPort: 8080
+      transport: http
+      corsPolicy:
+        allowedOrigins:
+          - https://courier.{domain}
+        allowedMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        allowedHeaders:
+          - "*"
+        allowCredentials: true
+    secrets:
+      - name: db-connection-string
+        keyVaultUrl: https://{vault}.vault.azure.net/secrets/db-connection-string
+        identity: system
+      - name: jwt-secret
+        keyVaultUrl: https://{vault}.vault.azure.net/secrets/jwt-secret
+        identity: system
+      - name: encryption-key
+        keyVaultUrl: https://{vault}.vault.azure.net/secrets/encryption-key
+        identity: system
+      - name: appinsights-connection-string
+        keyVaultUrl: https://{vault}.vault.azure.net/secrets/appinsights-connection-string
+        identity: system
+    registries:
+      - server: couriercr.azurecr.io
+        identity: system
+  template:
+    containers:
+      - name: courier-api
+        image: couriercr.azurecr.io/courier-api:{tag}
+        resources:
+          cpu: 1.0
+          memory: 2Gi
+        env:
+          - name: ConnectionStrings__CourierDb
+            secretRef: db-connection-string
+          - name: Jwt__Secret
+            secretRef: jwt-secret
+          - name: Encryption__Key
+            secretRef: encryption-key
+          - name: APPLICATIONINSIGHTS_CONNECTION_STRING
+            secretRef: appinsights-connection-string
+          - name: ASPNETCORE_ENVIRONMENT
+            value: Production
+          - name: ASPNETCORE_URLS
+            value: http://+:8080
+        probes:
+          - type: liveness
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+          - type: readiness
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          - type: startup
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 10
+    scale:
+      minReplicas: 2
+      maxReplicas: 6
+      rules:
+        - name: http-requests
+          http:
+            metadata:
+              concurrentRequests: "50"
+  identity:
+    type: SystemAssigned

@@ -1,0 +1,34 @@
+# =============================================================================
+# OpenSSL FIPS Provider Configuration for Courier Containers
+# =============================================================================
+# This file configures OpenSSL 3.x to use the FIPS provider as the default
+# cryptographic provider. Used when FIPS_ENABLED=true build arg is set.
+#
+# Installation in Dockerfile:
+#   COPY infra/docker/openssl-fips.cnf /etc/ssl/openssl.cnf
+#
+# Verification:
+#   openssl list -providers   # Should show "fips" as active provider
+# =============================================================================
+
+# Activate the FIPS provider and make it the default
+openssl_conf = openssl_init
+
+[openssl_init]
+providers = provider_sect
+alg_section = algorithm_sect
+
+[provider_sect]
+fips = fips_sect
+base = base_sect
+
+[fips_sect]
+activate = 1
+
+[base_sect]
+# Base provider needed for encoders/decoders (PEM, DER, etc.)
+# It does NOT provide cryptographic algorithms when FIPS is active
+activate = 1
+
+[algorithm_sect]
+default_properties = fips=yes

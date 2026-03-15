@@ -6,7 +6,10 @@ using Courier.Worker.Services;
 using Quartz;
 using Serilog;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = WebApplication.CreateSlimBuilder(args);
+
+// Health endpoint on dedicated port (8081) — separate from application traffic
+builder.WebHost.UseUrls("http://+:8081");
 
 // Aspire ServiceDefaults (OpenTelemetry, health checks, service discovery)
 builder.AddServiceDefaults();
@@ -67,5 +70,9 @@ builder.Services.AddScoped<QuartzScheduleManager>();
 builder.Services.AddScoped<ChainScheduleManager>();
 builder.Services.AddHostedService<ScheduleStartupSync>();
 
-var host = builder.Build();
-host.Run();
+var app = builder.Build();
+
+// Map health check endpoints (/health, /health/ready, /health/partitions)
+app.MapDefaultEndpoints();
+
+app.Run();

@@ -421,7 +421,7 @@ Courier is a three-tier application deployed as three independent processes: a R
 |------|-----------|------------------|---------|
 | **API Host** | ASP.NET Core 10 | REST API, authentication, request validation, CRUD operations, OpenAPI spec | Horizontal — stateless, any number of replicas behind a load balancer |
 | **Worker Host** | .NET 10 Worker Service | Quartz.NET scheduler, Job Engine execution, File Monitor polling, key rotation checks, partition maintenance | Single instance (V1) — Quartz AdoJobStore handles clustered failover if scaled later |
-| **Frontend** | Next.js (static export) | User interface, OAuth 2.0 Authorization Code + PKCE flow, API consumption | Horizontal — static assets served from CDN or container |
+| **Frontend** | Next.js (standalone) | User interface, OAuth 2.0 Authorization Code + PKCE flow, API consumption | Horizontal — self-contained Node.js server in container |
 
 **Why separate API and Worker?** The API host is request-driven and benefits from horizontal scaling. The Worker host is long-running and CPU/IO-bound (file transfers, encryption, compression). Separating them allows independent scaling, independent deployment, and prevents a runaway job from starving API response times. Both processes share the same domain logic via shared class libraries.
 
@@ -4903,32 +4903,28 @@ Courier's frontend is a Next.js application using the App Router, statically exp
 
 ### 11.2 Rendering Strategy
 
-**Static export** (`output: 'export'` in `next.config.js`). The entire frontend compiles to static HTML, CSS, and JavaScript at build time. No Node.js server is required at runtime.
+**Standalone server** (`output: 'standalone'` in `next.config.ts`). Next.js compiles a self-contained Node.js server that handles routing, serves static assets, and supports all App Router features — packaged into a minimal Docker image without `node_modules`.
 
-**Why static?** Courier is an internal SPA behind authentication. Every page requires a valid Entra ID token before any data loads, so server-side rendering provides no benefit. Static export simplifies deployment (CDN, Azure Static Web Apps, or a simple nginx container), eliminates a Node.js runtime dependency in production, and allows the frontend to scale independently of the backend.
+> **Design decision (2026-03-15)**: The original design specified `output: 'export'` (static HTML + nginx). This was changed to `output: 'standalone'` because the frontend uses ~17 dynamic `[id]` routes, all of which are `"use client"` components. Next.js `output: 'export'` requires `generateStaticParams` on every dynamic route, which would need stubs added to all detail pages. The standalone approach works immediately with the existing codebase, handles all client-side routing natively, and avoids the need for nginx SPA fallback configuration. The tradeoff is a slightly larger Docker image (~150MB vs ~25MB for nginx) — acceptable for an internal enterprise application.
 
-**Client-side data fetching**: All API calls happen in the browser via TanStack Query after authentication. Pages render loading skeletons until data arrives.
+**Client-side data fetching**: All API calls happen in the browser via TanStack Query after authentication. Pages render loading skeletons until data arrives. No server-side rendering or data fetching is used — the Node.js server only handles routing and static asset serving.
 
 **Build-time configuration**: Environment-specific values (API base URL, Entra ID client ID, tenant ID) are injected at build time via `NEXT_PUBLIC_*` environment variables. Separate builds are produced for dev, staging, and production.
 
-#### 11.2.1 Static Export Constraints
+#### 11.2.1 Client-Side SPA Constraints
 
-Next.js static export (`output: 'export'`) disables features that require a Node.js server at runtime. These constraints are deliberate — Courier does not need server-rendered pages — but they must be documented to prevent future "why can't we do X?" confusion.
+Although the frontend runs on a Node.js server, Courier deliberately avoids server-side features. The frontend is a pure client-side SPA that uses Next.js for routing, layout system, and build tooling. There is no server-side rendering, no server-side auth, and no backend-for-frontend (BFF) pattern. The browser is the only meaningful execution environment.
 
-**Features unavailable with static export** (per [Next.js documentation](https://nextjs.org/docs/app/building-your-application/deploying/static-exports)):
+**Server-side features intentionally not used**:
 
-| Feature | Status | Courier's Alternative |
-|---------|--------|----------------------|
-| Server Components (async data fetching) | **Unavailable** — all components are client components | TanStack Query for all data fetching, with loading skeletons |
-| Server Actions (`"use server"`) | **Unavailable** — no server to execute actions | All mutations go through the REST API via TanStack Query's `useMutation` |
-| Route Handlers (`app/api/...`) | **Unavailable** — no API routes in the frontend | The .NET API is the only backend; the frontend never proxies or transforms requests |
-| Middleware (`middleware.ts`) | **Unavailable** — no edge/server middleware | Auth guard is a client-side `AuthProvider` wrapper that checks MSAL token state before rendering children (see 11.3). Route protection is enforced in the browser, with the API as the authoritative gate. |
-| Server-side redirects / rewrites | **Unavailable** — no `next.config.js` redirects at runtime | Client-side redirects via `useRouter().push()`. SPA fallback routing handled by hosting layer (nginx `try_files` or Azure Static Web Apps). |
-| `next/image` optimization | **Unavailable** — no image optimization server | Standard `<img>` tags. Courier's UI is data-heavy, not image-heavy — no optimization needed. |
-| Incremental Static Regeneration (ISR) | **Unavailable** — pages are fully static | All data is fetched client-side; pages don't need regeneration. |
-| Dynamic routes with `generateStaticParams` | **Available** but limited — only for known-at-build-time paths | All entity detail pages (jobs, connections, keys) use client-side routing with `[id]` segments that resolve at runtime, not build time. Next.js static export generates the shell HTML; the `[id]` is read from the URL client-side. |
-
-**What this means in practice**: The Next.js frontend is a pure client-side SPA that happens to use Next.js for its routing, layout system, and build tooling. There is no server-side rendering, no server-side auth, and no backend-for-frontend (BFF) pattern. The browser is the only execution environment.
+| Feature | Status | Courier's Approach |
+|---------|--------|-------------------|
+| Server Components (async data fetching) | **Not used** — all components are `"use client"` | TanStack Query for all data fetching, with loading skeletons |
+| Server Actions (`"use server"`) | **Not used** | All mutations go through the REST API via TanStack Query's `useMutation` |
+| Route Handlers (`app/api/...`) | **Not used** | The .NET API is the only backend; the frontend never proxies or transforms requests |
+| Middleware (`middleware.ts`) | **Not used** | Auth guard is a client-side `AuthProvider` wrapper that checks token state before rendering children (see 11.3). Route protection is enforced in the browser, with the API as the authoritative gate. |
+| `next/image` optimization | **Not used** | Standard `<img>` tags. Courier's UI is data-heavy, not image-heavy — no optimization needed. |
+| Incremental Static Regeneration (ISR) | **Not used** | All data is fetched client-side; pages don't need regeneration. |
 
 #### 11.2.2 Authentication Security in a Static SPA
 
@@ -5141,7 +5137,7 @@ Courier.Frontend/
 │       └── globals.css                   ← Tailwind directives, shadcn/ui theme tokens
 │
 ├── public/                               ← Static assets (favicon, logo)
-├── next.config.js                        ← output: 'export', env vars, image config
+├── next.config.ts                        ← output: 'standalone', env vars, image config
 ├── tailwind.config.ts                    ← Theme, custom colors, font
 ├── tsconfig.json
 └── package.json
@@ -5562,33 +5558,25 @@ Courier uses the shadcn/ui theming system with CSS custom properties. Light and 
 # Install dependencies
 npm ci
 
-# Build static export
-npm run build    # next build → outputs to /out
+# Build standalone server
+npm run build    # next build → outputs to .next/standalone/
 
-# Contents of /out:
-# ├── index.html
-# ├── jobs/index.html
-# ├── jobs/new/index.html
-# ├── connections/index.html
-# ├── _next/static/...      ← JS/CSS bundles
-# └── ...
+# Contents of .next/standalone/:
+# ├── server.js              ← self-contained Node.js server
+# ├── .next/static/...       ← JS/CSS bundles (copied separately in Docker)
+# ├── public/...             ← static assets (copied separately in Docker)
+# └── node_modules/...       ← minimal production dependencies
 ```
 
-**Deployment**: The `/out` directory is deployed as static files to any static hosting provider. No Node.js runtime is required.
+**Deployment**: The `.next/standalone/` directory is a self-contained Node.js server. Run with `node server.js` — no `npm start` or full `node_modules` required.
 
 | Environment | Hosting | API URL |
 |-------------|---------|---------|
-| Development | `next dev` (local) | `http://localhost:5000/api/v1` |
-| Staging | Azure Static Web Apps or nginx container | `https://courier-staging.corp.com/api/v1` |
-| Production | Azure Static Web Apps or CDN + nginx | `https://courier.corp.com/api/v1` |
+| Development | `next dev` (local via Aspire) | `http://localhost:5000/api/v1` |
+| Staging | Container App (Node.js standalone) | `https://courier-staging.corp.com/api/v1` |
+| Production | Container App (Node.js standalone) | `https://courier.corp.com/api/v1` |
 
-**SPA fallback routing**: Since the frontend is a static export with client-side routing, the hosting layer must be configured to serve `index.html` for all routes (except `/_next/static/` assets). Azure Static Web Apps handles this automatically. For nginx:
-
-```nginx
-location / {
-    try_files $uri $uri/ /index.html;
-}
-```
+**Routing**: The standalone Node.js server handles all client-side routing natively — no nginx SPA fallback or `try_files` configuration needed.
 
 ---
 
@@ -7529,49 +7517,40 @@ ENTRYPOINT ["dotnet", "Courier.Worker.dll"]
 
 #### 14.2.3 Frontend
 
-```dockerfile
-# Courier.Frontend.Dockerfile
-FROM node:22-alpine AS build
-WORKDIR /app
+> **Updated 2026-03-15**: Changed from static export + nginx to standalone Node.js server. See Section 11.2 for rationale.
 
+```dockerfile
+# Courier.Frontend.Dockerfile — Next.js Standalone
+FROM node:22-alpine AS deps
+WORKDIR /app
 COPY src/Courier.Frontend/package.json src/Courier.Frontend/package-lock.json ./
 RUN npm ci
 
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY src/Courier.Frontend/ .
 
-ARG NEXT_PUBLIC_API_BASE_URL
-ARG NEXT_PUBLIC_ENTRA_CLIENT_ID
-ARG NEXT_PUBLIC_ENTRA_TENANT_ID
-ARG NEXT_PUBLIC_REDIRECT_URI
+ARG NEXT_PUBLIC_API_URL=http://localhost:5000
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
-RUN npm run build    # next build → static export to /app/out
+RUN npm run build    # next build → standalone server in .next/standalone/
 
-FROM nginx:alpine AS runtime
-COPY infra/docker/nginx-spa.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/out /usr/share/nginx/html
-EXPOSE 80
-HEALTHCHECK --interval=30s --timeout=5s \
-    CMD curl -f http://localhost:80/ || exit 1
+FROM node:22-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
+
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
+COPY --from=build /app/public ./public
+
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -q --spider http://localhost:3000 || exit 1
+CMD ["node", "server.js"]
 ```
 
-**nginx SPA config** (`infra/docker/nginx-spa.conf`):
-
-```nginx
-server {
-    listen 80;
-    root /usr/share/nginx/html;
-    index index.html;
-
-    location /_next/static/ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-```
+The standalone output produces a self-contained Node.js server (~150MB image) that handles all routing natively — no nginx or SPA fallback configuration required. `NEXT_PUBLIC_API_URL` is baked into the JS bundle at build time, so the frontend image must be rebuilt per environment.
 
 ### 14.3 Azure Container Apps Configuration
 

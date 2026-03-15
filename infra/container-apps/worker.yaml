@@ -1,0 +1,78 @@
+# =============================================================================
+# Courier Worker — Azure Container App Definition
+# =============================================================================
+# Deploy: az containerapp create -n courier-worker -g $RG --yaml infra/container-apps/worker.yaml
+# Update: az containerapp update -n courier-worker -g $RG --yaml infra/container-apps/worker.yaml
+# =============================================================================
+
+name: courier-worker
+properties:
+  managedEnvironmentId: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.App/managedEnvironments/{env}
+  configuration:
+    activeRevisionsMode: Single
+    # No external ingress — Worker processes jobs internally
+    secrets:
+      - name: db-connection-string
+        keyVaultUrl: https://{vault}.vault.azure.net/secrets/db-connection-string
+        identity: system
+      - name: encryption-key
+        keyVaultUrl: https://{vault}.vault.azure.net/secrets/encryption-key
+        identity: system
+      - name: appinsights-connection-string
+        keyVaultUrl: https://{vault}.vault.azure.net/secrets/appinsights-connection-string
+        identity: system
+    registries:
+      - server: couriercr.azurecr.io
+        identity: system
+  template:
+    containers:
+      - name: courier-worker
+        image: couriercr.azurecr.io/courier-worker:{tag}
+        resources:
+          cpu: 2.0
+          memory: 4Gi
+        env:
+          - name: ConnectionStrings__CourierDb
+            secretRef: db-connection-string
+          - name: Encryption__Key
+            secretRef: encryption-key
+          - name: APPLICATIONINSIGHTS_CONNECTION_STRING
+            secretRef: appinsights-connection-string
+          - name: DOTNET_ENVIRONMENT
+            value: Production
+          - name: Workspace__BaseDirectory
+            value: /data/courier/temp
+        volumeMounts:
+          - volumeName: temp-storage
+            mountPath: /data/courier/temp
+        probes:
+          - type: liveness
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+          - type: readiness
+            httpGet:
+              path: /health/ready
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          - type: startup
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 10
+    volumes:
+      - name: temp-storage
+        storageType: EmptyDir
+    # V1: Single replica — Quartz persistent store is not cluster-aware yet
+    scale:
+      minReplicas: 1
+      maxReplicas: 1
+  identity:
+    type: SystemAssigned

@@ -92,7 +92,8 @@
       "Bash(do echo:*)",
       "Bash(cmd:*)",
       "Bash(tasklist:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(for dir:*)"
     ],
     "deny": [],
     "ask": []
