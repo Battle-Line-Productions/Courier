@@ -13,6 +13,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { TagPicker } from "@/components/tags/tag-picker";
 import { Pencil, Plug, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import type { ConnectionTestDto } from "@/lib/types";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -45,6 +46,7 @@ export default function ConnectionDetailPage({ params }: { params: Promise<{ id:
   const { data, isLoading } = useConnection(id);
   const testMutation = useTestConnection();
   const [testResult, setTestResult] = useState<ConnectionTestDto | null>(null);
+  const { can } = usePermissions();
 
   if (isLoading) {
     return (
@@ -99,7 +101,7 @@ export default function ConnectionDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {!isAzureFunction && (
+          {!isAzureFunction && can("ConnectionsTest") && (
             <Button
               variant="outline"
               onClick={handleTestConnection}
@@ -113,12 +115,14 @@ export default function ConnectionDetailPage({ params }: { params: Promise<{ id:
               Test Connection
             </Button>
           )}
-          <Button variant="outline" asChild>
-            <Link href={`/connections/${id}/edit`}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
-            </Link>
-          </Button>
+          {can("ConnectionsEdit") && (
+            <Button variant="outline" asChild>
+              <Link href={`/connections/${id}/edit`}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 

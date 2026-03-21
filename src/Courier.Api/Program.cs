@@ -3,6 +3,8 @@ using System.Threading.RateLimiting;
 using Courier.Api.Middleware;
 using Courier.Features;
 using Courier.Features.Auth;
+using Courier.Features.Security;
+using Microsoft.AspNetCore.Authorization;
 using Courier.Infrastructure.Data;
 using Courier.Migrations;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -61,6 +63,10 @@ if (!string.IsNullOrEmpty(jwtSecret))
         });
 }
 
+// Permission-based authorization
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddSingleton<IAuthorizationHandler, PermissionHandler>();
+builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, ApiResponseAuthorizationHandler>();
 builder.Services.AddAuthorization();
 
 // CORS — allow frontend origin

@@ -9,10 +9,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCreateChain } from "@/lib/hooks/use-chain-mutations";
 import { toast } from "sonner";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 export default function NewChainPage() {
   const router = useRouter();
+  const { can } = usePermissions();
   const createChain = useCreateChain();
+
+  if (!can("ChainsCreate")) {
+    router.push("/chains");
+    return null;
+  }
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 

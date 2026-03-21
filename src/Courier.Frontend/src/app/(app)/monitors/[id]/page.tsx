@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -71,6 +72,7 @@ export default function MonitorDetailPage({ params }: { params: Promise<{ id: st
   const deleteMonitor = useDeleteMonitor();
   const acknowledgeError = useAcknowledgeMonitorError();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const { can } = usePermissions();
 
   if (isLoading) {
     return (
@@ -136,40 +138,44 @@ export default function MonitorDetailPage({ params }: { params: Promise<{ id: st
           )}
         </div>
         <div className="flex items-center gap-2">
-          {monitor.state !== "active" && (
+          {can("MonitorsChangeState") && monitor.state !== "active" && (
             <Button variant="outline" size="sm" onClick={() => handleAction("activate")}>
               <Play className="mr-1.5 h-3.5 w-3.5" />
               Activate
             </Button>
           )}
-          {monitor.state === "active" && (
+          {can("MonitorsChangeState") && monitor.state === "active" && (
             <Button variant="outline" size="sm" onClick={() => handleAction("pause")}>
               <Pause className="mr-1.5 h-3.5 w-3.5" />
               Pause
             </Button>
           )}
-          {monitor.state !== "disabled" && (
+          {can("MonitorsChangeState") && monitor.state !== "disabled" && (
             <Button variant="outline" size="sm" onClick={() => handleAction("disable")}>
               <Ban className="mr-1.5 h-3.5 w-3.5" />
               Disable
             </Button>
           )}
-          {monitor.state === "error" && (
+          {can("MonitorsChangeState") && monitor.state === "error" && (
             <Button variant="outline" size="sm" onClick={() => handleAction("acknowledge")}>
               <AlertTriangle className="mr-1.5 h-3.5 w-3.5" />
               Acknowledge
             </Button>
           )}
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/monitors/${id}/edit`}>
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowDeleteDialog(true)} className="text-destructive hover:text-destructive">
-            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-            Delete
-          </Button>
+          {can("MonitorsEdit") && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/monitors/${id}/edit`}>
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Edit
+              </Link>
+            </Button>
+          )}
+          {can("MonitorsDelete") && (
+            <Button variant="outline" size="sm" onClick={() => setShowDeleteDialog(true)} className="text-destructive hover:text-destructive">
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+              Delete
+            </Button>
+          )}
         </div>
       </div>
 

@@ -1,4 +1,6 @@
 using Courier.Domain.Common;
+using Courier.Domain.Enums;
+using Courier.Features.Security;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,6 +23,7 @@ public class KnownHostsController : ControllerBase
     }
 
     [HttpGet("api/v1/connections/{connectionId:guid}/known-hosts")]
+    [RequirePermission(Permission.KnownHostsView)]
     public async Task<ActionResult<ApiResponse<List<KnownHostDto>>>> ListByConnection(
         Guid connectionId,
         CancellationToken ct)
@@ -34,6 +37,7 @@ public class KnownHostsController : ControllerBase
     }
 
     [HttpGet("api/v1/known-hosts/{id:guid}")]
+    [RequirePermission(Permission.KnownHostsView)]
     public async Task<ActionResult<ApiResponse<KnownHostDto>>> GetById(Guid id, CancellationToken ct)
     {
         var result = await _knownHostService.GetByIdAsync(id, ct);
@@ -45,7 +49,7 @@ public class KnownHostsController : ControllerBase
     }
 
     [HttpPost("api/v1/connections/{connectionId:guid}/known-hosts")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.KnownHostsManage)]
     public async Task<ActionResult<ApiResponse<KnownHostDto>>> Create(
         Guid connectionId,
         [FromBody] CreateKnownHostRequest request,
@@ -80,7 +84,7 @@ public class KnownHostsController : ControllerBase
     }
 
     [HttpDelete("api/v1/known-hosts/{id:guid}")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.KnownHostsManage)]
     public async Task<ActionResult<ApiResponse>> Delete(Guid id, CancellationToken ct)
     {
         var result = await _knownHostService.DeleteAsync(id, ct);
@@ -98,7 +102,7 @@ public class KnownHostsController : ControllerBase
     }
 
     [HttpPost("api/v1/known-hosts/{id:guid}/approve")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.KnownHostsManage)]
     public async Task<ActionResult<ApiResponse<KnownHostDto>>> Approve(Guid id, CancellationToken ct)
     {
         var approvedBy = User.FindFirst("name")?.Value ?? "system";

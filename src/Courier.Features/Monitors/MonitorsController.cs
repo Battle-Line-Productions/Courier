@@ -1,4 +1,6 @@
 using Courier.Domain.Common;
+using Courier.Domain.Enums;
+using Courier.Features.Security;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +24,7 @@ public class MonitorsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.MonitorsCreate)]
     public async Task<ActionResult<ApiResponse<MonitorDto>>> Create(
         [FromBody] CreateMonitorRequest request,
         CancellationToken ct)
@@ -55,6 +57,7 @@ public class MonitorsController : ControllerBase
     }
 
     [HttpGet]
+    [RequirePermission(Permission.MonitorsView)]
     public async Task<ActionResult<PagedApiResponse<MonitorDto>>> List(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
@@ -68,6 +71,7 @@ public class MonitorsController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission(Permission.MonitorsView)]
     public async Task<ActionResult<ApiResponse<MonitorDto>>> GetById(Guid id, CancellationToken ct)
     {
         var result = await _monitorService.GetByIdAsync(id, ct);
@@ -79,7 +83,7 @@ public class MonitorsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.MonitorsEdit)]
     public async Task<ActionResult<ApiResponse<MonitorDto>>> Update(
         Guid id,
         [FromBody] UpdateMonitorRequest request,
@@ -114,7 +118,7 @@ public class MonitorsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.MonitorsDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(Guid id, CancellationToken ct)
     {
         var result = await _monitorService.DeleteAsync(id, ct);
@@ -132,7 +136,7 @@ public class MonitorsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/activate")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.MonitorsChangeState)]
     public async Task<ActionResult<ApiResponse<MonitorDto>>> Activate(Guid id, CancellationToken ct)
     {
         var result = await _monitorService.ActivateAsync(id, ct);
@@ -151,7 +155,7 @@ public class MonitorsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/pause")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.MonitorsChangeState)]
     public async Task<ActionResult<ApiResponse<MonitorDto>>> Pause(Guid id, CancellationToken ct)
     {
         var result = await _monitorService.PauseAsync(id, ct);
@@ -170,7 +174,7 @@ public class MonitorsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/disable")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.MonitorsChangeState)]
     public async Task<ActionResult<ApiResponse<MonitorDto>>> Disable(Guid id, CancellationToken ct)
     {
         var result = await _monitorService.DisableAsync(id, ct);
@@ -189,7 +193,7 @@ public class MonitorsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/acknowledge-error")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.MonitorsChangeState)]
     public async Task<ActionResult<ApiResponse<MonitorDto>>> AcknowledgeError(Guid id, CancellationToken ct)
     {
         var result = await _monitorService.AcknowledgeErrorAsync(id, ct);
@@ -208,6 +212,7 @@ public class MonitorsController : ControllerBase
     }
 
     [HttpGet("{id:guid}/file-log")]
+    [RequirePermission(Permission.MonitorsView)]
     public async Task<ActionResult<PagedApiResponse<MonitorFileLogDto>>> ListFileLog(
         Guid id,
         [FromQuery] int page = 1,

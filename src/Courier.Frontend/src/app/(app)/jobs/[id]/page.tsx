@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TagPicker } from "@/components/tags/tag-picker";
 import { Pencil } from "lucide-react";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -39,6 +40,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const { data: jobData, isLoading: jobLoading } = useJob(id);
   const { data: stepsData, isLoading: stepsLoading } = useJobSteps(id);
   const [latestExecutionId, setLatestExecutionId] = useState<string | undefined>();
+  const { can } = usePermissions();
 
   if (jobLoading || stepsLoading) {
     return (
@@ -79,17 +81,21 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href={`/jobs/${id}/edit`}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
-            </Link>
-          </Button>
-          <RunButton
-            jobId={id}
-            jobName={job.name}
-            onTriggered={(execId) => setLatestExecutionId(execId)}
-          />
+          {can("JobsEdit") && (
+            <Button variant="outline" asChild>
+              <Link href={`/jobs/${id}/edit`}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </Link>
+            </Button>
+          )}
+          {can("JobsExecute") && (
+            <RunButton
+              jobId={id}
+              jobName={job.name}
+              onTriggered={(execId) => setLatestExecutionId(execId)}
+            />
+          )}
         </div>
       </div>
 

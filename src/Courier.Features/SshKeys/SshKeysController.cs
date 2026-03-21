@@ -1,5 +1,7 @@
 using Courier.Domain.Common;
+using Courier.Domain.Enums;
 using Courier.Features.Keys;
+using Courier.Features.Security;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -24,6 +26,7 @@ public class SshKeysController : ControllerBase
     }
 
     [HttpGet]
+    [RequirePermission(Permission.SshKeysView)]
     public async Task<ActionResult<PagedApiResponse<SshKeyDto>>> List(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
@@ -38,7 +41,7 @@ public class SshKeysController : ControllerBase
     }
 
     [HttpPost("generate")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.SshKeysManage)]
     public async Task<ActionResult<ApiResponse<SshKeyDto>>> Generate(
         [FromBody] GenerateSshKeyRequest request,
         CancellationToken ct)
@@ -67,7 +70,7 @@ public class SshKeysController : ControllerBase
     }
 
     [HttpPost("import")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.SshKeysManage)]
     public async Task<ActionResult<ApiResponse<SshKeyDto>>> Import(
         [FromForm] ImportSshKeyRequest request,
         IFormFile keyFile,
@@ -111,6 +114,7 @@ public class SshKeysController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission(Permission.SshKeysView)]
     public async Task<ActionResult<ApiResponse<SshKeyDto>>> GetById(Guid id, CancellationToken ct)
     {
         var result = await _sshKeyService.GetByIdAsync(id, ct);
@@ -122,7 +126,7 @@ public class SshKeysController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.SshKeysManage)]
     public async Task<ActionResult<ApiResponse<SshKeyDto>>> Update(
         Guid id,
         [FromBody] UpdateSshKeyRequest request,
@@ -157,7 +161,7 @@ public class SshKeysController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.SshKeysManage)]
     public async Task<ActionResult<ApiResponse>> Delete(Guid id, CancellationToken ct)
     {
         var result = await _sshKeyService.DeleteAsync(id, ct);
@@ -175,6 +179,7 @@ public class SshKeysController : ControllerBase
     }
 
     [HttpGet("{id:guid}/export/public")]
+    [RequirePermission(Permission.SshKeysExportPublic)]
     public async Task<ActionResult> ExportPublicKey(Guid id, CancellationToken ct)
     {
         var result = await _sshKeyService.ExportPublicKeyAsync(id, ct);
@@ -187,7 +192,7 @@ public class SshKeysController : ControllerBase
     }
 
     [HttpPost("{id:guid}/retire")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.SshKeysManage)]
     public async Task<ActionResult<ApiResponse<SshKeyDto>>> Retire(Guid id, CancellationToken ct)
     {
         var result = await _sshKeyService.RetireAsync(id, ct);
@@ -206,7 +211,7 @@ public class SshKeysController : ControllerBase
     }
 
     [HttpPost("{id:guid}/activate")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.SshKeysManage)]
     public async Task<ActionResult<ApiResponse<SshKeyDto>>> Activate(Guid id, CancellationToken ct)
     {
         var result = await _sshKeyService.ActivateAsync(id, ct);
@@ -227,7 +232,7 @@ public class SshKeysController : ControllerBase
     // --- Share Link Endpoints ---
 
     [HttpPost("{id:guid}/share")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.SshKeysManageSharing)]
     public async Task<ActionResult<ApiResponse<ShareLinkResponse>>> CreateShareLink(
         Guid id,
         [FromBody] CreateShareLinkRequest request,
@@ -251,7 +256,7 @@ public class SshKeysController : ControllerBase
     }
 
     [HttpGet("{id:guid}/share")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.SshKeysManageSharing)]
     public async Task<ActionResult<ApiResponse<List<ShareLinkListItem>>>> ListShareLinks(
         Guid id,
         [FromServices] KeyShareService keyShareService,
@@ -262,7 +267,7 @@ public class SshKeysController : ControllerBase
     }
 
     [HttpDelete("{id:guid}/share/{linkId:guid}")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.SshKeysManageSharing)]
     public async Task<ActionResult<ApiResponse>> RevokeShareLink(
         Guid id,
         Guid linkId,

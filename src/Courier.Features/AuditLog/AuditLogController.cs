@@ -1,4 +1,6 @@
 using Courier.Domain.Common;
+using Courier.Domain.Enums;
+using Courier.Features.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,6 +19,7 @@ public class AuditLogController : ControllerBase
     }
 
     [HttpGet]
+    [RequirePermission(Permission.AuditLogView)]
     public async Task<ActionResult<PagedApiResponse<AuditLogEntryDto>>> List(
         [FromQuery] string? entityType = null,
         [FromQuery] Guid? entityId = null,
@@ -43,6 +46,7 @@ public class AuditLogController : ControllerBase
     }
 
     [HttpGet("entity/{entityType}/{entityId:guid}")]
+    [RequirePermission(Permission.AuditLogView)]
     public async Task<ActionResult<PagedApiResponse<AuditLogEntryDto>>> ListByEntity(
         string entityType,
         Guid entityId,

@@ -1,4 +1,6 @@
 using Courier.Domain.Common;
+using Courier.Domain.Enums;
+using Courier.Features.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,6 +19,7 @@ public class FilesystemController : ControllerBase
     }
 
     [HttpGet("browse")]
+    [RequirePermission(Permission.FilesystemBrowse)]
     public async Task<ActionResult<ApiResponse<BrowseResult>>> Browse(
         [FromQuery] string? path = null,
         CancellationToken ct = default)

@@ -11,12 +11,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useChain } from "@/lib/hooks/use-chains";
 import { useUpdateChain } from "@/lib/hooks/use-chain-mutations";
 import { toast } from "sonner";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 export default function EditChainPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const { can } = usePermissions();
   const { data, isLoading } = useChain(id);
   const updateChain = useUpdateChain(id);
+
+  if (!can("ChainsEdit")) {
+    router.push(`/chains/${id}`);
+    return null;
+  }
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useAuthSettings, useUpdateAuthSettings } from "@/lib/hooks/use-settings";
 import { useChangePassword } from "@/lib/hooks/use-auth-actions";
 import { useAuth } from "@/lib/auth";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { toast } from "sonner";
 import { ApiClientError } from "@/lib/api";
 import { Shield, KeyRound, Lock } from "lucide-react";
@@ -212,7 +213,8 @@ function SsoProvidersTab() {
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const { can } = usePermissions();
+  const isAdmin = can("SettingsManage");
 
   return (
     <div className="space-y-6">

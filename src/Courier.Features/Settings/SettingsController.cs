@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using Courier.Domain.Common;
+using Courier.Domain.Enums;
+using Courier.Features.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -25,7 +27,7 @@ public class SettingsController : ControllerBase
     }
 
     [HttpPut("auth")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.SettingsManage)]
     public async Task<ActionResult<ApiResponse<AuthSettingsDto>>> UpdateAuthSettings(
         [FromBody] UpdateAuthSettingsRequest request,
         CancellationToken ct)

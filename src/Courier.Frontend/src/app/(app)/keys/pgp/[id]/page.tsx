@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { TagPicker } from "@/components/tags/tag-picker";
 import { Pencil } from "lucide-react";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -30,6 +31,7 @@ function formatAlgorithm(algo: string): string {
 export default function PgpKeyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data, isLoading } = usePgpKey(id);
+  const { can } = usePermissions();
 
   if (isLoading) {
     return (
@@ -64,11 +66,13 @@ export default function PgpKeyDetailPage({ params }: { params: Promise<{ id: str
             </span>
           </div>
         </div>
-        <Button variant="outline" asChild>
-          <Link href={`/keys/pgp/${id}/edit`}>
-            <Pencil className="mr-2 h-4 w-4" /> Edit
-          </Link>
-        </Button>
+        {can("PgpKeysManage") && (
+          <Button variant="outline" asChild>
+            <Link href={`/keys/pgp/${id}/edit`}>
+              <Pencil className="mr-2 h-4 w-4" /> Edit
+            </Link>
+          </Button>
+        )}
       </div>
 
       {/* Tags */}

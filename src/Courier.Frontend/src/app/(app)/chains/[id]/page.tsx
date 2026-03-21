@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Pencil, Play } from "lucide-react";
 import { toast } from "sonner";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -49,6 +50,7 @@ export default function ChainDetailPage({ params }: { params: Promise<{ id: stri
   const { data: execData, isLoading: execLoading } = useChainExecutions(id);
   const triggerChain = useTriggerChain(id);
   const [showRunDialog, setShowRunDialog] = useState(false);
+  const { can } = usePermissions();
 
   if (chainLoading || jobsLoading) {
     return (
@@ -102,19 +104,23 @@ export default function ChainDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href={`/chains/${id}/edit`}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
-            </Link>
-          </Button>
-          <Button
-            onClick={() => setShowRunDialog(true)}
-            disabled={!chain.isEnabled || chain.members.length === 0}
-          >
-            <Play className="mr-2 h-4 w-4" />
-            Run
-          </Button>
+          {can("ChainsEdit") && (
+            <Button variant="outline" asChild>
+              <Link href={`/chains/${id}/edit`}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </Link>
+            </Button>
+          )}
+          {can("ChainsExecute") && (
+            <Button
+              onClick={() => setShowRunDialog(true)}
+              disabled={!chain.isEnabled || chain.members.length === 0}
+            >
+              <Play className="mr-2 h-4 w-4" />
+              Run
+            </Button>
+          )}
         </div>
       </div>
 

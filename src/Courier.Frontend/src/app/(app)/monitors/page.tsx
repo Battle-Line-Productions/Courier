@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MonitorTable } from "@/components/monitors/monitor-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useMonitors } from "@/lib/hooks/use-monitors";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 export default function MonitorsPage() {
   const [page, setPage] = useState(1);
@@ -29,6 +30,7 @@ export default function MonitorsPage() {
   };
 
   const { data, isLoading } = useMonitors(page, pageSize, filters);
+  const { can } = usePermissions();
 
   const monitors = data?.data ?? [];
   const pagination = data?.pagination;
@@ -42,12 +44,14 @@ export default function MonitorsPage() {
             Watch directories for file events and trigger jobs automatically
           </p>
         </div>
-        <Button asChild>
-          <Link href="/monitors/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Create Monitor
-          </Link>
-        </Button>
+        {can("MonitorsCreate") && (
+          <Button asChild>
+            <Link href="/monitors/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Create Monitor
+            </Link>
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -59,8 +63,8 @@ export default function MonitorsPage() {
         <EmptyState
           title="No monitors yet"
           description="Create your first monitor to watch a directory for file events. When files are created or modified, Courier will automatically trigger bound jobs."
-          actionLabel="Create Monitor"
-          actionHref="/monitors/new"
+          actionLabel={can("MonitorsCreate") ? "Create Monitor" : undefined}
+          actionHref={can("MonitorsCreate") ? "/monitors/new" : undefined}
         />
       ) : (
         <>

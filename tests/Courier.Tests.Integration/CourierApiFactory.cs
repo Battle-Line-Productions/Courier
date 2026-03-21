@@ -22,7 +22,7 @@ public class CourierApiFactory : WebApplicationFactory<Courier.Api.Program>, IAs
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine")
         .Build();
 
-    async ValueTask IAsyncLifetime.InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await _postgres.StartAsync();
 
@@ -84,7 +84,7 @@ public class CourierApiFactory : WebApplicationFactory<Courier.Api.Program>, IAs
         });
     }
 
-    async ValueTask IAsyncDisposable.DisposeAsync()
+    public new async ValueTask DisposeAsync()
     {
         await _postgres.DisposeAsync();
     }
@@ -103,12 +103,28 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
+        // Support anonymous testing: if X-Test-Anonymous header is present, return NoResult
+        if (Context.Request.Headers.ContainsKey("X-Test-Anonymous"))
+        {
+            return Task.FromResult(AuthenticateResult.NoResult());
+        }
+
+        // Read role from custom header, default to "admin" for backward compatibility
+        var role = Context.Request.Headers["X-Test-Role"].FirstOrDefault() ?? "admin";
+
+        var userId = role switch
+        {
+            "operator" => "00000000-0000-0000-0000-000000000002",
+            "viewer" => "00000000-0000-0000-0000-000000000003",
+            _ => "00000000-0000-0000-0000-000000000001", // admin
+        };
+
         var claims = new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, "00000000-0000-0000-0000-000000000001"),
-            new Claim(ClaimTypes.Name, "testadmin"),
-            new Claim(ClaimTypes.Role, "admin"),
-            new Claim("name", "Test Admin"),
+            new Claim(ClaimTypes.NameIdentifier, userId),
+            new Claim(ClaimTypes.Name, $"test{role}"),
+            new Claim(ClaimTypes.Role, role),
+            new Claim("name", $"Test {char.ToUpper(role[0])}{role[1..]}"),
         };
 
         var identity = new ClaimsIdentity(claims, "Test");

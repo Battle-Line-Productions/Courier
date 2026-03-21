@@ -1,5 +1,7 @@
 using Courier.Domain.Common;
+using Courier.Domain.Enums;
 using Courier.Features.Keys;
+using Courier.Features.Security;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -24,6 +26,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpGet]
+    [RequirePermission(Permission.PgpKeysView)]
     public async Task<ActionResult<PagedApiResponse<PgpKeyDto>>> List(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
@@ -39,7 +42,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpPost("generate")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.PgpKeysManage)]
     public async Task<ActionResult<ApiResponse<PgpKeyDto>>> Generate(
         [FromBody] GeneratePgpKeyRequest request,
         CancellationToken ct)
@@ -68,7 +71,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpPost("import")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.PgpKeysManage)]
     public async Task<ActionResult<ApiResponse<PgpKeyDto>>> Import(
         [FromForm] ImportPgpKeyRequest request,
         IFormFile keyFile,
@@ -112,6 +115,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission(Permission.PgpKeysView)]
     public async Task<ActionResult<ApiResponse<PgpKeyDto>>> GetById(Guid id, CancellationToken ct)
     {
         var result = await _pgpKeyService.GetByIdAsync(id, ct);
@@ -123,7 +127,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.PgpKeysManage)]
     public async Task<ActionResult<ApiResponse<PgpKeyDto>>> Update(
         Guid id,
         [FromBody] UpdatePgpKeyRequest request,
@@ -158,7 +162,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.PgpKeysManage)]
     public async Task<ActionResult<ApiResponse>> Delete(Guid id, CancellationToken ct)
     {
         var result = await _pgpKeyService.DeleteAsync(id, ct);
@@ -176,6 +180,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpGet("{id:guid}/export/public")]
+    [RequirePermission(Permission.PgpKeysExportPublic)]
     public async Task<ActionResult> ExportPublicKey(Guid id, CancellationToken ct)
     {
         var result = await _pgpKeyService.ExportPublicKeyAsync(id, ct);
@@ -188,7 +193,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpPost("{id:guid}/retire")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.PgpKeysManage)]
     public async Task<ActionResult<ApiResponse<PgpKeyDto>>> Retire(Guid id, CancellationToken ct)
     {
         var result = await _pgpKeyService.RetireAsync(id, ct);
@@ -207,7 +212,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpPost("{id:guid}/revoke")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.PgpKeysManage)]
     public async Task<ActionResult<ApiResponse<PgpKeyDto>>> Revoke(Guid id, CancellationToken ct)
     {
         var result = await _pgpKeyService.RevokeAsync(id, ct);
@@ -226,7 +231,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpPost("{id:guid}/activate")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.PgpKeysManage)]
     public async Task<ActionResult<ApiResponse<PgpKeyDto>>> Activate(Guid id, CancellationToken ct)
     {
         var result = await _pgpKeyService.ActivateAsync(id, ct);
@@ -245,7 +250,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpPost("{id:guid}/set-successor")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.PgpKeysManage)]
     public async Task<ActionResult<ApiResponse>> SetSuccessor(Guid id, [FromBody] SetSuccessorRequest request, CancellationToken ct)
     {
         var result = await _pgpKeyService.SetSuccessorAsync(id, request.SuccessorKeyId, ct);
@@ -268,7 +273,7 @@ public class PgpKeysController : ControllerBase
     // --- Share Link Endpoints ---
 
     [HttpPost("{id:guid}/share")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.PgpKeysManageSharing)]
     public async Task<ActionResult<ApiResponse<ShareLinkResponse>>> CreateShareLink(
         Guid id,
         [FromBody] CreateShareLinkRequest request,
@@ -292,7 +297,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpGet("{id:guid}/share")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.PgpKeysManageSharing)]
     public async Task<ActionResult<ApiResponse<List<ShareLinkListItem>>>> ListShareLinks(
         Guid id,
         [FromServices] KeyShareService keyShareService,
@@ -303,7 +308,7 @@ public class PgpKeysController : ControllerBase
     }
 
     [HttpDelete("{id:guid}/share/{linkId:guid}")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.PgpKeysManageSharing)]
     public async Task<ActionResult<ApiResponse>> RevokeShareLink(
         Guid id,
         Guid linkId,

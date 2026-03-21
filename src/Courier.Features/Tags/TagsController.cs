@@ -1,4 +1,6 @@
 using Courier.Domain.Common;
+using Courier.Domain.Enums;
+using Courier.Features.Security;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +24,7 @@ public class TagsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.TagsManage)]
     public async Task<ActionResult<ApiResponse<TagDto>>> Create(
         [FromBody] CreateTagRequest request,
         CancellationToken ct)
@@ -55,6 +57,7 @@ public class TagsController : ControllerBase
     }
 
     [HttpGet]
+    [RequirePermission(Permission.TagsView)]
     public async Task<ActionResult<PagedApiResponse<TagDto>>> List(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
@@ -67,6 +70,7 @@ public class TagsController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission(Permission.TagsView)]
     public async Task<ActionResult<ApiResponse<TagDto>>> GetById(Guid id, CancellationToken ct)
     {
         var result = await _tagService.GetByIdAsync(id, ct);
@@ -78,7 +82,7 @@ public class TagsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.TagsManage)]
     public async Task<ActionResult<ApiResponse<TagDto>>> Update(
         Guid id,
         [FromBody] UpdateTagRequest request,
@@ -114,7 +118,7 @@ public class TagsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.TagsManage)]
     public async Task<ActionResult<ApiResponse>> Delete(Guid id, CancellationToken ct)
     {
         var result = await _tagService.DeleteAsync(id, ct);
@@ -132,7 +136,7 @@ public class TagsController : ControllerBase
     }
 
     [HttpPost("assign")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.TagsManage)]
     public async Task<ActionResult<ApiResponse>> Assign(
         [FromBody] BulkTagAssignmentRequest request,
         [FromServices] IValidator<BulkTagAssignmentRequest> validator,
@@ -168,7 +172,7 @@ public class TagsController : ControllerBase
     }
 
     [HttpPost("unassign")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.TagsManage)]
     public async Task<ActionResult<ApiResponse>> Unassign(
         [FromBody] BulkTagAssignmentRequest request,
         [FromServices] IValidator<BulkTagAssignmentRequest> validator,
@@ -192,6 +196,7 @@ public class TagsController : ControllerBase
     }
 
     [HttpGet("{id:guid}/entities")]
+    [RequirePermission(Permission.TagsView)]
     public async Task<ActionResult<PagedApiResponse<TagEntityDto>>> ListEntities(
         Guid id,
         [FromQuery] string? entityType = null,

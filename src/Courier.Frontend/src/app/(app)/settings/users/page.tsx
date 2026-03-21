@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useUsers, useDeleteUser } from "@/lib/hooks/use-users";
 import { useAuth } from "@/lib/auth";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Trash2, UserPlus } from "lucide-react";
@@ -19,12 +20,13 @@ const roleBadgeColors: Record<string, string> = {
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
+  const { can } = usePermissions();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const { data, isLoading } = useUsers(page, 10, search || undefined);
   const deleteUser = useDeleteUser();
 
-  if (currentUser?.role !== "admin") {
+  if (!can("UsersManage")) {
     return (
       <div className="text-center text-muted-foreground py-12">
         You do not have permission to view this page.
@@ -53,12 +55,14 @@ export default function UsersPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
           <p className="text-sm text-muted-foreground">Manage user accounts and roles.</p>
         </div>
-        <Button asChild>
-          <Link href="/settings/users/new">
-            <UserPlus className="mr-2 h-4 w-4" />
-            Add User
-          </Link>
-        </Button>
+        {can("UsersManage") && (
+          <Button asChild>
+            <Link href="/settings/users/new">
+              <UserPlus className="mr-2 h-4 w-4" />
+              Add User
+            </Link>
+          </Button>
+        )}
       </div>
 
       <div className="relative max-w-sm">

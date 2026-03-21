@@ -1,4 +1,6 @@
 using Courier.Domain.Common;
+using Courier.Domain.Enums;
+using Courier.Features.Security;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -34,7 +36,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.JobsCreate)]
     public async Task<ActionResult<ApiResponse<JobDto>>> Create(
         [FromBody] CreateJobRequest request,
         CancellationToken ct)
@@ -57,6 +59,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission(Permission.JobsView)]
     public async Task<ActionResult<ApiResponse<JobDto>>> GetById(Guid id, CancellationToken ct)
     {
         var result = await _jobService.GetByIdAsync(id, ct);
@@ -68,6 +71,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet]
+    [RequirePermission(Permission.JobsView)]
     public async Task<ActionResult<PagedApiResponse<JobDto>>> List(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
@@ -79,7 +83,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.JobsEdit)]
     public async Task<ActionResult<ApiResponse<JobDto>>> Update(
         Guid id,
         [FromBody] UpdateJobRequest request,
@@ -114,7 +118,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.JobsDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(Guid id, CancellationToken ct)
     {
         var result = await _jobService.DeleteAsync(id, ct);
@@ -132,7 +136,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("{jobId:guid}/steps")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.JobsEdit)]
     public async Task<ActionResult<ApiResponse<List<JobStepDto>>>> ReplaceSteps(
         Guid jobId,
         [FromBody] ReplaceJobStepsRequest request,
@@ -153,7 +157,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("{jobId:guid}/steps")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.JobsEdit)]
     public async Task<ActionResult<ApiResponse<JobStepDto>>> AddStep(
         Guid jobId,
         [FromBody] AddJobStepRequest request,
@@ -168,6 +172,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("{jobId:guid}/steps")]
+    [RequirePermission(Permission.JobsView)]
     public async Task<ActionResult<ApiResponse<List<JobStepDto>>>> ListSteps(
         Guid jobId,
         CancellationToken ct)
@@ -181,7 +186,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("{jobId:guid}/trigger")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.JobsExecute)]
     public async Task<ActionResult<ApiResponse<JobExecutionDto>>> Trigger(
         Guid jobId,
         [FromBody] TriggerJobRequest request,
@@ -204,6 +209,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("{jobId:guid}/executions")]
+    [RequirePermission(Permission.JobsView)]
     public async Task<ActionResult<PagedApiResponse<JobExecutionDto>>> ListExecutions(
         Guid jobId,
         [FromQuery] int page = 1,
@@ -215,6 +221,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("executions/{executionId:guid}")]
+    [RequirePermission(Permission.JobsView)]
     public async Task<ActionResult<ApiResponse<JobExecutionDto>>> GetExecution(
         Guid executionId,
         CancellationToken ct)
@@ -228,7 +235,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("executions/{executionId:guid}/pause")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.JobsExecute)]
     public async Task<ActionResult<ApiResponse<JobExecutionDto>>> PauseExecution(
         Guid executionId,
         CancellationToken ct)
@@ -249,7 +256,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("executions/{executionId:guid}/resume")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.JobsExecute)]
     public async Task<ActionResult<ApiResponse<JobExecutionDto>>> ResumeExecution(
         Guid executionId,
         CancellationToken ct)
@@ -270,7 +277,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("executions/{executionId:guid}/cancel")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.JobsExecute)]
     public async Task<ActionResult<ApiResponse<JobExecutionDto>>> CancelExecution(
         Guid executionId,
         [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] CancelExecutionRequest? request,
@@ -292,6 +299,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("{jobId:guid}/schedules")]
+    [RequirePermission(Permission.JobsView)]
     public async Task<ActionResult<ApiResponse<List<JobScheduleDto>>>> ListSchedules(
         Guid jobId,
         CancellationToken ct)
@@ -305,7 +313,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("{jobId:guid}/schedules")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.JobsManageSchedules)]
     public async Task<ActionResult<ApiResponse<JobScheduleDto>>> CreateSchedule(
         Guid jobId,
         [FromBody] CreateJobScheduleRequest request,
@@ -340,7 +348,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("{jobId:guid}/schedules/{scheduleId:guid}")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.JobsManageSchedules)]
     public async Task<ActionResult<ApiResponse<JobScheduleDto>>> UpdateSchedule(
         Guid jobId,
         Guid scheduleId,
@@ -377,7 +385,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("{jobId:guid}/schedules/{scheduleId:guid}")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.JobsManageSchedules)]
     public async Task<ActionResult<ApiResponse>> DeleteSchedule(
         Guid jobId,
         Guid scheduleId,
@@ -399,6 +407,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("{id:guid}/versions")]
+    [RequirePermission(Permission.JobsView)]
     public async Task<ActionResult<ApiResponse<List<JobVersionDto>>>> GetVersions(Guid id, CancellationToken ct)
     {
         var result = await _jobService.GetVersionsAsync(id, ct);
@@ -410,6 +419,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("{id:guid}/versions/{versionNumber:int}")]
+    [RequirePermission(Permission.JobsView)]
     public async Task<ActionResult<ApiResponse<JobVersionDto>>> GetVersion(Guid id, int versionNumber, CancellationToken ct)
     {
         var result = await _jobService.GetVersionAsync(id, versionNumber, ct);
@@ -428,6 +438,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("{jobId:guid}/dependencies")]
+    [RequirePermission(Permission.JobsView)]
     public async Task<ActionResult<ApiResponse<List<JobDependencyDto>>>> ListDependencies(
         Guid jobId,
         CancellationToken ct)
@@ -437,7 +448,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("{jobId:guid}/dependencies")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.JobsManageDependencies)]
     public async Task<ActionResult<ApiResponse<JobDependencyDto>>> AddDependency(
         Guid jobId,
         [FromBody] AddJobDependencyRequest request,
@@ -461,7 +472,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("{jobId:guid}/dependencies/{depId:guid}")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.JobsManageDependencies)]
     public async Task<ActionResult<ApiResponse>> RemoveDependency(
         Guid jobId,
         Guid depId,

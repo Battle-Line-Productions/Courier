@@ -1,4 +1,6 @@
 using Courier.Domain.Common;
+using Courier.Domain.Enums;
+using Courier.Features.Security;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +24,7 @@ public class NotificationRulesController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.NotificationRulesManage)]
     public async Task<ActionResult<ApiResponse<NotificationRuleDto>>> Create(
         [FromBody] CreateNotificationRuleRequest request,
         CancellationToken ct)
@@ -55,6 +57,7 @@ public class NotificationRulesController : ControllerBase
     }
 
     [HttpGet]
+    [RequirePermission(Permission.NotificationRulesView)]
     public async Task<ActionResult<PagedApiResponse<NotificationRuleDto>>> List(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
@@ -69,6 +72,7 @@ public class NotificationRulesController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission(Permission.NotificationRulesView)]
     public async Task<ActionResult<ApiResponse<NotificationRuleDto>>> GetById(Guid id, CancellationToken ct)
     {
         var result = await _ruleService.GetByIdAsync(id, ct);
@@ -80,7 +84,7 @@ public class NotificationRulesController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.NotificationRulesManage)]
     public async Task<ActionResult<ApiResponse<NotificationRuleDto>>> Update(
         Guid id,
         [FromBody] UpdateNotificationRuleRequest request,
@@ -116,7 +120,7 @@ public class NotificationRulesController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.NotificationRulesManage)]
     public async Task<ActionResult<ApiResponse<object>>> Delete(Guid id, CancellationToken ct)
     {
         var result = await _ruleService.DeleteAsync(id, ct);
@@ -134,7 +138,7 @@ public class NotificationRulesController : ControllerBase
     }
 
     [HttpPost("{id:guid}/test")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.NotificationRulesManage)]
     public async Task<ActionResult<ApiResponse<object>>> Test(Guid id, CancellationToken ct)
     {
         var result = await _ruleService.TestAsync(id, ct);

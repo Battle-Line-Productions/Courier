@@ -15,9 +15,11 @@ import { SshKeyTable } from "@/components/keys/ssh-key-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { usePgpKeys } from "@/lib/hooks/use-pgp-keys";
 import { useSshKeys } from "@/lib/hooks/use-ssh-keys";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 export default function KeysPage() {
   const [tab, setTab] = useState("pgp");
+  const { can } = usePermissions();
 
   // PGP state
   const [pgpPage, setPgpPage] = useState(1);
@@ -47,16 +49,20 @@ export default function KeysPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href={tab === "pgp" ? "/keys/pgp/import" : "/keys/ssh/import"}>
-              <Upload className="mr-2 h-4 w-4" /> Import
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link href={tab === "pgp" ? "/keys/pgp/new" : "/keys/ssh/new"}>
-              <Plus className="mr-2 h-4 w-4" /> Generate
-            </Link>
-          </Button>
+          {can(tab === "pgp" ? "PgpKeysManage" : "SshKeysManage") && (
+            <>
+              <Button variant="outline" asChild>
+                <Link href={tab === "pgp" ? "/keys/pgp/import" : "/keys/ssh/import"}>
+                  <Upload className="mr-2 h-4 w-4" /> Import
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href={tab === "pgp" ? "/keys/pgp/new" : "/keys/ssh/new"}>
+                  <Plus className="mr-2 h-4 w-4" /> Generate
+                </Link>
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -76,8 +82,8 @@ export default function KeysPage() {
             <EmptyState
               title="No PGP keys yet"
               description="Generate or import your first PGP key for encryption and signing operations."
-              actionLabel="Generate PGP Key"
-              actionHref="/keys/pgp/new"
+              actionLabel={can("PgpKeysManage") ? "Generate PGP Key" : undefined}
+              actionHref={can("PgpKeysManage") ? "/keys/pgp/new" : undefined}
             />
           ) : (
             <>
@@ -125,8 +131,8 @@ export default function KeysPage() {
             <EmptyState
               title="No SSH keys yet"
               description="Generate or import your first SSH key for SFTP authentication."
-              actionLabel="Generate SSH Key"
-              actionHref="/keys/ssh/new"
+              actionLabel={can("SshKeysManage") ? "Generate SSH Key" : undefined}
+              actionHref={can("SshKeysManage") ? "/keys/ssh/new" : undefined}
             />
           ) : (
             <>

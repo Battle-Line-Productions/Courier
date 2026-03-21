@@ -9,12 +9,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { JobTable } from "@/components/jobs/job-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useJobs } from "@/lib/hooks/use-jobs";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 export default function JobsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const pageSize = 10;
   const { data, isLoading } = useJobs(page, pageSize);
+  const { can } = usePermissions();
 
   const jobs = data?.data ?? [];
   const pagination = data?.pagination;
@@ -31,12 +33,14 @@ export default function JobsPage() {
             Create and manage file transfer jobs
           </p>
         </div>
-        <Button asChild>
-          <Link href="/jobs/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Create Job
-          </Link>
-        </Button>
+        {can("JobsCreate") && (
+          <Button asChild>
+            <Link href="/jobs/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Create Job
+            </Link>
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -48,8 +52,8 @@ export default function JobsPage() {
         <EmptyState
           title="No jobs yet"
           description="Create your first file transfer job to get started. Jobs define the steps and configuration for automated file operations."
-          actionLabel="Create Job"
-          actionHref="/jobs/new"
+          actionLabel={can("JobsCreate") ? "Create Job" : undefined}
+          actionHref={can("JobsCreate") ? "/jobs/new" : undefined}
         />
       ) : (
         <>

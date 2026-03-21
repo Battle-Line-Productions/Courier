@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ConnectionTable } from "@/components/connections/connection-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useConnections } from "@/lib/hooks/use-connections";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 export default function ConnectionsPage() {
   const [page, setPage] = useState(1);
@@ -31,6 +32,7 @@ export default function ConnectionsPage() {
   };
 
   const { data, isLoading } = useConnections(page, pageSize, filters);
+  const { can } = usePermissions();
 
   const connections = data?.data ?? [];
   const pagination = data?.pagination;
@@ -44,12 +46,14 @@ export default function ConnectionsPage() {
             Manage SFTP, FTP, and FTPS server connections
           </p>
         </div>
-        <Button asChild>
-          <Link href="/connections/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Create Connection
-          </Link>
-        </Button>
+        {can("ConnectionsCreate") && (
+          <Button asChild>
+            <Link href="/connections/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Create Connection
+            </Link>
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -61,8 +65,8 @@ export default function ConnectionsPage() {
         <EmptyState
           title="No connections yet"
           description="Create your first connection to an SFTP, FTP, or FTPS server. Connections define how Courier communicates with remote file servers."
-          actionLabel="Create Connection"
-          actionHref="/connections/new"
+          actionLabel={can("ConnectionsCreate") ? "Create Connection" : undefined}
+          actionHref={can("ConnectionsCreate") ? "/connections/new" : undefined}
         />
       ) : (
         <>

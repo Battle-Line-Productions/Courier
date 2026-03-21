@@ -1,4 +1,6 @@
 using Courier.Domain.Common;
+using Courier.Domain.Enums;
+using Courier.Features.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,6 +19,7 @@ public class NotificationLogsController : ControllerBase
     }
 
     [HttpGet]
+    [RequirePermission(Permission.NotificationLogsView)]
     public async Task<ActionResult<PagedApiResponse<NotificationLogDto>>> List(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,

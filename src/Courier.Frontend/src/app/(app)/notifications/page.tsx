@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { NotificationRuleTable } from "@/components/notifications/notification-rule-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useNotificationRules } from "@/lib/hooks/use-notification-rules";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 export default function NotificationsPage() {
   const [page, setPage] = useState(1);
@@ -18,6 +19,7 @@ export default function NotificationsPage() {
   const { data, isLoading } = useNotificationRules(page, pageSize, {
     search: search || undefined,
   });
+  const { can } = usePermissions();
 
   const rules = data?.data ?? [];
   const pagination = data?.pagination;
@@ -35,12 +37,14 @@ export default function NotificationsPage() {
           <Button variant="outline" asChild>
             <Link href="/notifications/logs">View Logs</Link>
           </Button>
-          <Button asChild>
-            <Link href="/notifications/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Create Rule
-            </Link>
-          </Button>
+          {can("NotificationRulesManage") && (
+            <Button asChild>
+              <Link href="/notifications/new">
+                <Plus className="mr-2 h-4 w-4" />
+                Create Rule
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -53,8 +57,8 @@ export default function NotificationsPage() {
         <EmptyState
           title="No notification rules"
           description="Create your first notification rule to get alerted when jobs complete, fail, or time out."
-          actionLabel="Create Rule"
-          actionHref="/notifications/new"
+          actionLabel={can("NotificationRulesManage") ? "Create Rule" : undefined}
+          actionHref={can("NotificationRulesManage") ? "/notifications/new" : undefined}
         />
       ) : (
         <>

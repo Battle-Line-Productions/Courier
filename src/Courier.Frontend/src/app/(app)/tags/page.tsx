@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TagTable } from "@/components/tags/tag-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useTags } from "@/lib/hooks/use-tags";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 export default function TagsPage() {
   const [page, setPage] = useState(1);
@@ -18,6 +19,7 @@ export default function TagsPage() {
   const { data, isLoading } = useTags(page, pageSize, {
     search: search || undefined,
   });
+  const { can } = usePermissions();
 
   const tags = data?.data ?? [];
   const pagination = data?.pagination;
@@ -31,12 +33,14 @@ export default function TagsPage() {
             Organize and categorize resources with tags
           </p>
         </div>
-        <Button asChild>
-          <Link href="/tags/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Create Tag
-          </Link>
-        </Button>
+        {can("TagsManage") && (
+          <Button asChild>
+            <Link href="/tags/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Create Tag
+            </Link>
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -48,8 +52,8 @@ export default function TagsPage() {
         <EmptyState
           title="No tags yet"
           description="Create your first tag to start organizing your jobs, connections, keys, and monitors."
-          actionLabel="Create Tag"
-          actionHref="/tags/new"
+          actionLabel={can("TagsManage") ? "Create Tag" : undefined}
+          actionHref={can("TagsManage") ? "/tags/new" : undefined}
         />
       ) : (
         <>

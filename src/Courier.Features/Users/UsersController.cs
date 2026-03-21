@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using Courier.Domain.Common;
+using Courier.Domain.Enums;
+using Courier.Features.Security;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +10,7 @@ namespace Courier.Features.Users;
 
 [ApiController]
 [Route("api/v1/users")]
-[Authorize(Roles = "admin")]
+[Authorize]
 public class UsersController : ControllerBase
 {
     private readonly UserService _userService;
@@ -21,6 +23,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
+    [RequirePermission(Permission.UsersView)]
     public async Task<ActionResult<PagedApiResponse<UserDto>>> List(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
@@ -32,6 +35,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission(Permission.UsersView)]
     public async Task<ActionResult<ApiResponse<UserDto>>> GetById(Guid id, CancellationToken ct)
     {
         var result = await _userService.GetByIdAsync(id, ct);
@@ -43,6 +47,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost]
+    [RequirePermission(Permission.UsersManage)]
     public async Task<ActionResult<ApiResponse<UserDto>>> Create(
         [FromBody] CreateUserRequest request,
         CancellationToken ct)
@@ -77,6 +82,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [RequirePermission(Permission.UsersManage)]
     public async Task<ActionResult<ApiResponse<UserDto>>> Update(
         Guid id,
         [FromBody] UpdateUserRequest request,
@@ -116,6 +122,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [RequirePermission(Permission.UsersManage)]
     public async Task<ActionResult<ApiResponse>> Delete(Guid id, CancellationToken ct)
     {
         var performedById = GetCurrentUserId();
@@ -139,6 +146,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost("{id:guid}/reset-password")]
+    [RequirePermission(Permission.UsersManage)]
     public async Task<ActionResult<ApiResponse>> ResetPassword(
         Guid id,
         [FromBody] NewPasswordRequest request,

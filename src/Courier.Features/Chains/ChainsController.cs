@@ -1,4 +1,6 @@
 using Courier.Domain.Common;
+using Courier.Domain.Enums;
+using Courier.Features.Security;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -28,7 +30,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.ChainsCreate)]
     public async Task<ActionResult<ApiResponse<JobChainDto>>> Create(
         [FromBody] CreateChainRequest request,
         CancellationToken ct)
@@ -51,6 +53,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpGet]
+    [RequirePermission(Permission.ChainsView)]
     public async Task<ActionResult<PagedApiResponse<JobChainDto>>> List(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
@@ -61,6 +64,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission(Permission.ChainsView)]
     public async Task<ActionResult<ApiResponse<JobChainDto>>> GetById(Guid id, CancellationToken ct)
     {
         var result = await _chainService.GetByIdAsync(id, ct);
@@ -72,7 +76,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.ChainsEdit)]
     public async Task<ActionResult<ApiResponse<JobChainDto>>> Update(
         Guid id,
         [FromBody] UpdateChainRequest request,
@@ -107,7 +111,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.ChainsDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(Guid id, CancellationToken ct)
     {
         var result = await _chainService.DeleteAsync(id, ct);
@@ -125,7 +129,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpPut("{id:guid}/members")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.ChainsEdit)]
     public async Task<ActionResult<ApiResponse<List<JobChainMemberDto>>>> ReplaceMembers(
         Guid id,
         [FromBody] ReplaceChainMembersRequest request,
@@ -148,7 +152,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/execute")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.ChainsExecute)]
     public async Task<ActionResult<ApiResponse<ChainExecutionDto>>> Execute(
         Guid id,
         [FromBody] TriggerChainRequest request,
@@ -171,6 +175,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpGet("{id:guid}/executions")]
+    [RequirePermission(Permission.ChainsView)]
     public async Task<ActionResult<PagedApiResponse<ChainExecutionDto>>> ListExecutions(
         Guid id,
         [FromQuery] int page = 1,
@@ -182,6 +187,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpGet("{id:guid}/executions/{execId:guid}")]
+    [RequirePermission(Permission.ChainsView)]
     public async Task<ActionResult<ApiResponse<ChainExecutionDto>>> GetExecution(
         Guid id,
         Guid execId,
@@ -198,6 +204,7 @@ public class ChainsController : ControllerBase
     // --- Schedules ---
 
     [HttpGet("{chainId:guid}/schedules")]
+    [RequirePermission(Permission.ChainsView)]
     public async Task<ActionResult<ApiResponse<List<ChainScheduleDto>>>> ListSchedules(
         Guid chainId,
         CancellationToken ct)
@@ -211,7 +218,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpPost("{chainId:guid}/schedules")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.ChainsManageSchedules)]
     public async Task<ActionResult<ApiResponse<ChainScheduleDto>>> CreateSchedule(
         Guid chainId,
         [FromBody] CreateChainScheduleRequest request,
@@ -246,7 +253,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpPut("{chainId:guid}/schedules/{scheduleId:guid}")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.ChainsManageSchedules)]
     public async Task<ActionResult<ApiResponse<ChainScheduleDto>>> UpdateSchedule(
         Guid chainId,
         Guid scheduleId,
@@ -283,7 +290,7 @@ public class ChainsController : ControllerBase
     }
 
     [HttpDelete("{chainId:guid}/schedules/{scheduleId:guid}")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.ChainsManageSchedules)]
     public async Task<ActionResult<ApiResponse>> DeleteSchedule(
         Guid chainId,
         Guid scheduleId,

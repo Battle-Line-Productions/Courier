@@ -1,4 +1,6 @@
 using Courier.Domain.Common;
+using Courier.Domain.Enums;
+using Courier.Features.Security;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +24,7 @@ public class ConnectionsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.ConnectionsCreate)]
     public async Task<ActionResult<ApiResponse<ConnectionDto>>> Create(
         [FromBody] CreateConnectionRequest request,
         CancellationToken ct)
@@ -45,6 +47,7 @@ public class ConnectionsController : ControllerBase
     }
 
     [HttpGet]
+    [RequirePermission(Permission.ConnectionsView)]
     public async Task<ActionResult<PagedApiResponse<ConnectionDto>>> List(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
@@ -60,6 +63,7 @@ public class ConnectionsController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission(Permission.ConnectionsView)]
     public async Task<ActionResult<ApiResponse<ConnectionDto>>> GetById(Guid id, CancellationToken ct)
     {
         var result = await _connectionService.GetByIdAsync(id, ct);
@@ -71,7 +75,7 @@ public class ConnectionsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.ConnectionsEdit)]
     public async Task<ActionResult<ApiResponse<ConnectionDto>>> Update(
         Guid id,
         [FromBody] UpdateConnectionRequest request,
@@ -106,7 +110,7 @@ public class ConnectionsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "admin")]
+    [RequirePermission(Permission.ConnectionsDelete)]
     public async Task<ActionResult<ApiResponse>> Delete(Guid id, CancellationToken ct)
     {
         var result = await _connectionService.DeleteAsync(id, ct);
@@ -124,7 +128,7 @@ public class ConnectionsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/test")]
-    [Authorize(Roles = "admin,operator")]
+    [RequirePermission(Permission.ConnectionsTest)]
     public async Task<ActionResult<ApiResponse<ConnectionTestDto>>> TestConnection(Guid id, CancellationToken ct)
     {
         var result = await _connectionService.TestConnectionAsync(id, ct);

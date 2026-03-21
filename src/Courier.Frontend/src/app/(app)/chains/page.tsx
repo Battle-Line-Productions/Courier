@@ -8,12 +8,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChainTable } from "@/components/chains/chain-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useChains } from "@/lib/hooks/use-chains";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 export default function ChainsPage() {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
   const { data, isLoading } = useChains(page, pageSize);
+  const { can } = usePermissions();
 
   const chains = data?.data ?? [];
   const pagination = data?.pagination;
@@ -27,12 +29,14 @@ export default function ChainsPage() {
             Orchestrate multiple jobs as a sequence
           </p>
         </div>
-        <Button asChild>
-          <Link href="/chains/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Create Chain
-          </Link>
-        </Button>
+        {can("ChainsCreate") && (
+          <Button asChild>
+            <Link href="/chains/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Create Chain
+            </Link>
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -43,8 +47,8 @@ export default function ChainsPage() {
         <EmptyState
           title="No chains yet"
           description="Create your first chain to orchestrate multiple jobs in sequence."
-          actionLabel="Create Chain"
-          actionHref="/chains/new"
+          actionLabel={can("ChainsCreate") ? "Create Chain" : undefined}
+          actionHref={can("ChainsCreate") ? "/chains/new" : undefined}
         />
       ) : (
         <>
