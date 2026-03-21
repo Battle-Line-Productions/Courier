@@ -145,6 +145,21 @@ public static class ErrorCodes
     public const int InvalidCurrentPassword = 10013;
     public const int UserNotFound = 10014;
 
+    // SSO (10020-10099)
+    public const int SsoNotConfigured = 10020;
+    public const int SsoProviderNotFound = 10021;
+    public const int SsoProviderDisabled = 10022;
+    public const int SsoStateMismatch = 10023;
+    public const int SsoExchangeCodeInvalid = 10024;
+    public const int SsoLocalPasswordNotAllowed = 10025;
+    public const int SsoEmailCollision = 10026;
+    public const int SsoAutoProvisionDisabled = 10027;
+    public const int SsoIdTokenValidationFailed = 10028;
+    public const int SsoSamlValidationFailed = 10029;
+    public const int SsoSamlReplayDetected = 10030;
+    public const int SsoTestConnectionFailed = 10031;
+    public const int SsoClaimMappingFailed = 10032;
+
     // Feedback / GitHub (11000-11099)
     public const int GitHubApiUnavailable = 11000;
     public const int GitHubAuthFailed = 11001;
@@ -274,6 +289,21 @@ public static class ErrorMessages
         [ErrorCodes.GitHubNotConfigured] = "GitHub integration not configured",
         [ErrorCodes.GitHubAccountNotLinked] = "GitHub account not linked",
         [ErrorCodes.GitHubOAuthFailed] = "GitHub OAuth failed",
+
+        // SSO
+        [ErrorCodes.SsoNotConfigured] = "SSO not configured",
+        [ErrorCodes.SsoProviderNotFound] = "SSO provider not found",
+        [ErrorCodes.SsoProviderDisabled] = "SSO provider disabled",
+        [ErrorCodes.SsoStateMismatch] = "SSO state mismatch",
+        [ErrorCodes.SsoExchangeCodeInvalid] = "SSO exchange code invalid",
+        [ErrorCodes.SsoLocalPasswordNotAllowed] = "SSO local password not allowed",
+        [ErrorCodes.SsoEmailCollision] = "SSO email collision",
+        [ErrorCodes.SsoAutoProvisionDisabled] = "SSO auto-provisioning disabled",
+        [ErrorCodes.SsoIdTokenValidationFailed] = "SSO ID token validation failed",
+        [ErrorCodes.SsoSamlValidationFailed] = "SSO SAML validation failed",
+        [ErrorCodes.SsoSamlReplayDetected] = "SSO SAML replay detected",
+        [ErrorCodes.SsoTestConnectionFailed] = "SSO test connection failed",
+        [ErrorCodes.SsoClaimMappingFailed] = "SSO claim mapping failed",
     };
 
     public static ApiError Create(int code, string message, IReadOnlyList<FieldError>? details = null)

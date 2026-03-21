@@ -79,4 +79,10 @@ public enum Permission
     // Known Hosts
     KnownHostsView,
     KnownHostsManage,
+
+    // Auth Providers
+    AuthProvidersView,
+    AuthProvidersCreate,
+    AuthProvidersEdit,
+    AuthProvidersDelete,
 }

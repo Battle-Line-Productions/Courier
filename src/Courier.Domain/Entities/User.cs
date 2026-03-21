@@ -28,4 +28,5 @@ public class User
 
     public AuthProvider? SsoProvider { get; set; }
     public List<RefreshToken> RefreshTokens { get; set; } = [];
+    public List<SsoUserLink> SsoUserLinks { get; set; } = [];
 }

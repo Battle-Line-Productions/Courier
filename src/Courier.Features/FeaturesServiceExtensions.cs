@@ -13,6 +13,8 @@ using Courier.Features.Engine.Steps.Flow;
 using Courier.Features.Engine.Steps.Transfer;
 using Courier.Features.Engine.Compression;
 using Courier.Features.Auth;
+using Courier.Features.Auth.Sso;
+using Courier.Features.AuthProviders;
 using Courier.Features.AuditLog;
 using Courier.Features.AzureFunctions;
 using Courier.Features.Filesystem;
@@ -112,6 +114,13 @@ public static class FeaturesServiceExtensions
         services.AddScoped<IJobStep, AzureFunctionExecuteStep>();
 
         services.AddValidatorsFromAssemblyContaining<CreateJobValidator>();
+
+        // Auth Providers
+        services.AddScoped<AuthProvidersService>();
+        services.AddHttpClient("SsoDiscovery");
+        services.AddScoped<OidcHandler>();
+        services.AddScoped<SamlHandler>();
+        services.AddScoped<SsoService>();
 
         // Connections
         services.AddScoped<ConnectionService>();

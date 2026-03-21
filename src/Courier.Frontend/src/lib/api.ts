@@ -70,6 +70,12 @@ import type {
   FeedbackVoteResponse,
   GitHubOAuthUrlResponse,
   GitHubLinkResponse,
+  AuthProviderDto,
+  LoginOptionDto,
+  CreateAuthProviderRequest,
+  UpdateAuthProviderRequest,
+  TestConnectionResult,
+  SsoExchangeResponse,
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -882,6 +888,49 @@ class ApiClient {
 
   async unlinkGitHubAccount(): Promise<ApiResponse<void>> {
     return this.request("/api/v1/auth/github/unlink", { method: "DELETE" });
+  }
+
+  // Auth Providers
+  async listAuthProviders(page = 1, pageSize = 25): Promise<PagedApiResponse<AuthProviderDto>> {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    return this.request(`/api/v1/auth-providers?${params}`);
+  }
+
+  async getAuthProvider(id: string): Promise<ApiResponse<AuthProviderDto>> {
+    return this.request(`/api/v1/auth-providers/${id}`);
+  }
+
+  async createAuthProvider(data: CreateAuthProviderRequest): Promise<ApiResponse<AuthProviderDto>> {
+    return this.request("/api/v1/auth-providers", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateAuthProvider(id: string, data: UpdateAuthProviderRequest): Promise<ApiResponse<AuthProviderDto>> {
+    return this.request(`/api/v1/auth-providers/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteAuthProvider(id: string): Promise<ApiResponse<void>> {
+    return this.request(`/api/v1/auth-providers/${id}`, { method: "DELETE" });
+  }
+
+  async testAuthProvider(id: string): Promise<ApiResponse<TestConnectionResult>> {
+    return this.request(`/api/v1/auth-providers/${id}/test`, { method: "POST" });
+  }
+
+  async getLoginOptions(): Promise<ApiResponse<LoginOptionDto[]>> {
+    return this.request("/api/v1/auth/login-options");
+  }
+
+  async exchangeSsoCode(code: string): Promise<ApiResponse<SsoExchangeResponse>> {
+    return this.request("/api/v1/auth/sso/exchange", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
   }
 }
 

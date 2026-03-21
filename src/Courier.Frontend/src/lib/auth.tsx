@@ -10,13 +10,14 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
+  loginWithTokens: (accessToken: string, refreshToken: string, user: UserProfileDto, expiresIn: number) => void;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const REFRESH_TOKEN_KEY = "courier_refresh_token";
-const PUBLIC_PATHS = ["/login", "/setup"];
+const PUBLIC_PATHS = ["/login", "/setup", "/auth/callback"];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfileDto | null>(null);
@@ -64,6 +65,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       scheduleRefresh(response.data.expiresIn);
     }
   }, [scheduleRefresh]);
+
+  const loginWithTokens = useCallback(
+    (accessToken: string, refreshToken: string, user: UserProfileDto, expiresIn: number) => {
+      api.setAccessToken(accessToken);
+      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      setUser(user);
+      scheduleRefresh(expiresIn);
+    },
+    [scheduleRefresh]
+  );
 
   const logout = useCallback(async () => {
     const storedToken = localStorage.getItem(REFRESH_TOKEN_KEY);
@@ -120,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, isLoading, pathname, router]);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, loginWithTokens, logout }}>
       {children}
     </AuthContext.Provider>
   );

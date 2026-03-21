@@ -19,7 +19,8 @@ export type Permission =
   | "SettingsView" | "SettingsManage"
   | "DashboardView"
   | "FilesystemBrowse"
-  | "KnownHostsView" | "KnownHostsManage";
+  | "KnownHostsView" | "KnownHostsManage"
+  | "AuthProvidersView" | "AuthProvidersCreate" | "AuthProvidersEdit" | "AuthProvidersDelete";
 
 const allPermissions: Permission[] = [
   "JobsView", "JobsCreate", "JobsEdit", "JobsDelete",
@@ -40,6 +41,7 @@ const allPermissions: Permission[] = [
   "DashboardView",
   "FilesystemBrowse",
   "KnownHostsView", "KnownHostsManage",
+  "AuthProvidersView", "AuthProvidersCreate", "AuthProvidersEdit", "AuthProvidersDelete",
 ];
 
 export const rolePermissions: Record<string, ReadonlySet<Permission>> = {
@@ -59,6 +61,7 @@ export const rolePermissions: Record<string, ReadonlySet<Permission>> = {
     "NotificationRulesView", "NotificationRulesManage", "NotificationLogsView",
     "AuditLogView", "DashboardView", "SettingsView",
     "FilesystemBrowse", "KnownHostsView",
+    "AuthProvidersView",
   ]),
 
   viewer: new Set<Permission>([

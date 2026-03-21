@@ -38,6 +38,9 @@ builder.Services.AddHostedService<MigrationRunner>();
 // Features (Jobs, validators, etc.)
 builder.Services.AddCourierFeatures(builder.Configuration);
 
+// SSO Settings
+builder.Services.Configure<Courier.Features.Auth.Sso.SsoSettings>(builder.Configuration.GetSection("Sso"));
+
 // JWT Authentication
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 

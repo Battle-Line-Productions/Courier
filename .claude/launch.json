@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "aspire-apphost",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/Courier.AppHost/Courier.AppHost.csproj"],
+      "port": 15139
+    },
+    {
+      "name": "courier-api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/Courier.Api/Courier.Api.csproj"],
+      "port": 60606
+    },
+    {
+      "name": "courier-worker",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/Courier.Worker/Courier.Worker.csproj"],
+      "port": 50072
+    },
+    {
+      "name": "courier-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000
+    }
+  ]
+}

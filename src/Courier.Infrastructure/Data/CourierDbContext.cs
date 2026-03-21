@@ -39,6 +39,7 @@ public class CourierDbContext : DbContext
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
     public DbSet<DomainEvent> DomainEvents => Set<DomainEvent>();
     public DbSet<KeyShareLink> KeyShareLinks => Set<KeyShareLink>();
+    public DbSet<SsoUserLink> SsoUserLinks => Set<SsoUserLink>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -580,7 +581,9 @@ public class CourierDbContext : DbContext
 
             entity.HasQueryFilter(e => !e.IsDeleted);
 
+#pragma warning disable CS0618 // AuthProvider.Users is intentionally kept for EF navigation; use SsoUserLinks for new code
             entity.HasOne(e => e.SsoProvider).WithMany(p => p.Users).HasForeignKey(e => e.SsoProviderId);
+#pragma warning restore CS0618
             entity.HasIndex(e => e.Username).IsUnique().HasFilter("NOT is_deleted");
         });
 
@@ -610,14 +613,47 @@ public class CourierDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Type).HasColumnName("type").IsRequired();
             entity.Property(e => e.Name).HasColumnName("name").IsRequired();
+            entity.Property(e => e.Slug).HasColumnName("slug").IsRequired();
             entity.Property(e => e.IsEnabled).HasColumnName("is_enabled").HasDefaultValue(false);
             entity.Property(e => e.Configuration).HasColumnName("configuration").HasColumnType("jsonb");
             entity.Property(e => e.AutoProvision).HasColumnName("auto_provision").HasDefaultValue(true);
             entity.Property(e => e.DefaultRole).HasColumnName("default_role").IsRequired();
+            entity.Property(e => e.AllowLocalPassword).HasColumnName("allow_local_password").HasDefaultValue(false);
+            entity.Property(e => e.RoleMapping).HasColumnName("role_mapping").HasColumnType("jsonb");
+            entity.Property(e => e.DisplayOrder).HasColumnName("display_order").HasDefaultValue(0);
+            entity.Property(e => e.IconUrl).HasColumnName("icon_url");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
 
-            entity.HasIndex(e => e.Name).IsUnique();
+            entity.HasQueryFilter(e => !e.IsDeleted);
+
+            entity.HasIndex(e => e.Name).IsUnique().HasFilter("NOT is_deleted");
+            entity.HasIndex(e => e.Slug).IsUnique().HasFilter("NOT is_deleted");
+        });
+
+        modelBuilder.Entity<SsoUserLink>(entity =>
+        {
+            entity.ToTable("sso_user_links");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.ProviderId).HasColumnName("provider_id");
+            entity.Property(e => e.SubjectId).HasColumnName("subject_id");
+            entity.Property(e => e.Email).HasColumnName("email");
+            entity.Property(e => e.LinkedAt).HasColumnName("linked_at");
+            entity.Property(e => e.LastLoginAt).HasColumnName("last_login_at");
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.SsoUserLinks)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Provider)
+                .WithMany(p => p.SsoUserLinks)
+                .HasForeignKey(e => e.ProviderId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<SystemSetting>(entity =>

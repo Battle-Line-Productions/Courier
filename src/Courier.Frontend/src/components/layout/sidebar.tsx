@@ -17,10 +17,12 @@ import {
   Link2,
   Bell,
   MessageSquare,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 const navItems = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard, active: true, exact: true },
@@ -42,6 +44,7 @@ const bottomItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const { can } = usePermissions();
 
   return (
     <aside
@@ -115,6 +118,21 @@ export function Sidebar() {
             </Link>
           );
         })}
+
+        {can("AuthProvidersView") && (
+          <Link
+            href="/settings/auth-providers"
+            className={cn(
+              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              pathname.startsWith("/settings/auth-providers")
+                ? "bg-sidebar-accent text-sidebar-primary"
+                : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            {!collapsed && <span>Auth Providers</span>}
+          </Link>
+        )}
 
         <Button
           variant="ghost"

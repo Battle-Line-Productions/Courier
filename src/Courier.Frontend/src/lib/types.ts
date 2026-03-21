@@ -839,3 +839,79 @@ export interface GitHubCallbackRequest {
 export interface GitHubLinkResponse {
   gitHubUsername: string;
 }
+
+// Auth Providers
+export interface AuthProviderDto {
+  id: string;
+  type: "oidc" | "saml";
+  name: string;
+  slug: string;
+  isEnabled: boolean;
+  configuration: Record<string, unknown>;
+  autoProvision: boolean;
+  defaultRole: string;
+  allowLocalPassword: boolean;
+  roleMapping: RoleMappingConfig | null;
+  displayOrder: number;
+  iconUrl: string | null;
+  linkedUserCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoleMappingConfig {
+  enabled: boolean;
+  rules: RoleMappingRule[];
+}
+
+export interface RoleMappingRule {
+  claim: string;
+  value: string;
+  role: string;
+}
+
+export interface LoginOptionDto {
+  id: string;
+  type: "oidc" | "saml";
+  name: string;
+  slug: string;
+  iconUrl: string | null;
+}
+
+export interface CreateAuthProviderRequest {
+  type: "oidc" | "saml";
+  name: string;
+  isEnabled: boolean;
+  configuration: Record<string, unknown>;
+  autoProvision: boolean;
+  defaultRole: string;
+  allowLocalPassword: boolean;
+  roleMapping?: RoleMappingConfig;
+  displayOrder: number;
+  iconUrl?: string;
+}
+
+export interface UpdateAuthProviderRequest {
+  name?: string;
+  isEnabled?: boolean;
+  configuration?: Record<string, unknown>;
+  autoProvision?: boolean;
+  defaultRole?: string;
+  allowLocalPassword?: boolean;
+  roleMapping?: RoleMappingConfig;
+  displayOrder?: number;
+  iconUrl?: string;
+}
+
+export interface TestConnectionResult {
+  success: boolean;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+export interface SsoExchangeResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  user: UserProfileDto;
+}

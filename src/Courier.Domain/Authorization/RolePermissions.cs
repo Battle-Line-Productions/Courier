@@ -64,6 +64,9 @@ public static class RolePermissions
         Permission.SettingsView,
         Permission.FilesystemBrowse,
         Permission.KnownHostsView,
+
+        // Auth Providers: view only
+        Permission.AuthProvidersView,
     }.ToFrozenSet();
 
     private static readonly FrozenSet<Permission> ViewerPermissions = new HashSet<Permission>

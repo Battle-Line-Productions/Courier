@@ -26,6 +26,7 @@ public class AuditService
         [AuditableEntityType.NotificationRule] = "notification_rule",
         [AuditableEntityType.User] = "user",
         [AuditableEntityType.KnownHost] = "known_host",
+        [AuditableEntityType.AuthProvider] = "auth_provider",
     };
 
     public AuditService(CourierDbContext db)

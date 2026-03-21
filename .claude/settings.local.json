@@ -93,7 +93,9 @@
       "Bash(cmd:*)",
       "Bash(tasklist:*)",
       "Bash(sed:*)",
-      "Bash(for dir:*)"
+      "Bash(for dir:*)",
+      "Bash(ls /c/code/battleline/Courier/src/Courier.Frontend/src/app/\\\\\\(auth\\\\\\)/)",
+      "mcp__Claude_Preview__preview_start"
     ],
     "deny": [],
     "ask": []

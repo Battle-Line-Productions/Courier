@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { toast } from "sonner";
 import { ApiClientError } from "@/lib/api";
-import { Shield, KeyRound, Lock } from "lucide-react";
+import { KeyRound, Lock } from "lucide-react";
 
 function AuthSettingsTab() {
   const { data, isLoading } = useAuthSettings();
@@ -199,17 +199,6 @@ function ChangePasswordTab() {
   );
 }
 
-function SsoProvidersTab() {
-  return (
-    <div className="rounded-lg border border-dashed p-8 text-center">
-      <Shield className="mx-auto h-10 w-10 text-muted-foreground/50 mb-3" />
-      <h3 className="text-sm font-medium mb-1">SSO Providers</h3>
-      <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-        Configure enterprise single sign-on with Azure AD, OIDC, or SAML providers. Coming in a future update.
-      </p>
-    </div>
-  );
-}
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -227,7 +216,6 @@ export default function SettingsPage() {
         <TabsList>
           {isAdmin && <TabsTrigger value="auth"><Lock className="mr-1.5 h-3.5 w-3.5" />Authentication</TabsTrigger>}
           <TabsTrigger value="password"><KeyRound className="mr-1.5 h-3.5 w-3.5" />Change Password</TabsTrigger>
-          {isAdmin && <TabsTrigger value="sso"><Shield className="mr-1.5 h-3.5 w-3.5" />SSO Providers</TabsTrigger>}
         </TabsList>
         {isAdmin && (
           <TabsContent value="auth" className="mt-6">
@@ -237,11 +225,6 @@ export default function SettingsPage() {
         <TabsContent value="password" className="mt-6">
           <ChangePasswordTab />
         </TabsContent>
-        {isAdmin && (
-          <TabsContent value="sso" className="mt-6">
-            <SsoProvidersTab />
-          </TabsContent>
-        )}
       </Tabs>
     </div>
   );

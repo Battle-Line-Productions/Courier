@@ -8,10 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiClientError } from "@/lib/api";
+import { useLoginOptions } from "@/lib/hooks/use-auth-providers";
 
 export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
+  const { data: loginOptionsData } = useLoginOptions();
+  const loginOptions = loginOptionsData?.data ?? [];
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +90,33 @@ export default function LoginPage() {
           {isSubmitting ? "Signing in..." : "Sign In"}
         </Button>
       </form>
+
+      {loginOptions.length > 0 && (
+        <>
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">or sign in with</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {loginOptions.map((provider) => (
+              <a
+                key={provider.id}
+                href={`/api/v1/auth/sso/${provider.id}/login`}
+                className="flex w-full items-center justify-center gap-2 rounded-md border bg-background px-4 py-2.5 text-sm font-medium hover:bg-accent transition-colors"
+              >
+                {provider.iconUrl && (
+                  <img src={provider.iconUrl} alt="" className="h-4 w-4" />
+                )}
+                Sign in with {provider.name}
+              </a>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

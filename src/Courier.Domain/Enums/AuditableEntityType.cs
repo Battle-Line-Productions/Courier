@@ -14,5 +14,6 @@ public enum AuditableEntityType
     ChainExecution,
     NotificationRule,
     User,
-    KnownHost
+    KnownHost,
+    AuthProvider
 }

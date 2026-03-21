@@ -119,6 +119,77 @@ public class AuthService
         };
     }
 
+    public async Task<ApiResponse<LoginResponse>> LoginViaSsoAsync(Guid userId, string? ipAddress, CancellationToken ct = default)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+
+        if (user is null)
+        {
+            return new ApiResponse<LoginResponse>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.UserNotFound, "User not found.")
+            };
+        }
+
+        if (!user.IsActive)
+        {
+            return new ApiResponse<LoginResponse>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.AccountDisabled, "This account has been disabled.")
+            };
+        }
+
+        if (user.LockedUntil.HasValue && user.LockedUntil > DateTime.UtcNow)
+        {
+            return new ApiResponse<LoginResponse>
+            {
+                Error = ErrorMessages.Create(ErrorCodes.AccountLocked, "Account is locked. Try again later.")
+            };
+        }
+
+        // Successful SSO login — reset failed count
+        user.FailedLoginCount = 0;
+        user.LockedUntil = null;
+        user.LastLoginAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        // Generate tokens
+        var accessToken = await _jwt.GenerateAccessTokenAsync(user, ct);
+        var refreshToken = JwtTokenService.GenerateRefreshToken();
+
+        var refreshTokenDaysStr = await _settings.GetSettingAsync("auth.refresh_token_days", ct);
+        var refreshTokenDays = int.TryParse(refreshTokenDaysStr, out var rtd) ? rtd : 7;
+
+        var refreshTokenEntity = new RefreshToken
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = user.Id,
+            TokenHash = JwtTokenService.HashToken(refreshToken),
+            ExpiresAt = DateTime.UtcNow.AddDays(refreshTokenDays),
+            CreatedAt = DateTime.UtcNow,
+            CreatedByIp = ipAddress,
+        };
+
+        _db.RefreshTokens.Add(refreshTokenEntity);
+        await _db.SaveChangesAsync(ct);
+
+        var timeoutStr = await _settings.GetSettingAsync("auth.session_timeout_minutes", ct);
+        var expiresIn = int.TryParse(timeoutStr, out var mins) ? mins * 60 : 900;
+
+        await _audit.LogAsync(AuditableEntityType.User, user.Id, "SsoLogin", details: new { IpAddress = ipAddress }, ct: ct);
+
+        return new ApiResponse<LoginResponse>
+        {
+            Data = new LoginResponse
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                ExpiresIn = expiresIn,
+                User = MapToProfile(user),
+            }
+        };
+    }
+
     public async Task<ApiResponse<LoginResponse>> RefreshAsync(string refreshToken, string? ipAddress, CancellationToken ct = default)
     {
         var tokenHash = JwtTokenService.HashToken(refreshToken);
@@ -238,6 +309,20 @@ public class AuthService
             {
                 Error = ErrorMessages.Create(ErrorCodes.UserNotFound, "User not found.")
             };
+        }
+
+        // SSO users may be blocked from setting a local password
+        if (user.IsSsoUser)
+        {
+            var ssoLink = await _db.SsoUserLinks
+                .Include(l => l.Provider)
+                .FirstOrDefaultAsync(l => l.UserId == user.Id, ct);
+
+            if (ssoLink?.Provider is { AllowLocalPassword: false })
+            {
+                return new ApiResponse { Error = ErrorMessages.Create(ErrorCodes.SsoLocalPasswordNotAllowed,
+                    "Your SSO provider does not allow local passwords.") };
+            }
         }
 
         if (user.PasswordHash is null || !PasswordHasher.Verify(request.CurrentPassword, user.PasswordHash))
