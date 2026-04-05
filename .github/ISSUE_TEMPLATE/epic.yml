@@ -1,0 +1,61 @@
+name: Epic
+description: Create an epic to group related feature work
+title: "[Epic]: "
+labels: ["epic"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Epics group related issues into a larger initiative. Describe the overall goal and link child issues as sub-issues.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Epic Summary
+      description: What is this epic about and why does it matter?
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What's included in this epic? What's explicitly out of scope?
+      placeholder: |
+        **In scope:**
+        - ...
+
+        **Out of scope:**
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: success-criteria
+    attributes:
+      label: Success Criteria
+      description: How do we know this epic is complete?
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+    validations:
+      required: true
+
+  - type: textarea
+    id: architecture
+    attributes:
+      label: Architecture Notes
+      description: High-level technical approach, key design decisions, dependencies on other epics.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Priority Tier
+      options:
+        - "Tier 1 - Must Have (competitors all have this)"
+        - "Tier 2 - Important (enterprise customers expect this)"
+        - "Tier 3 - Nice to Have (differentiator)"
+    validations:
+      required: true

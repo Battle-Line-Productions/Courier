@@ -1,0 +1,82 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea to improve Courier? We'd love to hear it. Please describe the feature and why it would be valuable.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Feature Summary
+      description: A concise description of the feature you'd like.
+      placeholder: One or two sentences describing the feature...
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Use Case
+      description: What problem does this solve? What workflow does it enable?
+      placeholder: |
+        As a [role], I want to [action] so that [benefit].
+
+        Currently I have to [workaround]...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How do you envision this working? Include UI mockups, API shapes, or workflow descriptions if you have them.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any other approaches you've thought about or workarounds you're currently using.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which area of Courier would this affect?
+      multiple: true
+      options:
+        - API / Backend
+        - Worker / Job Engine
+        - Frontend / UI
+        - Job Steps / Engine
+        - Connections / Protocols
+        - Keys / Cryptography
+        - File Monitoring
+        - Notifications
+        - Authentication / Authorization
+        - Reporting / Dashboard
+        - Configuration / Settings
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact
+      description: How important is this to your workflow?
+      options:
+        - Critical - Blocking adoption
+        - High - Significant improvement
+        - Medium - Nice to have
+        - Low - Minor convenience
+    validations:
+      required: true

@@ -1,0 +1,73 @@
+name: Task
+description: A specific implementation task (typically a child of an epic)
+title: ""
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Implementation tasks should have enough detail for an AI agent or developer to pick up and complete independently.
+
+  - type: input
+    id: parent
+    attributes:
+      label: Parent Epic
+      description: "Link to the parent epic (e.g., #11)"
+      placeholder: "#"
+    validations:
+      required: false
+
+  - type: textarea
+    id: overview
+    attributes:
+      label: Overview
+      description: What does this task accomplish? Why is it needed?
+    validations:
+      required: true
+
+  - type: textarea
+    id: backend
+    attributes:
+      label: Backend Changes
+      description: |
+        Detail the backend implementation: new entities, services, controllers, migrations, step handlers, etc.
+        Include exact file paths, class names, method signatures, and database schema changes.
+    validations:
+      required: false
+
+  - type: textarea
+    id: frontend
+    attributes:
+      label: Frontend Changes
+      description: |
+        Detail the frontend implementation: new pages, components, hooks, API client methods, types.
+        Include component names, route paths, and UI behavior.
+    validations:
+      required: false
+
+  - type: textarea
+    id: testing
+    attributes:
+      label: Testing Requirements
+      description: What tests are needed? Unit, integration, E2E?
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: Checkboxes for what must be true when this task is done.
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: NuGet packages, npm packages, Docker images, or other issues that must be completed first.
+    validations:
+      required: false

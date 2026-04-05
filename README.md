@@ -1,6 +1,22 @@
 # Courier
 
-Enterprise file transfer & job management platform. Replaces manual SFTP, PGP, cron, and ad-hoc scripts with a unified, auditable, secure platform.
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![CI](https://github.com/Battle-Line-Productions/Courier/actions/workflows/ci.yml/badge.svg)](https://github.com/Battle-Line-Productions/Courier/actions/workflows/ci.yml)
+
+Open-source enterprise Managed File Transfer (MFT) platform. Replaces manual SFTP, PGP, cron, and ad-hoc scripts with a unified, auditable, secure platform.
+
+### Features
+
+- **Multi-protocol transfers** — SFTP, FTP, FTPS with connection pooling and host key management
+- **Job engine** — 30+ step types: file transfer, PGP encrypt/decrypt/sign/verify, compression, Azure Functions, flow control (if/else/foreach)
+- **Job chaining** — Orchestrate multi-job sequences with dependency management
+- **Scheduling** — Cron and one-time schedules via Quartz.NET
+- **File monitoring** — Poll local or remote paths, trigger jobs on file events
+- **PGP & SSH key management** — Generate, import, export, rotate, and share keys with full lifecycle tracking
+- **Notifications** — Email and webhook alerts on job/chain/monitor events
+- **Security** — RBAC (Admin/Operator/Viewer), OIDC & SAML SSO, AES-256-GCM envelope encryption, full audit trail
+- **Tagging** — Organize all resources with colored, categorized tags
+- **Dashboard** — Real-time metrics, recent executions, active monitors, key expiry alerts
 
 ## Quick Start (Aspire)
 
@@ -103,7 +119,34 @@ tests/
 - **Migrations**: API host only (Worker validates schema version)
 - **Orchestration**: .NET Aspire manages all services locally
 
-## Design Doc
+## Documentation
 
-Full specification: [Docs/CourierDesignDoc.md](Docs/CourierDesignDoc.md)
-Architecture notes: [ARCHITECTURE_NOTES.md](ARCHITECTURE_NOTES.md)
+- [Design Document](Docs/CourierDesignDoc.md) — Full system specification
+- [Architecture Notes](ARCHITECTURE_NOTES.md) — Key architectural decisions
+- [Contributing Guide](CONTRIBUTING.md) — How to contribute
+- [Changelog](https://github.com/Battle-Line-Productions/Courier/releases) — Release history
+
+## Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide. Here's the quick version:
+
+1. **Report bugs** — [Open a bug report](https://github.com/Battle-Line-Productions/Courier/issues/new?template=bug_report.yml)
+2. **Request features** — [Open a feature request](https://github.com/Battle-Line-Productions/Courier/issues/new?template=feature_request.yml)
+3. **Submit code** — Fork, branch from `main`, make your changes, open a PR
+4. **Ask questions** — [Start a discussion](https://github.com/Battle-Line-Productions/Courier/discussions)
+
+Check the [project roadmap](https://github.com/orgs/Battle-Line-Productions/projects/5) to see what's planned and where help is needed.
+
+## Roadmap
+
+See the full [Enterprise Feature Roadmap](https://github.com/orgs/Battle-Line-Productions/projects/5) for planned features, organized by priority:
+
+| Tier | Focus Areas |
+|------|-------------|
+| **Tier 1** | Cloud storage connectors (S3, Azure Blob, GCS, SMB), HTTP transfers, Slack/Teams notifications, transfer integrity, reporting |
+| **Tier 2** | Config export/import, API keys, bandwidth controls, secure file exchange, high availability |
+| **Tier 3** | AS2/AS4 protocols, visual workflow designer, data transformation, DLP, analytics, multi-tenancy |
+
+## License
+
+Courier is licensed under the [Apache License 2.0](LICENSE).

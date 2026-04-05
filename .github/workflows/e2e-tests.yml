@@ -1,23 +1,16 @@
 name: E2E Tests
 
 on:
-  # Run after successful dev deployment
-  workflow_run:
-    workflows: ["Build & Deploy"]
-    types: [completed]
-    branches: [main]
-
-  # Manual trigger with environment URL override
   workflow_dispatch:
     inputs:
       api_url:
         description: 'API base URL'
         required: true
-        default: 'https://courier-api-dev.{domain}'
+        default: 'http://localhost:5000'
       frontend_url:
         description: 'Frontend base URL'
         required: true
-        default: 'https://courier-dev.{domain}'
+        default: 'http://localhost:3000'
 
 concurrency:
   group: e2e-tests
@@ -27,11 +20,6 @@ jobs:
   e2e:
     name: Playwright E2E Tests
     runs-on: ubuntu-latest
-
-    # Only run on successful deployment (skip if deploy failed)
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
 
     defaults:
       run:
@@ -57,8 +45,8 @@ jobs:
         run: npx playwright test --reporter=list,html
         env:
           CI: true
-          API_URL: ${{ inputs.api_url || vars.DEV_API_URL }}
-          FRONTEND_URL: ${{ inputs.frontend_url || vars.DEV_FRONTEND_URL }}
+          API_URL: ${{ inputs.api_url }}
+          FRONTEND_URL: ${{ inputs.frontend_url }}
 
       - name: Upload test report
         if: always()
