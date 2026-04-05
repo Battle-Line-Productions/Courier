@@ -125,7 +125,7 @@ jobs:
           command: test
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v5
+        uses: SonarSource/sonarqube-scan-action@v7
         with:
           projectBaseDir: src/Courier.Frontend
           args: >
