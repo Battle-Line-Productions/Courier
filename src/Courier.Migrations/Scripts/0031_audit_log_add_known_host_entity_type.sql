@@ -1,20 +1,7 @@
 -- 0031_audit_log_add_known_host_entity_type.sql
 -- Add 'known_host' to the audit_log_entries entity_type check constraint.
 
-DO $$
-DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN
-        SELECT conrelid::regclass::text AS table_name, conname
-        FROM pg_constraint
-        WHERE contype = 'c'
-          AND conrelid::regclass::text LIKE 'audit_log_entries%'
-          AND conname LIKE '%entity_type%'
-    LOOP
-        EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS %I', r.table_name, r.conname);
-    END LOOP;
-END $$;
+ALTER TABLE audit_log_entries DROP CONSTRAINT IF EXISTS ck_audit_entity_type CASCADE;
 
 ALTER TABLE audit_log_entries
     ADD CONSTRAINT ck_audit_entity_type
