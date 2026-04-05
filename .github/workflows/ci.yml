@@ -121,7 +121,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --severity-threshold=high
+          args: --file=src/Courier.Frontend/package-lock.json --severity-threshold=high
           command: test
 
       - name: SonarCloud Scan
