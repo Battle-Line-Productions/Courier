@@ -1,5 +1,4 @@
-ALTER TABLE audit_log_entries
-    DROP CONSTRAINT IF EXISTS ck_audit_entity_type;
+ALTER TABLE audit_log_entries DROP CONSTRAINT IF EXISTS ck_audit_entity_type CASCADE;
 
 ALTER TABLE audit_log_entries
     ADD CONSTRAINT ck_audit_entity_type
