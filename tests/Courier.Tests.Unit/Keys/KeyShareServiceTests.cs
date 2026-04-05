@@ -4,6 +4,7 @@ using Courier.Features.Keys;
 using Courier.Features.Settings;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Shouldly;
 
 namespace Courier.Tests.Unit.Keys;
@@ -80,7 +81,7 @@ public class KeyShareServiceTests
 
     private static KeyShareService CreateService(CourierDbContext db)
     {
-        var settings = new SettingsService(db);
+        var settings = new SettingsService(db, NullLogger<SettingsService>.Instance);
         return new KeyShareService(db, settings);
     }
 

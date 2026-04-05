@@ -21,11 +21,6 @@ public class User
     public bool IsDeleted { get; set; }
     public DateTime? DeletedAt { get; set; }
 
-    public long? GitHubId { get; set; }
-    public string? GitHubUsername { get; set; }
-    public byte[]? GitHubToken { get; set; }
-    public DateTime? GitHubLinkedAt { get; set; }
-
     public AuthProvider? SsoProvider { get; set; }
     public List<RefreshToken> RefreshTokens { get; set; } = [];
     public List<SsoUserLink> SsoUserLinks { get; set; } = [];

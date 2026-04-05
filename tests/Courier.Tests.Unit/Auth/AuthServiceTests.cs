@@ -5,6 +5,7 @@ using Courier.Features.AuditLog;
 using Courier.Features.Settings;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Shouldly;
 
@@ -29,7 +30,7 @@ public class AuthServiceTests
         );
         db.SaveChanges();
 
-        var settingsService = new SettingsService(db);
+        var settingsService = new SettingsService(db, NullLogger<SettingsService>.Instance);
         var auditService = new AuditService(db);
         var jwtSettings = Options.Create(new JwtSettings
         {

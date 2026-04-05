@@ -254,7 +254,5 @@ public class UserService
         LastLoginAt = u.LastLoginAt,
         CreatedAt = u.CreatedAt,
         UpdatedAt = u.UpdatedAt,
-        GitHubUsername = u.GitHubUsername,
-        IsGitHubLinked = u.GitHubToken != null,
     };
 }

@@ -754,8 +754,6 @@ export interface UserDto {
   isActive: boolean;
   isSsoUser: boolean;
   lastLoginAt?: string;
-  gitHubUsername?: string;
-  isGitHubLinked: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -821,45 +819,6 @@ export interface UpdateSmtpSettingsRequest {
 export interface SmtpTestResult {
   success: boolean;
   errorMessage?: string;
-}
-
-// Feedback types
-export interface FeedbackItemDto {
-  number: number;
-  title: string;
-  body: string;
-  type: string;
-  state: string;
-  voteCount: number;
-  hasVoted: boolean;
-  url: string;
-  authorLogin: string;
-  createdAt: string;
-  labels: string[];
-}
-
-export interface CreateFeedbackRequest {
-  title: string;
-  description: string;
-  type: string;
-}
-
-export interface FeedbackVoteResponse {
-  number: number;
-  voted: boolean;
-  voteCount: number;
-}
-
-export interface GitHubOAuthUrlResponse {
-  url: string;
-}
-
-export interface GitHubCallbackRequest {
-  code: string;
-}
-
-export interface GitHubLinkResponse {
-  gitHubUsername: string;
 }
 
 // Auth Providers

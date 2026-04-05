@@ -67,11 +67,6 @@ import type {
   UpdateSmtpSettingsRequest,
   SmtpTestResult,
   StepTypeMetadataDto,
-  FeedbackItemDto,
-  CreateFeedbackRequest,
-  FeedbackVoteResponse,
-  GitHubOAuthUrlResponse,
-  GitHubLinkResponse,
   AuthProviderDto,
   LoginOptionDto,
   CreateAuthProviderRequest,
@@ -856,52 +851,6 @@ class ApiClient {
     return this.request("/api/v1/settings/smtp/test", {
       method: "POST",
     });
-  }
-
-  // Feedback
-  async listFeedback(params: { type?: string; page?: number; pageSize?: number; state?: string }): Promise<ApiResponse<FeedbackItemDto[]>> {
-    const searchParams = new URLSearchParams();
-    if (params.type) searchParams.set("type", params.type);
-    if (params.page) searchParams.set("page", String(params.page));
-    if (params.pageSize) searchParams.set("pageSize", String(params.pageSize));
-    if (params.state) searchParams.set("state", params.state);
-    const qs = searchParams.toString();
-    return this.request(`/api/v1/feedback${qs ? `?${qs}` : ""}`);
-  }
-
-  async getFeedbackItem(number: number): Promise<ApiResponse<FeedbackItemDto>> {
-    return this.request(`/api/v1/feedback/${number}`);
-  }
-
-  async createFeedback(data: CreateFeedbackRequest): Promise<ApiResponse<FeedbackItemDto>> {
-    return this.request("/api/v1/feedback", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async voteFeedback(number: number): Promise<ApiResponse<FeedbackVoteResponse>> {
-    return this.request(`/api/v1/feedback/${number}/vote`, { method: "POST" });
-  }
-
-  async unvoteFeedback(number: number): Promise<ApiResponse<FeedbackVoteResponse>> {
-    return this.request(`/api/v1/feedback/${number}/vote`, { method: "DELETE" });
-  }
-
-  // GitHub OAuth
-  async getGitHubAuthUrl(): Promise<ApiResponse<GitHubOAuthUrlResponse>> {
-    return this.request("/api/v1/auth/github/authorize");
-  }
-
-  async linkGitHubAccount(code: string): Promise<ApiResponse<GitHubLinkResponse>> {
-    return this.request("/api/v1/auth/github/callback", {
-      method: "POST",
-      body: JSON.stringify({ code }),
-    });
-  }
-
-  async unlinkGitHubAccount(): Promise<ApiResponse<void>> {
-    return this.request("/api/v1/auth/github/unlink", { method: "DELETE" });
   }
 
   // Auth Providers

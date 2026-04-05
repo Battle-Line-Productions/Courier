@@ -31,7 +31,6 @@ using Courier.Features.Keys;
 using Courier.Features.Security;
 using Courier.Features.Settings;
 using Courier.Features.Setup;
-using Courier.Features.Feedback;
 using Courier.Features.Users;
 using Courier.Infrastructure.Encryption;
 using FluentValidation;
@@ -114,6 +113,7 @@ public static class FeaturesServiceExtensions
         services.AddValidatorsFromAssemblyContaining<CreateJobValidator>();
 
         // Auth Providers
+        services.AddMemoryCache();
         services.AddScoped<AuthProvidersService>();
         services.AddHttpClient("SsoDiscovery");
         services.AddScoped<OidcHandler>();
@@ -178,19 +178,6 @@ public static class FeaturesServiceExtensions
         // Encryption
         services.Configure<EncryptionSettings>(configuration.GetSection("Encryption"));
         services.AddSingleton<ICredentialEncryptor, AesGcmCredentialEncryptor>();
-
-        // Feedback / GitHub
-        services.Configure<GitHubSettings>(configuration.GetSection("GitHub"));
-        services.AddHttpClient("GitHub", client =>
-        {
-            client.BaseAddress = new Uri("https://api.github.com");
-            client.DefaultRequestHeaders.Add("Accept", "application/vnd.github+json");
-            client.DefaultRequestHeaders.Add("User-Agent", "Courier-Feedback");
-            client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
-        });
-        services.AddScoped<GitHubAuthService>();
-        services.AddScoped<FeedbackService>();
-        services.AddMemoryCache();
 
         // Health checks
         services.AddHealthChecks()

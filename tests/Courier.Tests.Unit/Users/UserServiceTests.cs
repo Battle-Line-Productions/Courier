@@ -6,6 +6,7 @@ using Courier.Features.Settings;
 using Courier.Features.Users;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Shouldly;
 
 namespace Courier.Tests.Unit.Users;
@@ -28,7 +29,7 @@ public class UserServiceTests
         db.SaveChanges();
 
         var audit = new AuditService(db);
-        var settings = new SettingsService(db);
+        var settings = new SettingsService(db, NullLogger<SettingsService>.Instance);
         var service = new UserService(db, audit, settings);
         return (db, service);
     }

@@ -12,8 +12,6 @@ public record UserDto
     public DateTime? LastLoginAt { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
-    public string? GitHubUsername { get; init; }
-    public bool IsGitHubLinked { get; init; }
 }
 
 public record CreateUserRequest

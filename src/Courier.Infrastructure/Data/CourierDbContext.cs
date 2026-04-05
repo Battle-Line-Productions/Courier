@@ -575,11 +575,6 @@ public class CourierDbContext : DbContext
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
             entity.Property(e => e.DeletedAt).HasColumnName("deleted_at");
-            entity.Property(e => e.GitHubId).HasColumnName("github_id");
-            entity.Property(e => e.GitHubUsername).HasColumnName("github_username");
-            entity.Property(e => e.GitHubToken).HasColumnName("github_token");
-            entity.Property(e => e.GitHubLinkedAt).HasColumnName("github_linked_at");
-
             entity.HasQueryFilter(e => !e.IsDeleted);
 
 #pragma warning disable CS0618 // AuthProvider.Users is intentionally kept for EF navigation; use SsoUserLinks for new code
