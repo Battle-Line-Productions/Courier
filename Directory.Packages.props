@@ -7,7 +7,7 @@
     <PackageVersion Include="Aspire.Hosting.Seq" Version="13.2.1" />
     <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.2.1" />
     <PackageVersion Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.2.1" />
-    <PackageVersion Include="Aspire.Npgsql" Version="13.1.1" />
+    <PackageVersion Include="Aspire.Npgsql" Version="13.2.1" />
     <PackageVersion Include="ITfoxtec.Identity.Saml2" Version="4.17.0" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
   </ItemGroup>
