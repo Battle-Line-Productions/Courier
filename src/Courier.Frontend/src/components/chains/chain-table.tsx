@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Eye, MoreHorizontal, Pencil, Play, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { TagBadge } from "@/components/tags/tag-badge";
 import { useDeleteChain, useTriggerChain } from "@/lib/hooks/use-chain-mutations";
 import { toast } from "sonner";
 import type { JobChainDto } from "@/lib/types";
@@ -66,6 +67,7 @@ export function ChainTable({ chains }: ChainTableProps) {
             <TableHead>Name</TableHead>
             <TableHead>Description</TableHead>
             <TableHead>Members</TableHead>
+            <TableHead>Tags</TableHead>
             <TableHead>Enabled</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="w-10" />
@@ -90,6 +92,13 @@ export function ChainTable({ chains }: ChainTableProps) {
                 <Badge variant="secondary" className="text-xs">
                   {chain.members.length} job{chain.members.length !== 1 ? "s" : ""}
                 </Badge>
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {(chain.tags ?? []).map((tag) => (
+                    <TagBadge key={tag.name} name={tag.name} color={tag.color} />
+                  ))}
+                </div>
               </TableCell>
               <TableCell>
                 <Badge variant={chain.isEnabled ? "default" : "secondary"}>

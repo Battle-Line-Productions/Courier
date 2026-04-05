@@ -43,6 +43,7 @@ export function useAssignTags() {
       queryClient.invalidateQueries({ queryKey: ["pgp-keys"] });
       queryClient.invalidateQueries({ queryKey: ["ssh-keys"] });
       queryClient.invalidateQueries({ queryKey: ["monitors"] });
+      queryClient.invalidateQueries({ queryKey: ["chains"] });
     },
   });
 }
@@ -58,6 +59,7 @@ export function useUnassignTags() {
       queryClient.invalidateQueries({ queryKey: ["pgp-keys"] });
       queryClient.invalidateQueries({ queryKey: ["ssh-keys"] });
       queryClient.invalidateQueries({ queryKey: ["monitors"] });
+      queryClient.invalidateQueries({ queryKey: ["chains"] });
     },
   });
 }

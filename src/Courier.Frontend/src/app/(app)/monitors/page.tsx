@@ -15,6 +15,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { MonitorTable } from "@/components/monitors/monitor-table";
 import { EmptyState } from "@/components/shared/empty-state";
+import { TagFilter } from "@/components/tags/tag-filter";
 import { useMonitors } from "@/lib/hooks/use-monitors";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 
@@ -22,11 +23,13 @@ export default function MonitorsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState<string>("");
+  const [tagFilter, setTagFilter] = useState<string>("");
   const pageSize = 10;
 
   const filters = {
     search: search || undefined,
     state: stateFilter || undefined,
+    tag: tagFilter || undefined,
   };
 
   const { data, isLoading } = useMonitors(page, pageSize, filters);
@@ -59,7 +62,7 @@ export default function MonitorsPage() {
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-64 w-full" />
         </div>
-      ) : monitors.length === 0 && !search && !stateFilter ? (
+      ) : monitors.length === 0 && !search && !stateFilter && !tagFilter ? (
         <EmptyState
           title="No monitors yet"
           description="Create your first monitor to watch a directory for file events. When files are created or modified, Courier will automatically trigger bound jobs."
@@ -96,6 +99,13 @@ export default function MonitorsPage() {
                 <SelectItem value="error">Error</SelectItem>
               </SelectContent>
             </Select>
+            <TagFilter
+              value={tagFilter}
+              onChange={(v) => {
+                setTagFilter(v);
+                setPage(1);
+              }}
+            />
           </div>
 
           {monitors.length === 0 ? (

@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { TagPicker } from "@/components/tags/tag-picker";
 import { Pencil, Play } from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -123,6 +124,16 @@ export default function ChainDetailPage({ params }: { params: Promise<{ id: stri
           )}
         </div>
       </div>
+
+      {/* Tags */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Tags</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TagPicker entityType="job_chain" entityId={id} currentTags={chain.tags} />
+        </CardContent>
+      </Card>
 
       <Separator />
 

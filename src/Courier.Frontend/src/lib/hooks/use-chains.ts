@@ -1,10 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api";
 
-export function useChains(page = 1, pageSize = 10) {
+interface ChainFilters {
+  search?: string;
+  tag?: string;
+}
+
+export function useChains(page = 1, pageSize = 10, filters?: ChainFilters) {
   return useQuery({
-    queryKey: ["chains", page, pageSize],
-    queryFn: () => api.listChains(page, pageSize),
+    queryKey: ["chains", page, pageSize, filters],
+    queryFn: () => api.listChains(page, pageSize, filters),
   });
 }
 

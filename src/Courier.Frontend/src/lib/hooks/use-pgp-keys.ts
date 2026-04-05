@@ -6,6 +6,7 @@ interface PgpKeyFilters {
   status?: string;
   keyType?: string;
   algorithm?: string;
+  tag?: string;
 }
 
 export function usePgpKeys(page: number, pageSize = 10, filters?: PgpKeyFilters) {

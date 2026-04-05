@@ -15,6 +15,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConnectionTable } from "@/components/connections/connection-table";
 import { EmptyState } from "@/components/shared/empty-state";
+import { TagFilter } from "@/components/tags/tag-filter";
 import { useConnections } from "@/lib/hooks/use-connections";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 
@@ -23,12 +24,14 @@ export default function ConnectionsPage() {
   const [search, setSearch] = useState("");
   const [protocolFilter, setProtocolFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [tagFilter, setTagFilter] = useState<string>("");
   const pageSize = 10;
 
   const filters = {
     search: search || undefined,
     protocol: protocolFilter || undefined,
     status: statusFilter || undefined,
+    tag: tagFilter || undefined,
   };
 
   const { data, isLoading } = useConnections(page, pageSize, filters);
@@ -61,7 +64,7 @@ export default function ConnectionsPage() {
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-64 w-full" />
         </div>
-      ) : connections.length === 0 && !search && !protocolFilter && !statusFilter ? (
+      ) : connections.length === 0 && !search && !protocolFilter && !statusFilter && !tagFilter ? (
         <EmptyState
           title="No connections yet"
           description="Create your first connection to an SFTP, FTP, or FTPS server. Connections define how Courier communicates with remote file servers."
@@ -113,6 +116,13 @@ export default function ConnectionsPage() {
                 <SelectItem value="disabled">Disabled</SelectItem>
               </SelectContent>
             </Select>
+            <TagFilter
+              value={tagFilter}
+              onChange={(v) => {
+                setTagFilter(v);
+                setPage(1);
+              }}
+            />
           </div>
 
           {connections.length === 0 ? (

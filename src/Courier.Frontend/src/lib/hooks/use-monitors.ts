@@ -4,6 +4,7 @@ import { api } from "../api";
 interface MonitorFilters {
   search?: string;
   state?: string;
+  tag?: string;
 }
 
 export function useMonitors(page: number, pageSize = 10, filters?: MonitorFilters) {

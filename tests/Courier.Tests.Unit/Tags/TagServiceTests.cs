@@ -390,7 +390,7 @@ public class TagServiceTests
     }
 
     [Fact]
-    public async Task AssignTags_JobChainEntityType_ReturnsInvalidTypeError()
+    public async Task AssignTags_JobChainEntityType_NonExistentChain_ReturnsEntityNotFound()
     {
         // Arrange
         using var db = CreateInMemoryContext();
@@ -409,10 +409,10 @@ public class TagServiceTests
         // Act
         var result = await service.AssignTagsAsync(request);
 
-        // Assert
+        // Assert — job_chain is a valid entity type, but the chain doesn't exist
         result.Success.ShouldBeFalse();
         result.Error.ShouldNotBeNull();
-        result.Error!.Code.ShouldBe(ErrorCodes.InvalidTagEntityType);
+        result.Error!.Code.ShouldBe(ErrorCodes.TagEntityNotFound);
     }
 
     #endregion

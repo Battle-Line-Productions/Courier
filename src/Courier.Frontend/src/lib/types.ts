@@ -546,6 +546,7 @@ export interface JobChainDto {
   description?: string;
   isEnabled: boolean;
   members: JobChainMemberDto[];
+  tags?: TagSummaryDto[];
   createdAt: string;
   updatedAt: string;
 }

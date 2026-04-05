@@ -95,7 +95,10 @@
       "Bash(sed:*)",
       "Bash(for dir:*)",
       "Bash(ls /c/code/battleline/Courier/src/Courier.Frontend/src/app/\\\\\\(auth\\\\\\)/)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(gh repo:*)",
+      "Bash(gh project:*)",
+      "Bash(gh api graphql -f 'query=:*)"
     ],
     "deny": [],
     "ask": []

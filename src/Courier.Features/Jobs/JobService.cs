@@ -56,12 +56,18 @@ public class JobService
         return new ApiResponse<JobDto> { Data = dto };
     }
 
-    public async Task<PagedApiResponse<JobDto>> ListAsync(int page = 1, int pageSize = 25, string? tag = null, CancellationToken ct = default)
+    public async Task<PagedApiResponse<JobDto>> ListAsync(int page = 1, int pageSize = 25, string? search = null, string? tag = null, CancellationToken ct = default)
     {
         pageSize = Math.Clamp(pageSize, 1, 100);
         page = Math.Max(page, 1);
 
         var query = _db.Jobs.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.ToLower();
+            query = query.Where(j => j.Name.ToLower().Contains(term) || (j.Description != null && j.Description.ToLower().Contains(term)));
+        }
 
         if (!string.IsNullOrWhiteSpace(tag))
         {

@@ -48,7 +48,7 @@ public class UpdateTagValidator : AbstractValidator<UpdateTagRequest>
 
 public class BulkTagAssignmentValidator : AbstractValidator<BulkTagAssignmentRequest>
 {
-    private static readonly string[] ValidEntityTypes = ["job", "connection", "pgp_key", "ssh_key", "file_monitor"];
+    private static readonly string[] ValidEntityTypes = ["job", "connection", "pgp_key", "ssh_key", "file_monitor", "job_chain"];
 
     public BulkTagAssignmentValidator()
     {
@@ -63,7 +63,7 @@ public class BulkTagAssignmentValidator : AbstractValidator<BulkTagAssignmentReq
             a.RuleFor(x => x.EntityType)
                 .NotEmpty().WithMessage("Entity type is required.")
                 .Must(v => ValidEntityTypes.Contains(v))
-                .WithMessage("Entity type must be one of: job, connection, pgp_key, ssh_key, file_monitor.");
+                .WithMessage("Entity type must be one of: job, connection, pgp_key, ssh_key, file_monitor, job_chain.");
 
             a.RuleFor(x => x.EntityId)
                 .NotEmpty().WithMessage("Entity ID is required.");

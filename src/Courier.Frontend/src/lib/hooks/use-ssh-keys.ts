@@ -5,6 +5,7 @@ interface SshKeyFilters {
   search?: string;
   status?: string;
   keyType?: string;
+  tag?: string;
 }
 
 export function useSshKeys(page: number, pageSize = 10, filters?: SshKeyFilters) {

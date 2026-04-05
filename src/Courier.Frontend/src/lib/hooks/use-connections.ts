@@ -6,6 +6,7 @@ interface ConnectionFilters {
   protocol?: string;
   group?: string;
   status?: string;
+  tag?: string;
 }
 
 export function useConnections(page: number, pageSize = 10, filters?: ConnectionFilters) {

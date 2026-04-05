@@ -4,17 +4,26 @@ import { useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChainTable } from "@/components/chains/chain-table";
 import { EmptyState } from "@/components/shared/empty-state";
+import { TagFilter } from "@/components/tags/tag-filter";
 import { useChains } from "@/lib/hooks/use-chains";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 
 export default function ChainsPage() {
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [tagFilter, setTagFilter] = useState("");
   const pageSize = 10;
 
-  const { data, isLoading } = useChains(page, pageSize);
+  const filters = {
+    search: search || undefined,
+    tag: tagFilter || undefined,
+  };
+
+  const { data, isLoading } = useChains(page, pageSize, filters);
   const { can } = usePermissions();
 
   const chains = data?.data ?? [];
@@ -41,9 +50,10 @@ export default function ChainsPage() {
 
       {isLoading ? (
         <div className="space-y-3">
+          <Skeleton className="h-10 w-full" />
           <Skeleton className="h-64 w-full" />
         </div>
-      ) : chains.length === 0 ? (
+      ) : chains.length === 0 && !search && !tagFilter ? (
         <EmptyState
           title="No chains yet"
           description="Create your first chain to orchestrate multiple jobs in sequence."
@@ -52,7 +62,32 @@ export default function ChainsPage() {
         />
       ) : (
         <>
-          <ChainTable chains={chains} />
+          <div className="flex items-center gap-3">
+            <Input
+              placeholder="Search chains..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="max-w-sm"
+            />
+            <TagFilter
+              value={tagFilter}
+              onChange={(v) => {
+                setTagFilter(v);
+                setPage(1);
+              }}
+            />
+          </div>
+
+          {chains.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              No chains match your filters.
+            </p>
+          ) : (
+            <ChainTable chains={chains} />
+          )}
 
           {pagination && pagination.totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">

@@ -125,8 +125,9 @@ class ApiClient {
   }
 
   // Jobs
-  async listJobs(page = 1, pageSize = 10, filters?: { tag?: string }): Promise<PagedApiResponse<JobDto>> {
+  async listJobs(page = 1, pageSize = 10, filters?: { search?: string; tag?: string }): Promise<PagedApiResponse<JobDto>> {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (filters?.search) params.set("search", filters.search);
     if (filters?.tag) params.set("tag", filters.tag);
     return this.request(`/api/v1/jobs?${params}`);
   }
@@ -579,8 +580,10 @@ class ApiClient {
   }
 
   // Chains
-  async listChains(page = 1, pageSize = 10): Promise<PagedApiResponse<JobChainDto>> {
+  async listChains(page = 1, pageSize = 10, filters?: { search?: string; tag?: string }): Promise<PagedApiResponse<JobChainDto>> {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (filters?.search) params.set("search", filters.search);
+    if (filters?.tag) params.set("tag", filters.tag);
     return this.request(`/api/v1/chains?${params}`);
   }
 

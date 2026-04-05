@@ -2,6 +2,7 @@ using Courier.Domain.Common;
 using Courier.Domain.Entities;
 using Courier.Domain.Enums;
 using Courier.Features.AuditLog;
+using Courier.Features.Tags;
 using Courier.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -53,7 +54,8 @@ public class ChainService
             };
         }
 
-        return new ApiResponse<JobChainDto> { Data = MapToDto(chain) };
+        var tags = await TagHelper.GetTagsForEntityAsync(_db, "job_chain", chain.Id, ct);
+        return new ApiResponse<JobChainDto> { Data = MapToDto(chain, tags) };
     }
 
     public async Task<PagedApiResponse<JobChainDto>> ListAsync(int page = 1, int pageSize = 25, CancellationToken ct = default)
@@ -74,9 +76,14 @@ public class ChainService
             .Take(pageSize)
             .ToListAsync(ct);
 
+        var dtos = items.Select(c => MapToDto(c)).ToList();
+        var entityIds = dtos.Select(d => d.Id).ToList();
+        var tagMap = await TagHelper.GetTagsForEntitiesAsync(_db, "job_chain", entityIds, ct);
+        dtos = dtos.Select(d => d with { Tags = tagMap.GetValueOrDefault(d.Id, []) }).ToList();
+
         return new PagedApiResponse<JobChainDto>
         {
-            Data = items.Select(MapToDto).ToList(),
+            Data = dtos,
             Pagination = new PaginationMeta(page, pageSize, totalCount, totalPages)
         };
     }
@@ -289,7 +296,7 @@ public class ChainService
         return false;
     }
 
-    private static JobChainDto MapToDto(JobChain chain) => new()
+    private static JobChainDto MapToDto(JobChain chain, List<TagSummaryDto>? tags = null) => new()
     {
         Id = chain.Id,
         Name = chain.Name,
@@ -307,6 +314,7 @@ public class ChainService
                 RunOnUpstreamFailure = m.RunOnUpstreamFailure,
             })
             .ToList(),
+        Tags = tags ?? [],
         CreatedAt = chain.CreatedAt,
         UpdatedAt = chain.UpdatedAt,
     };

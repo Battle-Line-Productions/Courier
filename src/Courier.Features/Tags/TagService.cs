@@ -166,14 +166,6 @@ public class TagService
     {
         foreach (var assignment in request.Assignments)
         {
-            if (assignment.EntityType == "job_chain")
-            {
-                return new ApiResponse
-                {
-                    Error = ErrorMessages.Create(ErrorCodes.InvalidTagEntityType, "Entity type 'job_chain' is not yet supported.")
-                };
-            }
-
             var tagExists = await _db.Tags.AnyAsync(t => t.Id == assignment.TagId, ct);
             if (!tagExists)
             {
@@ -208,6 +200,13 @@ public class TagService
         }
 
         await _db.SaveChangesAsync(ct);
+
+        foreach (var assignment in request.Assignments)
+        {
+            await _audit.LogAsync(AuditableEntityType.Tag, assignment.TagId, "TagAssigned",
+                details: new { assignment.EntityType, assignment.EntityId }, ct: ct);
+        }
+
         return new ApiResponse();
     }
 
@@ -225,6 +224,13 @@ public class TagService
         }
 
         await _db.SaveChangesAsync(ct);
+
+        foreach (var assignment in request.Assignments)
+        {
+            await _audit.LogAsync(AuditableEntityType.Tag, assignment.TagId, "TagUnassigned",
+                details: new { assignment.EntityType, assignment.EntityId }, ct: ct);
+        }
+
         return new ApiResponse();
     }
 
@@ -279,6 +285,7 @@ public class TagService
             "pgp_key" => await _db.PgpKeys.AnyAsync(e => e.Id == entityId, ct),
             "ssh_key" => await _db.SshKeys.AnyAsync(e => e.Id == entityId, ct),
             "file_monitor" => await _db.FileMonitors.AnyAsync(e => e.Id == entityId, ct),
+            "job_chain" => await _db.JobChains.AnyAsync(e => e.Id == entityId, ct),
             _ => false
         };
     }

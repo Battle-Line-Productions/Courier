@@ -8,21 +8,26 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JobTable } from "@/components/jobs/job-table";
 import { EmptyState } from "@/components/shared/empty-state";
+import { TagFilter } from "@/components/tags/tag-filter";
 import { useJobs } from "@/lib/hooks/use-jobs";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 
 export default function JobsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [tagFilter, setTagFilter] = useState("");
   const pageSize = 10;
-  const { data, isLoading } = useJobs(page, pageSize);
+
+  const filters = {
+    search: search || undefined,
+    tag: tagFilter || undefined,
+  };
+
+  const { data, isLoading } = useJobs(page, pageSize, filters);
   const { can } = usePermissions();
 
   const jobs = data?.data ?? [];
   const pagination = data?.pagination;
-  const filteredJobs = search
-    ? jobs.filter((j) => j.name.toLowerCase().includes(search.toLowerCase()))
-    : jobs;
 
   return (
     <div className="space-y-6">
@@ -45,10 +50,10 @@ export default function JobsPage() {
 
       {isLoading ? (
         <div className="space-y-3">
-          <Skeleton className="h-10 w-72" />
+          <Skeleton className="h-10 w-full" />
           <Skeleton className="h-64 w-full" />
         </div>
-      ) : jobs.length === 0 ? (
+      ) : jobs.length === 0 && !search && !tagFilter ? (
         <EmptyState
           title="No jobs yet"
           description="Create your first file transfer job to get started. Jobs define the steps and configuration for automated file operations."
@@ -57,14 +62,32 @@ export default function JobsPage() {
         />
       ) : (
         <>
-          <Input
-            placeholder="Search jobs..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="max-w-sm"
-          />
+          <div className="flex items-center gap-3">
+            <Input
+              placeholder="Search jobs..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="max-w-sm"
+            />
+            <TagFilter
+              value={tagFilter}
+              onChange={(v) => {
+                setTagFilter(v);
+                setPage(1);
+              }}
+            />
+          </div>
 
-          <JobTable jobs={filteredJobs} />
+          {jobs.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              No jobs match your filters.
+            </p>
+          ) : (
+            <JobTable jobs={jobs} />
+          )}
 
           {pagination && pagination.totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">

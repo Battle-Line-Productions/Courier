@@ -75,10 +75,11 @@ public class JobsController : ControllerBase
     public async Task<ActionResult<PagedApiResponse<JobDto>>> List(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
+        [FromQuery] string? search = null,
         [FromQuery] string? tag = null,
         CancellationToken ct = default)
     {
-        var result = await _jobService.ListAsync(page, pageSize, tag, ct);
+        var result = await _jobService.ListAsync(page, pageSize, search, tag, ct);
         return Ok(result);
     }
 

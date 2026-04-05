@@ -1,10 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api";
 
-export function useJobs(page: number, pageSize = 10) {
+interface JobFilters {
+  search?: string;
+  tag?: string;
+}
+
+export function useJobs(page: number, pageSize = 10, filters?: JobFilters) {
   return useQuery({
-    queryKey: ["jobs", page, pageSize],
-    queryFn: () => api.listJobs(page, pageSize),
+    queryKey: ["jobs", page, pageSize, filters],
+    queryFn: () => api.listJobs(page, pageSize, filters),
   });
 }
 

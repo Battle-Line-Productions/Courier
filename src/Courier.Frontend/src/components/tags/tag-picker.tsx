@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, ChevronsUpDown, Check } from "lucide-react";
+import { X, ChevronsUpDown, Check, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/popover";
 import { TagBadge } from "./tag-badge";
 import { useAllTags } from "@/lib/hooks/use-tags";
-import { useAssignTags, useUnassignTags } from "@/lib/hooks/use-tag-mutations";
+import { useAssignTags, useUnassignTags, useCreateTag } from "@/lib/hooks/use-tag-mutations";
 import { toast } from "sonner";
 import type { TagSummaryDto } from "@/lib/types";
 
@@ -27,13 +27,19 @@ export function TagPicker({ entityType, entityId, currentTags = [] }: TagPickerP
   const { data } = useAllTags();
   const assignTags = useAssignTags();
   const unassignTags = useUnassignTags();
+  const createTag = useCreateTag();
 
   const allTags = data?.data ?? [];
   const currentTagNames = currentTags.map((t) => t.name);
 
+  const trimmedSearch = search.trim();
   const filteredTags = allTags.filter(
-    (tag) => tag.name.toLowerCase().includes(search.toLowerCase())
+    (tag) => tag.name.toLowerCase().includes(trimmedSearch.toLowerCase())
   );
+  const exactMatch = allTags.some(
+    (tag) => tag.name.toLowerCase() === trimmedSearch.toLowerCase()
+  );
+  const showCreateOption = trimmedSearch.length > 0 && !exactMatch;
 
   function handleSelect(tagId: string, tagName: string) {
     const isAssigned = currentTagNames.includes(tagName);
@@ -58,6 +64,32 @@ export function TagPicker({ entityType, entityId, currentTags = [] }: TagPickerP
         }
       );
     }
+  }
+
+  function handleCreateAndAssign() {
+    if (!trimmedSearch) return;
+    createTag.mutate(
+      { name: trimmedSearch },
+      {
+        onSuccess: (response) => {
+          const newTag = response.data;
+          if (!newTag) return;
+          assignTags.mutate(
+            {
+              assignments: [{ tagId: newTag.id, entityType, entityId }],
+            },
+            {
+              onSuccess: () => {
+                toast.success(`Tag "${trimmedSearch}" created and added`);
+                setSearch("");
+              },
+              onError: (error) => toast.error(error.message),
+            }
+          );
+        },
+        onError: (error) => toast.error(error.message),
+      }
+    );
   }
 
   function handleRemove(tagName: string) {
@@ -101,13 +133,24 @@ export function TagPicker({ entityType, entityId, currentTags = [] }: TagPickerP
         </PopoverTrigger>
         <PopoverContent className="w-64 p-2" align="start">
           <Input
-            placeholder="Search tags..."
+            placeholder="Search or create tags..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-8 text-sm mb-2"
           />
           <div className="max-h-48 overflow-y-auto space-y-0.5">
-            {filteredTags.length === 0 ? (
+            {showCreateOption && (
+              <button
+                type="button"
+                onClick={handleCreateAndAssign}
+                disabled={createTag.isPending}
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent transition-colors text-primary"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Create &quot;{trimmedSearch}&quot;
+              </button>
+            )}
+            {filteredTags.length === 0 && !showCreateOption ? (
               <p className="text-xs text-muted-foreground py-2 text-center">
                 No tags found.
               </p>

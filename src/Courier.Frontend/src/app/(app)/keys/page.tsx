@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PgpKeyTable } from "@/components/keys/pgp-key-table";
 import { SshKeyTable } from "@/components/keys/ssh-key-table";
 import { EmptyState } from "@/components/shared/empty-state";
+import { TagFilter } from "@/components/tags/tag-filter";
 import { usePgpKeys } from "@/lib/hooks/use-pgp-keys";
 import { useSshKeys } from "@/lib/hooks/use-ssh-keys";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -25,7 +26,8 @@ export default function KeysPage() {
   const [pgpPage, setPgpPage] = useState(1);
   const [pgpSearch, setPgpSearch] = useState("");
   const [pgpStatus, setPgpStatus] = useState("");
-  const pgpFilters = { search: pgpSearch || undefined, status: pgpStatus || undefined };
+  const [pgpTag, setPgpTag] = useState("");
+  const pgpFilters = { search: pgpSearch || undefined, status: pgpStatus || undefined, tag: pgpTag || undefined };
   const { data: pgpData, isLoading: pgpLoading } = usePgpKeys(pgpPage, 10, pgpFilters);
   const pgpKeys = pgpData?.data ?? [];
   const pgpPagination = pgpData?.pagination;
@@ -34,7 +36,8 @@ export default function KeysPage() {
   const [sshPage, setSshPage] = useState(1);
   const [sshSearch, setSshSearch] = useState("");
   const [sshStatus, setSshStatus] = useState("");
-  const sshFilters = { search: sshSearch || undefined, status: sshStatus || undefined };
+  const [sshTag, setSshTag] = useState("");
+  const sshFilters = { search: sshSearch || undefined, status: sshStatus || undefined, tag: sshTag || undefined };
   const { data: sshData, isLoading: sshLoading } = useSshKeys(sshPage, 10, sshFilters);
   const sshKeys = sshData?.data ?? [];
   const sshPagination = sshData?.pagination;
@@ -78,7 +81,7 @@ export default function KeysPage() {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-64 w-full" />
             </div>
-          ) : pgpKeys.length === 0 && !pgpSearch && !pgpStatus ? (
+          ) : pgpKeys.length === 0 && !pgpSearch && !pgpStatus && !pgpTag ? (
             <EmptyState
               title="No PGP keys yet"
               description="Generate or import your first PGP key for encryption and signing operations."
@@ -104,6 +107,7 @@ export default function KeysPage() {
                     <SelectItem value="revoked">Revoked</SelectItem>
                   </SelectContent>
                 </Select>
+                <TagFilter value={pgpTag} onChange={(v) => { setPgpTag(v); setPgpPage(1); }} />
               </div>
               {pgpKeys.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-8 text-center">No PGP keys match your filters.</p>
@@ -127,7 +131,7 @@ export default function KeysPage() {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-64 w-full" />
             </div>
-          ) : sshKeys.length === 0 && !sshSearch && !sshStatus ? (
+          ) : sshKeys.length === 0 && !sshSearch && !sshStatus && !sshTag ? (
             <EmptyState
               title="No SSH keys yet"
               description="Generate or import your first SSH key for SFTP authentication."
@@ -151,6 +155,7 @@ export default function KeysPage() {
                     <SelectItem value="retired">Retired</SelectItem>
                   </SelectContent>
                 </Select>
+                <TagFilter value={sshTag} onChange={(v) => { setSshTag(v); setSshPage(1); }} />
               </div>
               {sshKeys.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-8 text-center">No SSH keys match your filters.</p>

@@ -1,3 +1,5 @@
+using Courier.Features.Tags;
+
 namespace Courier.Features.Chains;
 
 public record JobChainDto
@@ -7,6 +9,7 @@ public record JobChainDto
     public string? Description { get; init; }
     public bool IsEnabled { get; init; }
     public List<JobChainMemberDto> Members { get; init; } = [];
+    public List<TagSummaryDto> Tags { get; init; } = [];
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
 }
