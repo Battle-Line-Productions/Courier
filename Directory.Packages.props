@@ -61,7 +61,7 @@
     <PackageVersion Include="Quartz.Serialization.Json" Version="3.17.1" />
   </ItemGroup>
   <ItemGroup Label="Azure">
-    <PackageVersion Include="Azure.Identity" Version="1.18.0" />
+    <PackageVersion Include="Azure.Identity" Version="1.20.0" />
   </ItemGroup>
   <ItemGroup Label="Microsoft Extensions">
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.5" />
