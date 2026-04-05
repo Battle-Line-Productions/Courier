@@ -16,6 +16,7 @@ import {
   Link2,
   Bell,
   ShieldCheck,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -32,6 +33,7 @@ const navItems = [
   { label: "Tags", href: "/tags", icon: Tag, active: true },
   { label: "Notifications", href: "/notifications", icon: Bell, active: true },
   { label: "Audit", href: "/audit", icon: FileText, active: true },
+  { label: "User Guide", href: "/guide", icon: BookOpen, active: true },
 ];
 
 

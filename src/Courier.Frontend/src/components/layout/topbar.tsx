@@ -43,6 +43,17 @@ function useBreadcrumbs() {
     else if (label === "ssh") label = "SSH";
     else if (label === "logs") label = "Logs";
     else if (label === "import") label = "Import";
+    else if (label === "guide") label = "User Guide";
+    else if (label === "getting-started") label = "Getting Started";
+    else if (label === "step-types") label = "Step Types";
+    else if (label === "file-operations") label = "File Operations";
+    else if (label === "sftp-transfer") label = "SFTP Transfer";
+    else if (label === "ftp-transfer") label = "FTP / FTPS Transfer";
+    else if (label === "pgp-cryptography") label = "PGP Cryptography";
+    else if (label === "flow-control") label = "Control Flow";
+    else if (label === "azure-function") label = "Azure Function";
+    else if (label === "sdk") label = "Developer SDKs";
+    else if (label === "azure-functions") label = "Azure Functions";
     else if (label.match(/^[0-9a-f-]{36}$/)) label = "Detail";
 
     crumbs.push({ label, href });
