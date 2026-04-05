@@ -47,7 +47,7 @@ jobs:
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.token="${SONAR_TOKEN}" \
             /d:sonar.cs.opencover.reportsPaths="**/TestResults/coverage.opencover.xml" \
-            /d:sonar.exclusions="**/Migrations/**,**/obj/**,**/bin/**" \
+            /d:sonar.exclusions="**/Migrations/**,**/obj/**,**/bin/**,src/Courier.Frontend/**" \
             /d:sonar.coverage.exclusions="**/Tests/**,**/Migrations/**,**/Program.cs"
 
       - name: Build
@@ -77,9 +77,12 @@ jobs:
           name: test-results
           path: '**/TestResults/*.trx'
 
-      - name: Vulnerability scan
-        continue-on-error: true
-        run: dotnet list Courier.slnx package --vulnerable --include-transitive
+      - name: Snyk .NET Security Scan
+        uses: snyk/actions/dotnet@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --all-projects --severity-threshold=high
 
   frontend:
     name: Frontend Build, Type Check & Analyze
@@ -112,6 +115,14 @@ jobs:
 
       - name: Unit Tests with Coverage
         run: npm run test:coverage
+
+      - name: Snyk npm Security Scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+          command: test
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v5
