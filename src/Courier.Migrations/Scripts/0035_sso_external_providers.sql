@@ -40,7 +40,8 @@ CREATE INDEX ix_sso_user_links_user_id ON sso_user_links (user_id);
 CREATE INDEX ix_sso_user_links_provider_id ON sso_user_links (provider_id);
 
 -- Update audit log CHECK constraint to include auth_provider
-ALTER TABLE audit_log_entries DROP CONSTRAINT IF EXISTS ck_audit_entity_type;
+ALTER TABLE audit_log_entries DROP CONSTRAINT IF EXISTS ck_audit_entity_type CASCADE;
+
 ALTER TABLE audit_log_entries ADD CONSTRAINT ck_audit_entity_type
   CHECK (entity_type IN (
     'job', 'job_execution', 'step_execution', 'connection',
