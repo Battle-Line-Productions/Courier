@@ -2,10 +2,10 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![CI](https://github.com/Battle-Line-Productions/Courier/actions/workflows/ci.yml/badge.svg)](https://github.com/Battle-Line-Productions/Courier/actions/workflows/ci.yml)
-[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=Battle-Line-Productions_Courier&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Battle-Line-Productions_Courier)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Battle-Line-Productions_Courier&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Battle-Line-Productions_Courier)
-[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=Battle-Line-Productions_Courier&metric=bugs)](https://sonarcloud.io/summary/new_code?id=Battle-Line-Productions_Courier)
-[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=Battle-Line-Productions_Courier&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=Battle-Line-Productions_Courier)
+[![Backend Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=Battle-Line-Productions_Courier&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Battle-Line-Productions_Courier)
+[![Backend Coverage](https://sonarcloud.io/api/project_badges/measure?project=Battle-Line-Productions_Courier&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Battle-Line-Productions_Courier)
+[![Frontend Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=Battle-Line-Productions_Courier_Frontend&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Battle-Line-Productions_Courier_Frontend)
+[![Frontend Coverage](https://sonarcloud.io/api/project_badges/measure?project=Battle-Line-Productions_Courier_Frontend&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Battle-Line-Productions_Courier_Frontend)
 
 Open-source enterprise Managed File Transfer (MFT) platform. Replaces manual SFTP, PGP, cron, and ad-hoc scripts with a unified, auditable, secure platform.
 

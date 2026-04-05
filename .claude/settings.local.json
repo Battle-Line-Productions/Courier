@@ -98,7 +98,9 @@
       "mcp__Claude_Preview__preview_start",
       "Bash(gh repo:*)",
       "Bash(gh project:*)",
-      "Bash(gh api graphql -f 'query=:*)"
+      "Bash(gh api graphql -f 'query=:*)",
+      "Bash(dotnet list:*)",
+      "Bash(npx vitest:*)"
     ],
     "deny": [],
     "ask": []

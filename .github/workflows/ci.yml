@@ -82,13 +82,15 @@ jobs:
         run: dotnet list Courier.slnx package --vulnerable --include-transitive
 
   frontend:
-    name: Frontend Build & Type Check
+    name: Frontend Build, Type Check & Analyze
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: src/Courier.Frontend
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -107,3 +109,20 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:5000
+
+      - name: Unit Tests with Coverage
+        run: npm run test:coverage
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        with:
+          projectBaseDir: src/Courier.Frontend
+          args: >
+            -Dsonar.projectKey=Battle-Line-Productions_Courier_Frontend
+            -Dsonar.organization=battle-line-productions
+            -Dsonar.sources=src
+            -Dsonar.exclusions=node_modules/**,.next/**,e2e/**
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io

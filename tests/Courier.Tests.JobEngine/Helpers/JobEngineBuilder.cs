@@ -1,7 +1,7 @@
 using Courier.Domain.Engine;
 using Courier.Domain.Encryption;
 using Courier.Features.AuditLog;
-using Courier.Features.AzureFunctions;
+using Courier.Features.Callbacks;
 using Courier.Features.Engine;
 using Courier.Features.Engine.Compression;
 using Courier.Features.Engine.Crypto;
@@ -66,10 +66,10 @@ public class JobEngineBuilder
         var zipProvider = new ZipCompressionProvider();
         var compressionRegistry = new CompressionProviderRegistry(new ICompressionProvider[] { zipProvider });
 
-        // Azure Function step (mock the HTTP clients since we won't test Azure)
+        // Azure Function step (mock deps since we won't test Azure)
         var httpClientFactory = Substitute.For<IHttpClientFactory>();
-        var functionClient = new AzureFunctionClient(httpClientFactory, NullLogger<AzureFunctionClient>.Instance);
-        var appInsights = new AppInsightsQueryService(httpClientFactory, NullLogger<AppInsightsQueryService>.Instance);
+        var callbackService = new StepCallbackService(_db);
+        var configuration = Substitute.For<Microsoft.Extensions.Configuration.IConfiguration>();
 
         // Build all step handlers
         var steps = new List<IJobStep>
@@ -117,8 +117,8 @@ public class JobEngineBuilder
             new FlowEndStep(),
 
             // Azure Function (mocked)
-            new AzureFunctionExecuteStep(_db, _encryptor, functionClient, appInsights,
-                NullLogger<AzureFunctionExecuteStep>.Instance),
+            new AzureFunctionExecuteStep(_db, _encryptor, callbackService, httpClientFactory,
+                configuration, NullLogger<AzureFunctionExecuteStep>.Instance),
         };
 
         steps.AddRange(_additionalSteps);
