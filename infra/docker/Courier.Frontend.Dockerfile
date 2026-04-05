@@ -10,7 +10,7 @@
 # ---------------------------------------------------------------------------
 # Stage 1: Install dependencies
 # ---------------------------------------------------------------------------
-FROM node:22-alpine AS deps
+FROM node:24-alpine AS deps
 WORKDIR /app
 
 COPY src/Courier.Frontend/package.json src/Courier.Frontend/package-lock.json ./
@@ -19,7 +19,7 @@ RUN npm ci
 # ---------------------------------------------------------------------------
 # Stage 2: Build
 # ---------------------------------------------------------------------------
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -35,7 +35,7 @@ RUN npm run build
 # ---------------------------------------------------------------------------
 # Stage 3: Runtime (standalone Node.js server)
 # ---------------------------------------------------------------------------
-FROM node:22-alpine AS runtime
+FROM node:24-alpine AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production
