@@ -15,7 +15,7 @@ jobs:
     name: Backend Build, Test & Analyze
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0  # Full history required for SonarCloud blame data
 
@@ -91,7 +91,7 @@ jobs:
       run:
         working-directory: src/Courier.Frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
