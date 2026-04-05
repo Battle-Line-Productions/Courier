@@ -217,9 +217,9 @@ export function StepConfigForm({ typeKey, config, onChange }: StepConfigFormProp
       connectionId: (config.connectionId as string) ?? "",
       functionName: (config.functionName as string) ?? "",
       inputPayload: (config.inputPayload as string) ?? "",
-      pollIntervalSec: (config.pollIntervalSec as number) ?? 15,
+      waitForCallback: (config.waitForCallback as boolean) ?? true,
+      pollIntervalSec: (config.pollIntervalSec as number) ?? 5,
       maxWaitSec: (config.maxWaitSec as number) ?? 3600,
-      initialDelaySec: (config.initialDelaySec as number) ?? 30,
     };
     return (
       <AzureFunctionStepConfigForm
@@ -229,9 +229,9 @@ export function StepConfigForm({ typeKey, config, onChange }: StepConfigFormProp
             connectionId: c.connectionId,
             functionName: c.functionName,
             inputPayload: c.inputPayload,
+            waitForCallback: c.waitForCallback,
             pollIntervalSec: c.pollIntervalSec,
             maxWaitSec: c.maxWaitSec,
-            initialDelaySec: c.initialDelaySec,
           })
         }
       />
@@ -597,9 +597,9 @@ export function parseStepConfig(configJson: string, typeKey?: string): StepConfi
       connectionId: az.connectionId,
       functionName: az.functionName,
       inputPayload: az.inputPayload,
+      waitForCallback: az.waitForCallback,
       pollIntervalSec: az.pollIntervalSec,
       maxWaitSec: az.maxWaitSec,
-      initialDelaySec: az.initialDelaySec,
     };
   }
 
@@ -713,9 +713,9 @@ export function serializeStepConfig(config: StepConfig, typeKey?: string): strin
       connectionId: (config.connectionId as string) ?? "",
       functionName: (config.functionName as string) ?? "",
       inputPayload: (config.inputPayload as string) ?? "",
-      pollIntervalSec: (config.pollIntervalSec as number) ?? 15,
+      waitForCallback: (config.waitForCallback as boolean) ?? true,
+      pollIntervalSec: (config.pollIntervalSec as number) ?? 5,
       maxWaitSec: (config.maxWaitSec as number) ?? 3600,
-      initialDelaySec: (config.initialDelaySec as number) ?? 30,
     });
   }
 

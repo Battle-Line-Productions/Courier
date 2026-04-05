@@ -42,7 +42,7 @@ const connectionSchema = z.object({
   protocol: z.enum(["sftp", "ftp", "ftps", "azure_function"], { message: "Protocol is required" }),
   host: z.string().min(1, "Host is required").max(255),
   port: z.number().int().min(1).max(65535),
-  authMethod: z.enum(["password", "ssh_key", "password_ssh_key", "service_principal"], { message: "Auth method is required" }),
+  authMethod: z.enum(["password", "ssh_key", "password_ssh_key", "service_principal", "function_key"], { message: "Auth method is required" }),
   username: z.string().max(100).optional(),
   password: z.string().max(500).optional(),
   clientSecret: z.string().max(500).optional(),
@@ -60,10 +60,6 @@ const connectionSchema = z.object({
   status: z.enum(["active", "disabled"]).optional(),
   fipsOverride: z.boolean().optional(),
   notes: z.string().max(2000).optional(),
-  // Azure Function specific (stored in properties JSON)
-  tenantId: z.string().max(100).optional(),
-  clientId: z.string().max(100).optional(),
-  workspaceId: z.string().max(100).optional(),
 });
 
 type ConnectionFormValues = z.infer<typeof connectionSchema>;
@@ -85,19 +81,9 @@ function FieldTooltip({ text }: { text: string }) {
   );
 }
 
-function parseAzureProperties(props?: string): { tenantId?: string; clientId?: string; workspaceId?: string } {
-  if (!props) return {};
-  try {
-    return JSON.parse(props);
-  } catch {
-    return {};
-  }
-}
-
 export function ConnectionForm({ connection }: ConnectionFormProps) {
   const router = useRouter();
   const isEdit = !!connection;
-  const azureProps = parseAzureProperties(connection?.properties);
 
   const {
     register,
@@ -132,9 +118,6 @@ export function ConnectionForm({ connection }: ConnectionFormProps) {
       status: (connection?.status as ConnectionFormValues["status"]) ?? "active",
       fipsOverride: connection?.fipsOverride ?? false,
       notes: connection?.notes ?? "",
-      tenantId: azureProps.tenantId ?? "",
-      clientId: azureProps.clientId ?? "",
-      workspaceId: azureProps.workspaceId ?? "",
     },
   });
 
@@ -161,8 +144,8 @@ export function ConnectionForm({ connection }: ConnectionFormProps) {
   // Auto-set auth method and username for azure_function
   useEffect(() => {
     if (isAzureFunction) {
-      setValue("authMethod", "service_principal");
-      setValue("username", "service_principal");
+      setValue("authMethod", "function_key");
+      setValue("username", "function_key");
     }
   }, [isAzureFunction, setValue]);
 
@@ -171,15 +154,7 @@ export function ConnectionForm({ connection }: ConnectionFormProps) {
   const isSubmitting = createConnection.isPending || updateConnection.isPending;
 
   async function onSubmit(values: ConnectionFormValues) {
-    // Build the request, mapping azure-specific fields
     const isAzure = values.protocol === "azure_function";
-    const properties = isAzure
-      ? JSON.stringify({
-          tenantId: values.tenantId || undefined,
-          clientId: values.clientId || undefined,
-          workspaceId: values.workspaceId || undefined,
-        })
-      : undefined;
 
     const base = {
       name: values.name,
@@ -187,12 +162,12 @@ export function ConnectionForm({ connection }: ConnectionFormProps) {
       protocol: values.protocol,
       host: values.host,
       port: values.port,
-      authMethod: isAzure ? "service_principal" : values.authMethod,
-      username: isAzure ? "service_principal" : (values.username || ""),
+      authMethod: isAzure ? "function_key" : values.authMethod,
+      username: isAzure ? "function_key" : (values.username || ""),
       password: values.password || undefined,
-      clientSecret: values.clientSecret || undefined,
+      clientSecret: isAzure ? undefined : (values.clientSecret || undefined),
       sshKeyId: values.sshKeyId || undefined,
-      properties,
+      properties: undefined,
       hostKeyPolicy: values.hostKeyPolicy,
       sshAlgorithms: values.sshAlgorithms || undefined,
       passiveMode: values.passiveMode,
@@ -322,77 +297,18 @@ export function ConnectionForm({ connection }: ConnectionFormProps) {
           <CardContent className="space-y-4">
             <div className="grid gap-1.5">
               <div className="flex items-center gap-1.5">
-                <Label htmlFor="password">Master Key</Label>
-                <FieldTooltip text="The Function App's master key, found in Azure Portal under Function App > App Keys. Used to authenticate trigger requests via the Admin API." />
+                <Label htmlFor="password">Function Key</Label>
+                <FieldTooltip text="Found in Azure Portal: Function App > App Keys > Host Keys for app-wide access, or under a specific function's Function Keys for scoped access." />
               </div>
               <Input
                 id="password"
                 type="password"
-                placeholder={isEdit ? "Leave blank to keep current key" : "Enter master key"}
+                placeholder={isEdit ? "Leave blank to keep current key" : "Enter function key"}
                 {...register("password")}
               />
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password.message}</p>
               )}
-            </div>
-            <div className="grid gap-1.5">
-              <div className="flex items-center gap-1.5">
-                <Label htmlFor="clientSecret">Client Secret</Label>
-                <FieldTooltip text="Entra ID service principal client secret. Used to authenticate with Application Insights for monitoring function execution." />
-              </div>
-              <Input
-                id="clientSecret"
-                type="password"
-                placeholder={isEdit ? "Leave blank to keep current secret" : "Enter client secret"}
-                {...register("clientSecret")}
-              />
-              {errors.clientSecret && (
-                <p className="text-sm text-destructive">{errors.clientSecret.message}</p>
-              )}
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="grid gap-1.5">
-                <div className="flex items-center gap-1.5">
-                  <Label htmlFor="tenantId">Tenant ID</Label>
-                  <FieldTooltip text="Azure Entra ID tenant ID (GUID). Found in Azure Portal > Entra ID > Overview." />
-                </div>
-                <Input
-                  id="tenantId"
-                  placeholder="e.g., 12345678-abcd-..."
-                  {...register("tenantId")}
-                />
-                {errors.tenantId && (
-                  <p className="text-sm text-destructive">{errors.tenantId.message}</p>
-                )}
-              </div>
-              <div className="grid gap-1.5">
-                <div className="flex items-center gap-1.5">
-                  <Label htmlFor="clientId">Client ID</Label>
-                  <FieldTooltip text="Entra ID app registration client ID (GUID). The service principal must have Log Analytics Reader role on the App Insights workspace." />
-                </div>
-                <Input
-                  id="clientId"
-                  placeholder="e.g., 12345678-abcd-..."
-                  {...register("clientId")}
-                />
-                {errors.clientId && (
-                  <p className="text-sm text-destructive">{errors.clientId.message}</p>
-                )}
-              </div>
-              <div className="grid gap-1.5">
-                <div className="flex items-center gap-1.5">
-                  <Label htmlFor="workspaceId">Workspace ID</Label>
-                  <FieldTooltip text="Log Analytics workspace ID (GUID). Found in Azure Portal > Log Analytics Workspaces > your workspace > Properties." />
-                </div>
-                <Input
-                  id="workspaceId"
-                  placeholder="e.g., 12345678-abcd-..."
-                  {...register("workspaceId")}
-                />
-                {errors.workspaceId && (
-                  <p className="text-sm text-destructive">{errors.workspaceId.message}</p>
-                )}
-              </div>
             </div>
           </CardContent>
         </Card>

@@ -10,6 +10,7 @@
     <ProjectReference Include="..\..\src\Courier.Features\Courier.Features.csproj" />
     <ProjectReference Include="..\..\src\Courier.Infrastructure\Courier.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Courier.Worker\Courier.Worker.csproj" />
+    <ProjectReference Include="..\..\src\Courier.Functions.Sdk\Courier.Functions.Sdk.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -16,7 +16,7 @@ using Courier.Features.Auth;
 using Courier.Features.Auth.Sso;
 using Courier.Features.AuthProviders;
 using Courier.Features.AuditLog;
-using Courier.Features.AzureFunctions;
+using Courier.Features.Callbacks;
 using Courier.Features.Filesystem;
 using Courier.Features.Jobs;
 using Courier.Features.Monitors;
@@ -106,11 +106,9 @@ public static class FeaturesServiceExtensions
         services.AddScoped<IJobStep, PgpSignStep>();
         services.AddScoped<IJobStep, PgpVerifyStep>();
 
-        // Azure Function step handler
+        // Azure Function step handler + callback service
         services.AddHttpClient("AzureFunctions");
-        services.AddHttpClient("LogAnalytics");
-        services.AddScoped<AzureFunctionClient>();
-        services.AddScoped<AppInsightsQueryService>();
+        services.AddScoped<StepCallbackService>();
         services.AddScoped<IJobStep, AzureFunctionExecuteStep>();
 
         services.AddValidatorsFromAssemblyContaining<CreateJobValidator>();
@@ -169,7 +167,6 @@ public static class FeaturesServiceExtensions
         services.AddScoped<NotificationDispatcher>();
         services.AddScoped<INotificationChannel, WebhookNotificationChannel>();
         services.AddScoped<INotificationChannel, EmailNotificationChannel>();
-        services.Configure<SmtpSettings>(configuration.GetSection("Smtp"));
         services.AddHttpClient("Webhooks");
 
         // Domain Events

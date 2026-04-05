@@ -132,7 +132,7 @@ export default function UserDetailPage() {
           <Button type="submit" disabled={updateUser.isPending}>
             {updateUser.isPending ? "Saving..." : "Save Changes"}
           </Button>
-          <Button type="button" variant="outline" onClick={() => router.push("/settings/users")}>
+          <Button type="button" variant="outline" onClick={() => router.push("/admin")}>
             Back
           </Button>
         </div>

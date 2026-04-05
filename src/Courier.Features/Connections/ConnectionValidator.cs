@@ -5,7 +5,7 @@ namespace Courier.Features.Connections;
 public class CreateConnectionValidator : AbstractValidator<CreateConnectionRequest>
 {
     private static readonly string[] ValidProtocols = ["sftp", "ftp", "ftps", "azure_function"];
-    private static readonly string[] ValidAuthMethods = ["password", "ssh_key", "password_and_ssh_key", "service_principal"];
+    private static readonly string[] ValidAuthMethods = ["password", "ssh_key", "password_and_ssh_key", "service_principal", "function_key"];
     private static readonly string[] ValidHostKeyPolicies = ["trust_on_first_use", "always_trust", "manual"];
     private static readonly string[] ValidTlsCertPolicies = ["system_trust", "pinned_thumbprint", "insecure"];
 
@@ -30,7 +30,7 @@ public class CreateConnectionValidator : AbstractValidator<CreateConnectionReque
         RuleFor(x => x.AuthMethod)
             .NotEmpty().WithMessage("Auth method is required.")
             .Must(v => ValidAuthMethods.Contains(v))
-            .WithMessage("Auth method must be one of: password, ssh_key, password_and_ssh_key, service_principal.");
+            .WithMessage("Auth method must be one of: password, ssh_key, password_and_ssh_key, service_principal, function_key.");
 
         RuleFor(x => x.Username)
             .NotEmpty().WithMessage("Username is required.");
@@ -45,15 +45,11 @@ public class CreateConnectionValidator : AbstractValidator<CreateConnectionReque
 
         // Azure Function-specific validation
         RuleFor(x => x.AuthMethod)
-            .Equal("service_principal").WithMessage("Azure Function connections require service_principal auth method.")
+            .Equal("function_key").WithMessage("Azure Function connections require function_key auth method.")
             .When(x => x.Protocol == "azure_function");
 
-        RuleFor(x => x.ClientSecret)
-            .NotEmpty().WithMessage("Client secret is required for service_principal auth.")
-            .When(x => x.AuthMethod == "service_principal");
-
-        RuleFor(x => x.Properties)
-            .NotEmpty().WithMessage("Properties are required for azure_function connections.")
+        RuleFor(x => x.Password)
+            .NotEmpty().WithMessage("Function key is required for Azure Function connections.")
             .When(x => x.Protocol == "azure_function");
 
         RuleFor(x => x.HostKeyPolicy)
@@ -91,7 +87,7 @@ public class CreateConnectionValidator : AbstractValidator<CreateConnectionReque
 public class UpdateConnectionValidator : AbstractValidator<UpdateConnectionRequest>
 {
     private static readonly string[] ValidProtocols = ["sftp", "ftp", "ftps", "azure_function"];
-    private static readonly string[] ValidAuthMethods = ["password", "ssh_key", "password_and_ssh_key", "service_principal"];
+    private static readonly string[] ValidAuthMethods = ["password", "ssh_key", "password_and_ssh_key", "service_principal", "function_key"];
     private static readonly string[] ValidHostKeyPolicies = ["trust_on_first_use", "always_trust", "manual"];
     private static readonly string[] ValidTlsCertPolicies = ["system_trust", "pinned_thumbprint", "insecure"];
     private static readonly string[] ValidStatuses = ["active", "disabled"];
@@ -117,7 +113,7 @@ public class UpdateConnectionValidator : AbstractValidator<UpdateConnectionReque
         RuleFor(x => x.AuthMethod)
             .NotEmpty().WithMessage("Auth method is required.")
             .Must(v => ValidAuthMethods.Contains(v))
-            .WithMessage("Auth method must be one of: password, ssh_key, password_and_ssh_key, service_principal.");
+            .WithMessage("Auth method must be one of: password, ssh_key, password_and_ssh_key, service_principal, function_key.");
 
         RuleFor(x => x.Username)
             .NotEmpty().WithMessage("Username is required.");
@@ -128,15 +124,7 @@ public class UpdateConnectionValidator : AbstractValidator<UpdateConnectionReque
 
         // Azure Function-specific validation
         RuleFor(x => x.AuthMethod)
-            .Equal("service_principal").WithMessage("Azure Function connections require service_principal auth method.")
-            .When(x => x.Protocol == "azure_function");
-
-        RuleFor(x => x.ClientSecret)
-            .NotEmpty().WithMessage("Client secret is required for service_principal auth.")
-            .When(x => x.AuthMethod == "service_principal" && x.ClientSecret is not null);
-
-        RuleFor(x => x.Properties)
-            .NotEmpty().WithMessage("Properties are required for azure_function connections.")
+            .Equal("function_key").WithMessage("Azure Function connections require function_key auth method.")
             .When(x => x.Protocol == "azure_function");
 
         RuleFor(x => x.HostKeyPolicy)

@@ -40,6 +40,7 @@ public class CourierDbContext : DbContext
     public DbSet<DomainEvent> DomainEvents => Set<DomainEvent>();
     public DbSet<KeyShareLink> KeyShareLinks => Set<KeyShareLink>();
     public DbSet<SsoUserLink> SsoUserLinks => Set<SsoUserLink>();
+    public DbSet<StepCallback> StepCallbacks => Set<StepCallback>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -712,6 +713,21 @@ public class CourierDbContext : DbContext
 
             entity.HasIndex(e => new { e.KeyId, e.KeyType });
             entity.HasIndex(e => e.TokenHash);
+        });
+
+        modelBuilder.Entity<StepCallback>(entity =>
+        {
+            entity.ToTable("step_callbacks");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CallbackKey).HasColumnName("callback_key").IsRequired();
+            entity.Property(e => e.Status).HasColumnName("status").IsRequired().HasDefaultValue("pending");
+            entity.Property(e => e.ResultPayload).HasColumnName("result_payload").HasColumnType("jsonb");
+            entity.Property(e => e.ErrorMessage).HasColumnName("error_message");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.CompletedAt).HasColumnName("completed_at");
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at");
+            entity.HasIndex(e => e.CallbackKey).IsUnique();
         });
     }
 }

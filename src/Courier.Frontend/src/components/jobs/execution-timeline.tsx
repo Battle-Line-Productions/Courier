@@ -6,8 +6,7 @@ import { usePauseExecution, useResumeExecution, useCancelExecution } from "@/lib
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Terminal, Pause, Play, XCircle } from "lucide-react";
-import { AzureFunctionTraceViewer } from "@/components/azure-function-trace-viewer";
+import { ChevronDown, ChevronRight, Pause, Play, XCircle } from "lucide-react";
 import type { JobExecutionDto, StepExecutionDto } from "@/lib/types";
 
 function timeAgo(dateStr: string): string {
@@ -274,14 +273,6 @@ function ExecutionRow({
 }
 
 function StepExecutionRow({ step }: { step: StepExecutionDto }) {
-  const [showTraces, setShowTraces] = useState(false);
-
-  const outputData = parseOutputData(step.outputData);
-  const invocationId = outputData?.invocation_id;
-  const connectionId = outputData?.connection_id;
-  const isAzureFunction = step.stepTypeKey === "azure_function.execute";
-  const hasTraceData = isAzureFunction && invocationId && connectionId;
-
   return (
     <div className="rounded-md border bg-muted/30 px-3 py-2">
       <div className="flex items-center gap-2 text-sm">
@@ -294,29 +285,9 @@ function StepExecutionRow({ step }: { step: StepExecutionDto }) {
             {formatDuration(step.durationMs)}
           </span>
         )}
-        {hasTraceData && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="ml-1 h-6 px-2 text-xs"
-            onClick={() => setShowTraces(!showTraces)}
-          >
-            <Terminal className="mr-1 h-3 w-3" />
-            {showTraces ? "Hide Logs" : "View Logs"}
-          </Button>
-        )}
       </div>
       {step.errorMessage && (
         <p className="mt-1 text-xs text-destructive font-mono">{step.errorMessage}</p>
-      )}
-      {showTraces && hasTraceData && (
-        <div className="mt-2">
-          <AzureFunctionTraceViewer
-            connectionId={connectionId}
-            invocationId={invocationId}
-          />
-        </div>
       )}
     </div>
   );

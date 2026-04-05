@@ -8,6 +8,7 @@
     <Project Path="src/Courier.Migrations/Courier.Migrations.csproj" />
     <Project Path="src/Courier.ServiceDefaults/Courier.ServiceDefaults.csproj" />
     <Project Path="src/Courier.Worker/Courier.Worker.csproj" />
+    <Project Path="src/Courier.Functions.Sdk/Courier.Functions.Sdk.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Courier.Tests.Architecture/Courier.Tests.Architecture.csproj" />

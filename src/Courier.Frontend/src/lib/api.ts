@@ -26,7 +26,6 @@ import type {
   SshKeyDto,
   GenerateSshKeyRequest,
   UpdateSshKeyRequest,
-  AzureFunctionTraceDto,
   DashboardSummaryDto,
   RecentExecutionDto,
   ExpiringKeyDto,
@@ -64,6 +63,9 @@ import type {
   NewPasswordRequest,
   AuthSettingsDto,
   UpdateAuthSettingsRequest,
+  SmtpSettingsDto,
+  UpdateSmtpSettingsRequest,
+  SmtpTestResult,
   StepTypeMetadataDto,
   FeedbackItemDto,
   CreateFeedbackRequest,
@@ -496,11 +498,6 @@ class ApiClient {
     return this.request(`/api/v1/dashboard/key-expiry?daysAhead=${daysAhead}`);
   }
 
-  // Azure Functions
-  async getAzureFunctionTraces(connectionId: string, invocationId: string): Promise<ApiResponse<AzureFunctionTraceDto[]>> {
-    return this.request(`/api/v1/azure-functions/${connectionId}/traces/${encodeURIComponent(invocationId)}`);
-  }
-
   // Filesystem
   async browseFilesystem(path?: string): Promise<ApiResponse<BrowseResult>> {
     const params = path ? `?path=${encodeURIComponent(path)}` : "";
@@ -841,6 +838,23 @@ class ApiClient {
     return this.request("/api/v1/settings/auth", {
       method: "PUT",
       body: JSON.stringify(data),
+    });
+  }
+
+  async getSmtpSettings(): Promise<ApiResponse<SmtpSettingsDto>> {
+    return this.request("/api/v1/settings/smtp");
+  }
+
+  async updateSmtpSettings(data: UpdateSmtpSettingsRequest): Promise<ApiResponse<SmtpSettingsDto>> {
+    return this.request("/api/v1/settings/smtp", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async testSmtpConnection(): Promise<ApiResponse<SmtpTestResult>> {
+    return this.request("/api/v1/settings/smtp/test", {
+      method: "POST",
     });
   }
 

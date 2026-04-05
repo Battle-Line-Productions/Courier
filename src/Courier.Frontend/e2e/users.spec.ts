@@ -10,7 +10,7 @@ test.describe("User Management", () => {
   test("displays users list with current admin", async ({
     authenticatedPage,
   }) => {
-    await authenticatedPage.goto("/settings/users");
+    await authenticatedPage.goto("/admin/users");
 
     await expect(
       authenticatedPage.locator("main").getByRole("heading", { name: "Users" }).first()
@@ -34,7 +34,7 @@ test.describe("User Management", () => {
   });
 
   test("navigates to create user page", async ({ authenticatedPage }) => {
-    await authenticatedPage.goto("/settings/users");
+    await authenticatedPage.goto("/admin/users");
 
     await expect(
       authenticatedPage.locator("main").getByRole("heading", { name: "Users" }).first()
@@ -45,7 +45,7 @@ test.describe("User Management", () => {
       .getByRole("link", { name: "Add User" })
       .click();
 
-    await expect(authenticatedPage).toHaveURL(/\/settings\/users\/new/, { timeout: 10_000 });
+    await expect(authenticatedPage).toHaveURL(/\/admin\/users\/new/, { timeout: 10_000 });
     await expect(
       authenticatedPage.getByRole("heading", { name: "Create User" })
     ).toBeVisible({ timeout: 10_000 });
@@ -61,7 +61,7 @@ test.describe("User Management", () => {
     const suffix = Date.now().toString(36);
     const username = `e2e-viewer-${suffix}`;
 
-    await authenticatedPage.goto("/settings/users/new");
+    await authenticatedPage.goto("/admin/users/new");
     await expect(
       authenticatedPage.getByRole("heading", { name: "Create User" })
     ).toBeVisible();
@@ -94,7 +94,7 @@ test.describe("User Management", () => {
       .click();
 
     // Should redirect to users list with success toast
-    await expect(authenticatedPage).toHaveURL("/settings/users", {
+    await expect(authenticatedPage).toHaveURL("/admin/users", {
       timeout: 10_000,
     });
     await expect(
@@ -122,7 +122,7 @@ test.describe("User Management", () => {
     });
 
     try {
-      await authenticatedPage.goto("/settings/users");
+      await authenticatedPage.goto("/admin/users");
 
       await expect(
         authenticatedPage.locator("main").getByRole("heading", { name: "Users" }).first()
@@ -154,7 +154,7 @@ test.describe("User Management", () => {
     });
 
     // No finally — the test itself deletes the user
-    await authenticatedPage.goto("/settings/users");
+    await authenticatedPage.goto("/admin/users");
 
     // Wait for the table and the user to appear
     const table = authenticatedPage.locator("table");
@@ -196,7 +196,7 @@ test.describe("User Management", () => {
     });
 
     try {
-      await authenticatedPage.goto("/settings/users");
+      await authenticatedPage.goto("/admin/users");
 
       const table = authenticatedPage.locator("table");
       await expect(table).toBeVisible({ timeout: 10_000 });
@@ -207,7 +207,7 @@ test.describe("User Management", () => {
         .click();
 
       await expect(authenticatedPage).toHaveURL(
-        new RegExp(`/settings/users/${user.id}`),
+        new RegExp(`/admin/users/${user.id}`),
         { timeout: 10_000 }
       );
 
@@ -254,7 +254,7 @@ test.describe("User Management", () => {
     });
 
     try {
-      await authenticatedPage.goto(`/settings/users/${user.id}`);
+      await authenticatedPage.goto(`/admin/users/${user.id}`);
 
       // Wait for user data to load
       await expect(
@@ -305,7 +305,7 @@ test.describe("User Management", () => {
     });
 
     try {
-      await authenticatedPage.goto(`/settings/users/${user.id}`);
+      await authenticatedPage.goto(`/admin/users/${user.id}`);
 
       // Wait for user data to load
       await expect(
@@ -348,7 +348,7 @@ test.describe("User Management", () => {
     const suffix = Date.now().toString(36);
     const username = `e2e-adminrole-${suffix}`;
 
-    await authenticatedPage.goto("/settings/users/new");
+    await authenticatedPage.goto("/admin/users/new");
     await expect(
       authenticatedPage.getByRole("heading", { name: "Create User" })
     ).toBeVisible();
@@ -378,7 +378,7 @@ test.describe("User Management", () => {
       .click();
 
     // Should redirect with success toast
-    await expect(authenticatedPage).toHaveURL("/settings/users", {
+    await expect(authenticatedPage).toHaveURL("/admin/users", {
       timeout: 10_000,
     });
     await expect(
@@ -417,7 +417,7 @@ test.describe("User Management", () => {
     });
 
     try {
-      await authenticatedPage.goto("/settings/users");
+      await authenticatedPage.goto("/admin/users");
 
       const table = authenticatedPage.locator("table");
       await expect(table).toBeVisible({ timeout: 10_000 });
@@ -456,7 +456,7 @@ test.describe("User Management", () => {
     }
 
     try {
-      await authenticatedPage.goto("/settings/users");
+      await authenticatedPage.goto("/admin/users");
 
       const table = authenticatedPage.locator("table");
       await expect(table).toBeVisible({ timeout: 10_000 });
@@ -495,7 +495,7 @@ test.describe("User Management", () => {
   test("self-delete prevention — no delete button for current user", async ({
     authenticatedPage,
   }) => {
-    await authenticatedPage.goto("/settings/users");
+    await authenticatedPage.goto("/admin/users");
 
     const table = authenticatedPage.locator("table");
     await expect(table).toBeVisible({ timeout: 10_000 });
@@ -525,7 +525,7 @@ test.describe("User Management", () => {
     });
 
     try {
-      await authenticatedPage.goto(`/settings/users/${user.id}`);
+      await authenticatedPage.goto(`/admin/users/${user.id}`);
 
       // Wait for user data to load
       await expect(
@@ -552,7 +552,7 @@ test.describe("User Management", () => {
       ).toBeVisible({ timeout: 10_000 });
 
       // Go back to users list and verify the status shows "Disabled"
-      await authenticatedPage.goto("/settings/users");
+      await authenticatedPage.goto("/admin/users");
       const table = authenticatedPage.locator("table");
       await expect(table).toBeVisible({ timeout: 10_000 });
 

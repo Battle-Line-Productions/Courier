@@ -36,4 +36,30 @@ public class SettingsController : ControllerBase
         var result = await _settingsService.UpdateAuthSettingsAsync(request, performedBy, ct);
         return Ok(result);
     }
+
+    [HttpGet("smtp")]
+    public async Task<ActionResult<ApiResponse<SmtpSettingsDto>>> GetSmtpSettings(CancellationToken ct)
+    {
+        var result = await _settingsService.GetSmtpSettingsAsync(ct);
+        return Ok(result);
+    }
+
+    [HttpPut("smtp")]
+    [RequirePermission(Permission.SettingsManage)]
+    public async Task<ActionResult<ApiResponse<SmtpSettingsDto>>> UpdateSmtpSettings(
+        [FromBody] UpdateSmtpSettingsRequest request,
+        CancellationToken ct)
+    {
+        var performedBy = User.FindFirst("name")?.Value ?? "system";
+        var result = await _settingsService.UpdateSmtpSettingsAsync(request, performedBy, ct);
+        return Ok(result);
+    }
+
+    [HttpPost("smtp/test")]
+    [RequirePermission(Permission.SettingsManage)]
+    public async Task<ActionResult<ApiResponse<SmtpTestResult>>> TestSmtpConnection(CancellationToken ct)
+    {
+        var result = await _settingsService.TestSmtpConnectionAsync(ct);
+        return Ok(result);
+    }
 }

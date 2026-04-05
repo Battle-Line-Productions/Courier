@@ -100,7 +100,7 @@ test.describe("Navigation & Layout", () => {
     await expect(page).toHaveURL(/\/jobs/, { timeout: 10_000 });
   });
 
-  test("profile link navigates to users page", async ({
+  test("my account link navigates to account page", async ({
     authenticatedPage,
   }) => {
     const page = authenticatedPage;
@@ -111,33 +111,13 @@ test.describe("Navigation & Layout", () => {
     await expect(userMenuButton).toBeVisible({ timeout: 10_000 });
     await userMenuButton.click();
 
-    // Click Profile
-    const profileItem = page.getByRole("menuitem", { name: "Profile" });
-    await expect(profileItem).toBeVisible({ timeout: 5_000 });
-    await profileItem.click();
+    // Click My Account
+    const accountItem = page.getByRole("menuitem", { name: "My Account" });
+    await expect(accountItem).toBeVisible({ timeout: 5_000 });
+    await accountItem.click();
 
-    // Verify navigation to /settings/users
-    await expect(page).toHaveURL(/\/settings\/users/, { timeout: 10_000 });
-  });
-
-  test("change password link navigates to settings page", async ({
-    authenticatedPage,
-  }) => {
-    const page = authenticatedPage;
-    const header = page.locator("header");
-
-    // Open user dropdown
-    const userMenuButton = header.getByRole("button");
-    await expect(userMenuButton).toBeVisible({ timeout: 10_000 });
-    await userMenuButton.click();
-
-    // Click Change Password
-    const changePasswordItem = page.getByRole("menuitem", { name: "Change Password" });
-    await expect(changePasswordItem).toBeVisible({ timeout: 5_000 });
-    await changePasswordItem.click();
-
-    // Verify navigation to /settings
-    await expect(page).toHaveURL(/\/settings$/, { timeout: 10_000 });
+    // Verify navigation to /account
+    await expect(page).toHaveURL(/\/account/, { timeout: 10_000 });
   });
 
   test("sign out redirects to login page", async ({ authenticatedPage }) => {

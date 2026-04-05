@@ -18,21 +18,13 @@ const roleBadgeColors: Record<string, string> = {
   viewer: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
 };
 
-export default function UsersPage() {
+export function UsersTab() {
   const { user: currentUser } = useAuth();
   const { can } = usePermissions();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const { data, isLoading } = useUsers(page, 10, search || undefined);
   const deleteUser = useDeleteUser();
-
-  if (!can("UsersManage")) {
-    return (
-      <div className="text-center text-muted-foreground py-12">
-        You do not have permission to view this page.
-      </div>
-    );
-  }
 
   const users = data?.data ?? [];
   const pagination = data?.pagination;
@@ -51,28 +43,23 @@ export default function UsersPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
-          <p className="text-sm text-muted-foreground">Manage user accounts and roles.</p>
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search users..."
+            className="pl-9"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          />
         </div>
         {can("UsersManage") && (
           <Button asChild>
-            <Link href="/settings/users/new">
+            <Link href="/admin/users/new">
               <UserPlus className="mr-2 h-4 w-4" />
               Add User
             </Link>
           </Button>
         )}
-      </div>
-
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search users..."
-          className="pl-9"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-        />
       </div>
 
       {isLoading ? (
@@ -97,7 +84,7 @@ export default function UsersPage() {
                 {users.map((u) => (
                   <tr key={u.id} className="border-b last:border-0">
                     <td className="px-4 py-2">
-                      <Link href={`/settings/users/${u.id}`} className="font-medium text-primary hover:underline">
+                      <Link href={`/admin/users/${u.id}`} className="font-medium text-primary hover:underline">
                         {u.username}
                       </Link>
                     </td>
@@ -118,7 +105,7 @@ export default function UsersPage() {
                       {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "Never"}
                     </td>
                     <td className="px-4 py-2 text-right">
-                      {u.id !== currentUser?.id && (
+                      {u.id !== currentUser?.id && can("UsersManage") && (
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(u.id, u.username)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>

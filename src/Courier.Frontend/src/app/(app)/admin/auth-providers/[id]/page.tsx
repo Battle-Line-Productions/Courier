@@ -533,7 +533,7 @@ export default function EditAuthProviderPage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.push("/settings/auth-providers")}
+            onClick={() => router.push("/admin")}
           >
             Back
           </Button>

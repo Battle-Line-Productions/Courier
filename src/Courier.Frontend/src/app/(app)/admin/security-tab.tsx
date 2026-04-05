@@ -1,22 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthSettings, useUpdateAuthSettings } from "@/lib/hooks/use-settings";
-import { useChangePassword } from "@/lib/hooks/use-auth-actions";
-import { useAuth } from "@/lib/auth";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { toast } from "sonner";
 import { ApiClientError } from "@/lib/api";
-import { KeyRound, Lock } from "lucide-react";
 
-function AuthSettingsTab() {
+export function SecurityTab() {
   const { data, isLoading } = useAuthSettings();
   const updateSettings = useUpdateAuthSettings();
+  const { can } = usePermissions();
   const settings = data?.data;
+  const canEdit = can("SettingsManage");
 
   const [form, setForm] = useState<{
     sessionTimeoutMinutes: number;
@@ -26,7 +24,6 @@ function AuthSettingsTab() {
     lockoutDurationMinutes: number;
   } | null>(null);
 
-  // Initialize form when data loads
   const currentForm = form ?? (settings ? {
     sessionTimeoutMinutes: settings.sessionTimeoutMinutes,
     refreshTokenDays: settings.refreshTokenDays,
@@ -43,7 +40,7 @@ function AuthSettingsTab() {
     if (!currentForm) return;
     try {
       await updateSettings.mutateAsync(currentForm);
-      toast.success("Authentication settings updated.");
+      toast.success("Security settings updated.");
     } catch (err) {
       if (err instanceof ApiClientError) {
         toast.error(err.message);
@@ -67,6 +64,7 @@ function AuthSettingsTab() {
               min={1}
               value={currentForm.sessionTimeoutMinutes}
               onChange={(e) => setForm({ ...currentForm, sessionTimeoutMinutes: parseInt(e.target.value) || 1 })}
+              disabled={!canEdit}
             />
           </div>
           <div className="space-y-2">
@@ -77,6 +75,7 @@ function AuthSettingsTab() {
               min={1}
               value={currentForm.refreshTokenDays}
               onChange={(e) => setForm({ ...currentForm, refreshTokenDays: parseInt(e.target.value) || 1 })}
+              disabled={!canEdit}
             />
           </div>
         </div>
@@ -94,6 +93,7 @@ function AuthSettingsTab() {
               min={4}
               value={currentForm.passwordMinLength}
               onChange={(e) => setForm({ ...currentForm, passwordMinLength: parseInt(e.target.value) || 4 })}
+              disabled={!canEdit}
             />
           </div>
         </div>
@@ -111,6 +111,7 @@ function AuthSettingsTab() {
               min={1}
               value={currentForm.maxLoginAttempts}
               onChange={(e) => setForm({ ...currentForm, maxLoginAttempts: parseInt(e.target.value) || 1 })}
+              disabled={!canEdit}
             />
           </div>
           <div className="space-y-2">
@@ -121,111 +122,17 @@ function AuthSettingsTab() {
               min={1}
               value={currentForm.lockoutDurationMinutes}
               onChange={(e) => setForm({ ...currentForm, lockoutDurationMinutes: parseInt(e.target.value) || 1 })}
+              disabled={!canEdit}
             />
           </div>
         </div>
       </div>
 
-      <Button onClick={handleSave} disabled={updateSettings.isPending}>
-        {updateSettings.isPending ? "Saving..." : "Save Changes"}
-      </Button>
-    </div>
-  );
-}
-
-function ChangePasswordTab() {
-  const changePassword = useChangePassword();
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmNewPassword, setConfirmNewPassword] = useState("");
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (newPassword !== confirmNewPassword) {
-      toast.error("Passwords do not match.");
-      return;
-    }
-    try {
-      await changePassword.mutateAsync({ currentPassword, newPassword, confirmNewPassword });
-      toast.success("Password changed successfully.");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmNewPassword("");
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        toast.error(err.message);
-      } else {
-        toast.error("Failed to change password.");
-      }
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="max-w-md space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="currentPassword">Current Password</Label>
-        <Input
-          id="currentPassword"
-          type="password"
-          value={currentPassword}
-          onChange={(e) => setCurrentPassword(e.target.value)}
-          required
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="newPassword">New Password</Label>
-        <Input
-          id="newPassword"
-          type="password"
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
-          required
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="confirmNewPassword">Confirm New Password</Label>
-        <Input
-          id="confirmNewPassword"
-          type="password"
-          value={confirmNewPassword}
-          onChange={(e) => setConfirmNewPassword(e.target.value)}
-          required
-        />
-      </div>
-      <Button type="submit" disabled={changePassword.isPending}>
-        {changePassword.isPending ? "Changing..." : "Change Password"}
-      </Button>
-    </form>
-  );
-}
-
-
-export default function SettingsPage() {
-  const { user } = useAuth();
-  const { can } = usePermissions();
-  const isAdmin = can("SettingsManage");
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">Manage application configuration.</p>
-      </div>
-
-      <Tabs defaultValue={isAdmin ? "auth" : "password"}>
-        <TabsList>
-          {isAdmin && <TabsTrigger value="auth"><Lock className="mr-1.5 h-3.5 w-3.5" />Authentication</TabsTrigger>}
-          <TabsTrigger value="password"><KeyRound className="mr-1.5 h-3.5 w-3.5" />Change Password</TabsTrigger>
-        </TabsList>
-        {isAdmin && (
-          <TabsContent value="auth" className="mt-6">
-            <AuthSettingsTab />
-          </TabsContent>
-        )}
-        <TabsContent value="password" className="mt-6">
-          <ChangePasswordTab />
-        </TabsContent>
-      </Tabs>
+      {canEdit && (
+        <Button onClick={handleSave} disabled={updateSettings.isPending}>
+          {updateSettings.isPending ? "Saving..." : "Save Changes"}
+        </Button>
+      )}
     </div>
   );
 }

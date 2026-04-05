@@ -15,19 +15,11 @@ const typeBadgeColors: Record<string, string> = {
   saml: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
 };
 
-export default function AuthProvidersPage() {
+export function AuthProvidersTab() {
   const { can } = usePermissions();
   const [page, setPage] = useState(1);
   const { data, isLoading } = useAuthProviders(page, 25);
   const deleteAuthProvider = useDeleteAuthProvider();
-
-  if (!can("AuthProvidersView")) {
-    return (
-      <div className="text-center text-muted-foreground py-12">
-        You do not have permission to view this page.
-      </div>
-    );
-  }
 
   const providers = data?.data ?? [];
   const pagination = data?.pagination;
@@ -45,14 +37,10 @@ export default function AuthProvidersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Auth Providers</h1>
-          <p className="text-sm text-muted-foreground">Manage SSO and external authentication providers.</p>
-        </div>
+      <div className="flex items-center justify-end">
         {can("AuthProvidersCreate") && (
           <Button asChild>
-            <Link href="/settings/auth-providers/new">
+            <Link href="/admin/auth-providers/new">
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Provider
             </Link>
@@ -82,7 +70,7 @@ export default function AuthProvidersPage() {
                   <tr key={p.id} className="border-b last:border-0">
                     <td className="px-4 py-2">
                       <Link
-                        href={`/settings/auth-providers/${p.id}`}
+                        href={`/admin/auth-providers/${p.id}`}
                         className="font-medium text-primary hover:underline"
                       >
                         {p.name}
@@ -109,7 +97,7 @@ export default function AuthProvidersPage() {
                     <td className="px-4 py-2 text-right flex justify-end gap-1">
                       {can("AuthProvidersEdit") && (
                         <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                          <Link href={`/settings/auth-providers/${p.id}`}>
+                          <Link href={`/admin/auth-providers/${p.id}`}>
                             <Pencil className="h-4 w-4" />
                           </Link>
                         </Button>

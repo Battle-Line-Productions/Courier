@@ -60,7 +60,7 @@ public class StepTypeRegistryApiTests
     [InlineData("sftp.upload", "SFTP Upload", "transfer.sftp")]
     [InlineData("pgp.encrypt", "PGP Encrypt", "crypto")]
     [InlineData("flow.if", "If Condition", "flow")]
-    [InlineData("azure.function", "Azure Function", "cloud")]
+    [InlineData("azure_function.execute", "Azure Function", "cloud")]
     public void GetMetadata_ByKey_ReturnsCorrectMetadata(string typeKey, string expectedDisplayName, string expectedCategory)
     {
         // Arrange

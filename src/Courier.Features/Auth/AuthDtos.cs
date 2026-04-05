@@ -26,6 +26,10 @@ public record UserProfileDto
     public string? Email { get; init; }
     public required string DisplayName { get; init; }
     public required string Role { get; init; }
+    public bool IsSsoUser { get; init; }
+    public string? SsoProviderName { get; init; }
+    public bool AllowLocalPassword { get; init; } = true;
+    public DateTimeOffset? LastLoginAt { get; init; }
 }
 
 public record ChangePasswordRequest

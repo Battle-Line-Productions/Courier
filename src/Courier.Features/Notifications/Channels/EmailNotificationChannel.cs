@@ -1,21 +1,21 @@
 using System.Text.Json;
+using Courier.Features.Settings;
 using MailKit.Net.Smtp;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using MimeKit;
 
 namespace Courier.Features.Notifications.Channels;
 
 public class EmailNotificationChannel : INotificationChannel
 {
-    private readonly SmtpSettings _smtp;
+    private readonly SettingsService _settingsService;
     private readonly ILogger<EmailNotificationChannel> _logger;
 
     public string ChannelKey => "email";
 
-    public EmailNotificationChannel(IOptions<SmtpSettings> smtpOptions, ILogger<EmailNotificationChannel> logger)
+    public EmailNotificationChannel(SettingsService settingsService, ILogger<EmailNotificationChannel> logger)
     {
-        _smtp = smtpOptions.Value;
+        _settingsService = settingsService;
         _logger = logger;
     }
 
@@ -26,6 +26,14 @@ public class EmailNotificationChannel : INotificationChannel
         if (config is null || config.Recipients is null || config.Recipients.Count == 0)
             return new ChannelResult(false, "unknown", "No email recipients configured.");
 
+        var smtp = await _settingsService.GetSmtpSettingsForChannelAsync(ct);
+
+        if (string.IsNullOrWhiteSpace(smtp.Host))
+            return new ChannelResult(false, "unknown", "SMTP server is not configured. Go to Administration > Email to set it up.");
+
+        if (string.IsNullOrWhiteSpace(smtp.FromAddress))
+            return new ChannelResult(false, "unknown", "SMTP from address is not configured. Go to Administration > Email to set it up.");
+
         var recipientList = string.Join(", ", config.Recipients);
         var subjectPrefix = config.SubjectPrefix ?? "[Courier]";
 
@@ -34,7 +42,7 @@ public class EmailNotificationChannel : INotificationChannel
         var body = FormatPlainTextBody(notificationEvent);
 
         var message = new MimeMessage();
-        message.From.Add(new MailboxAddress(_smtp.FromName, _smtp.FromAddress));
+        message.From.Add(new MailboxAddress(smtp.FromName, smtp.FromAddress));
 
         foreach (var recipient in config.Recipients)
             message.To.Add(MailboxAddress.Parse(recipient));
@@ -45,10 +53,10 @@ public class EmailNotificationChannel : INotificationChannel
         try
         {
             using var client = new SmtpClient();
-            await client.ConnectAsync(_smtp.Host, _smtp.Port, _smtp.UseSsl, ct);
+            await client.ConnectAsync(smtp.Host, smtp.Port, smtp.UseSsl, ct);
 
-            if (!string.IsNullOrWhiteSpace(_smtp.Username))
-                await client.AuthenticateAsync(_smtp.Username, _smtp.Password, ct);
+            if (!string.IsNullOrWhiteSpace(smtp.Username))
+                await client.AuthenticateAsync(smtp.Username, smtp.Password, ct);
 
             await client.SendAsync(message, ct);
             await client.DisconnectAsync(true, ct);

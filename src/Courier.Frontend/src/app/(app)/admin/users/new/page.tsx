@@ -35,7 +35,7 @@ export default function NewUserPage() {
         role,
       });
       toast.success("User created successfully.");
-      router.push("/settings/users");
+      router.push("/admin");
     } catch (err) {
       if (err instanceof ApiClientError) toast.error(err.message);
       else toast.error("Failed to create user.");
@@ -93,7 +93,7 @@ export default function NewUserPage() {
           <Button type="submit" disabled={createUser.isPending}>
             {createUser.isPending ? "Creating..." : "Create User"}
           </Button>
-          <Button type="button" variant="outline" onClick={() => router.push("/settings/users")}>
+          <Button type="button" variant="outline" onClick={() => router.push("/admin")}>
             Cancel
           </Button>
         </div>

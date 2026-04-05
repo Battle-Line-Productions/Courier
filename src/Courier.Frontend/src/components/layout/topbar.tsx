@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronRight, LogOut, User, KeyRound } from "lucide-react";
+import { ChevronRight, LogOut, User } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +33,10 @@ function useBreadcrumbs() {
     else if (label === "tags") label = "Tags";
     else if (label === "notifications") label = "Notifications";
     else if (label === "audit") label = "Audit";
+    else if (label === "admin") label = "Admin";
+    else if (label === "account") label = "My Account";
+    else if (label === "auth-providers") label = "Auth Providers";
+    else if (label === "security") label = "Security";
     else if (label === "settings") label = "Settings";
     else if (label === "users") label = "Users";
     else if (label === "pgp") label = "PGP";
@@ -93,13 +97,9 @@ export function Topbar() {
               {user.username} &middot; {user.role}
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => setTimeout(() => router.push("/settings/users"))}>
+            <DropdownMenuItem onSelect={() => setTimeout(() => router.push("/account"))}>
               <User className="mr-2 h-4 w-4" />
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setTimeout(() => router.push("/settings"))}>
-              <KeyRound className="mr-2 h-4 w-4" />
-              Change Password
+              My Account
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => logout()}>

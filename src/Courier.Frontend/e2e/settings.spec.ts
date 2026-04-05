@@ -1,34 +1,18 @@
 import { test, expect } from "./fixtures";
 
-test.describe("Settings", () => {
-  // Run settings tests serially because the password change test modifies
-  // the admin password, which would break parallel tests that create fresh
-  // authenticatedPage contexts (they call login with the original password).
-  test.describe.configure({ mode: "serial" });
-
-  test("displays settings page", async ({ authenticatedPage }) => {
-    await authenticatedPage.goto("/settings");
-
-    await expect(
-      authenticatedPage.locator("main").getByRole("heading", { name: "Settings" }).first()
-    ).toBeVisible();
-    await expect(
-      authenticatedPage.getByText("Manage application configuration.")
-    ).toBeVisible();
-  });
-
-  test("authentication tab shows current settings", async ({
+test.describe("Admin — Security Settings", () => {
+  test("security tab shows current settings", async ({
     authenticatedPage,
   }) => {
-    await authenticatedPage.goto("/settings");
+    await authenticatedPage.goto("/admin");
 
     await expect(
-      authenticatedPage.locator("main").getByRole("heading", { name: "Settings" }).first()
-    ).toBeVisible();
+      authenticatedPage.locator("main").getByRole("heading", { name: "Administration" }).first()
+    ).toBeVisible({ timeout: 10_000 });
 
-    // The Authentication tab should be active by default for admin users
+    // Click the Security tab
     await authenticatedPage
-      .getByRole("tab", { name: "Authentication" })
+      .getByRole("tab", { name: "Security" })
       .click();
 
     // Wait for auth settings to finish loading before checking sections
@@ -68,11 +52,15 @@ test.describe("Settings", () => {
   });
 
   test("updates session timeout setting", async ({ authenticatedPage }) => {
-    await authenticatedPage.goto("/settings");
+    await authenticatedPage.goto("/admin");
 
-    // Navigate to Authentication tab
+    await expect(
+      authenticatedPage.locator("main").getByRole("heading", { name: "Administration" }).first()
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Navigate to Security tab
     await authenticatedPage
-      .getByRole("tab", { name: "Authentication" })
+      .getByRole("tab", { name: "Security" })
       .click();
 
     // Wait for settings to load
@@ -97,7 +85,7 @@ test.describe("Settings", () => {
     await expect(
       authenticatedPage
         .locator("[data-sonner-toast]")
-        .filter({ hasText: "Authentication settings updated" })
+        .filter({ hasText: "Security settings updated" })
     ).toBeVisible();
 
     // Restore original value
@@ -110,17 +98,166 @@ test.describe("Settings", () => {
     await expect(
       authenticatedPage
         .locator("[data-sonner-toast]")
-        .filter({ hasText: "Authentication settings updated" })
+        .filter({ hasText: "Security settings updated" })
     ).toBeVisible();
   });
 
-  test("change password form renders", async ({ authenticatedPage }) => {
-    await authenticatedPage.goto("/settings");
+  test("all auth fields — modify refresh token days and restore", async ({
+    authenticatedPage,
+  }) => {
+    await authenticatedPage.goto("/admin");
 
-    // Click the Change Password tab
+    await expect(
+      authenticatedPage.locator("main").getByRole("heading", { name: "Administration" }).first()
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Navigate to Security tab
     await authenticatedPage
-      .getByRole("tab", { name: "Change Password" })
+      .getByRole("tab", { name: "Security" })
       .click();
+
+    // Wait for all fields to load
+    const accessTokenInput = authenticatedPage.getByLabel(
+      "Access Token Lifetime (minutes)"
+    );
+    await expect(accessTokenInput).toBeVisible({ timeout: 10_000 });
+
+    // Verify all fields exist
+    const refreshDaysInput = authenticatedPage.getByLabel(
+      "Refresh Token Lifetime (days)"
+    );
+    const minLengthInput = authenticatedPage.getByLabel("Minimum Length");
+    const maxAttemptsInput = authenticatedPage.getByLabel(
+      "Max Failed Attempts"
+    );
+    const lockoutInput = authenticatedPage.getByLabel(
+      "Lockout Duration (minutes)"
+    );
+
+    await expect(refreshDaysInput).toBeVisible();
+    await expect(minLengthInput).toBeVisible();
+    await expect(maxAttemptsInput).toBeVisible();
+    await expect(lockoutInput).toBeVisible();
+
+    // Read original value of refresh token days
+    const originalRefreshDays = await refreshDaysInput.inputValue();
+
+    // Change refresh token days
+    await refreshDaysInput.clear();
+    await refreshDaysInput.fill("14");
+
+    // Save
+    await authenticatedPage
+      .getByRole("button", { name: "Save Changes" })
+      .click();
+
+    await expect(
+      authenticatedPage
+        .locator("[data-sonner-toast]")
+        .filter({ hasText: "Security settings updated" })
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Restore original value
+    await refreshDaysInput.clear();
+    await refreshDaysInput.fill(originalRefreshDays);
+    await authenticatedPage
+      .getByRole("button", { name: "Save Changes" })
+      .click();
+
+    await expect(
+      authenticatedPage
+        .locator("[data-sonner-toast]")
+        .filter({ hasText: "Security settings updated" })
+    ).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("lockout settings — modify and restore", async ({
+    authenticatedPage,
+  }) => {
+    await authenticatedPage.goto("/admin");
+
+    await expect(
+      authenticatedPage.locator("main").getByRole("heading", { name: "Administration" }).first()
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Navigate to Security tab
+    await authenticatedPage
+      .getByRole("tab", { name: "Security" })
+      .click();
+
+    // Wait for fields to load
+    const maxAttemptsInput = authenticatedPage.getByLabel(
+      "Max Failed Attempts"
+    );
+    await expect(maxAttemptsInput).toBeVisible({ timeout: 10_000 });
+
+    const lockoutInput = authenticatedPage.getByLabel(
+      "Lockout Duration (minutes)"
+    );
+
+    // Read originals
+    const originalMaxAttempts = await maxAttemptsInput.inputValue();
+    const originalLockout = await lockoutInput.inputValue();
+
+    // Modify both
+    await maxAttemptsInput.clear();
+    await maxAttemptsInput.fill("10");
+    await lockoutInput.clear();
+    await lockoutInput.fill("30");
+
+    // Save
+    await authenticatedPage
+      .getByRole("button", { name: "Save Changes" })
+      .click();
+
+    await expect(
+      authenticatedPage
+        .locator("[data-sonner-toast]")
+        .filter({ hasText: "Security settings updated" })
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Verify the values are persisted by reloading
+    await authenticatedPage.reload();
+
+    await expect(
+      authenticatedPage.locator("main").getByRole("heading", { name: "Administration" }).first()
+    ).toBeVisible({ timeout: 10_000 });
+
+    await authenticatedPage
+      .getByRole("tab", { name: "Security" })
+      .click();
+    await expect(maxAttemptsInput).toBeVisible({ timeout: 10_000 });
+    await expect(maxAttemptsInput).toHaveValue("10");
+    await expect(lockoutInput).toHaveValue("30");
+
+    // Restore originals
+    await maxAttemptsInput.clear();
+    await maxAttemptsInput.fill(originalMaxAttempts);
+    await lockoutInput.clear();
+    await lockoutInput.fill(originalLockout);
+    await authenticatedPage
+      .getByRole("button", { name: "Save Changes" })
+      .click();
+
+    await expect(
+      authenticatedPage
+        .locator("[data-sonner-toast]")
+        .filter({ hasText: "Security settings updated" })
+    ).toBeVisible({ timeout: 10_000 });
+  });
+});
+
+test.describe("Account — Change Password", () => {
+  // Run password tests serially because the password change test modifies
+  // the user password, which would break parallel tests.
+  test.describe.configure({ mode: "serial" });
+
+  test("change password form renders", async ({ authenticatedPage }) => {
+    await authenticatedPage.goto("/account");
+
+    await expect(
+      authenticatedPage.locator("main").getByRole("heading", { name: "My Account" }).first()
+    ).toBeVisible({ timeout: 10_000 });
 
     // Verify form fields
     await expect(
@@ -139,41 +276,14 @@ test.describe("Settings", () => {
     ).toBeVisible();
   });
 
-  test("SSO section shows current status", async ({ authenticatedPage }) => {
-    await authenticatedPage.goto("/settings");
-
-    // Click the SSO Providers tab
-    await authenticatedPage
-      .getByRole("tab", { name: "SSO Providers" })
-      .click();
-
-    // The SSO tab shows a placeholder/coming-soon message
-    // Use heading role to avoid strict mode violation (tab button also contains "SSO Providers")
-    await expect(
-      authenticatedPage.locator("h3", { hasText: "SSO Providers" })
-    ).toBeVisible();
-    await expect(
-      authenticatedPage.getByText("Coming in a future update")
-    ).toBeVisible();
-  });
-
-  // This test must run BEFORE "change password submit and restore" because that
-  // test mutates the admin password.  If the restore fails, subsequent tests
-  // that create a fresh authenticatedPage (which logs in with the original
-  // password) will fail with "Target page, context or browser has been closed".
   test("password validation — mismatched and too short", async ({
     authenticatedPage,
   }) => {
-    await authenticatedPage.goto("/settings");
-
-    // Click the Change Password tab
-    await authenticatedPage
-      .getByRole("tab", { name: "Change Password" })
-      .click();
+    await authenticatedPage.goto("/account");
 
     await expect(
       authenticatedPage.getByLabel("Current Password")
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 10_000 });
 
     // Try mismatched passwords
     await authenticatedPage
@@ -245,11 +355,12 @@ test.describe("Settings", () => {
       await page.reload();
       await page.waitForURL("/", { timeout: 10_000 });
 
-      // Navigate to settings
-      await page.goto("/settings");
-      await page.getByRole("tab", { name: "Change Password" }).click();
+      // Navigate to account page
+      await page.goto("/account");
 
-      await expect(page.getByLabel("Current Password")).toBeVisible();
+      await expect(
+        page.getByLabel("Current Password")
+      ).toBeVisible({ timeout: 10_000 });
 
       // Fill the change password form
       await page.getByLabel("Current Password").fill(originalPassword);
@@ -270,136 +381,5 @@ test.describe("Settings", () => {
     } finally {
       await apiHelper.deleteTestUser(apiHelper.request, tempUser.id);
     }
-  });
-
-  test("all auth fields — modify refresh token days and restore", async ({
-    authenticatedPage,
-  }) => {
-    await authenticatedPage.goto("/settings");
-
-    // Navigate to Authentication tab
-    await authenticatedPage
-      .getByRole("tab", { name: "Authentication" })
-      .click();
-
-    // Wait for all fields to load
-    const accessTokenInput = authenticatedPage.getByLabel(
-      "Access Token Lifetime (minutes)"
-    );
-    await expect(accessTokenInput).toBeVisible({ timeout: 10_000 });
-
-    // Verify all fields exist
-    const refreshDaysInput = authenticatedPage.getByLabel(
-      "Refresh Token Lifetime (days)"
-    );
-    const minLengthInput = authenticatedPage.getByLabel("Minimum Length");
-    const maxAttemptsInput = authenticatedPage.getByLabel(
-      "Max Failed Attempts"
-    );
-    const lockoutInput = authenticatedPage.getByLabel(
-      "Lockout Duration (minutes)"
-    );
-
-    await expect(refreshDaysInput).toBeVisible();
-    await expect(minLengthInput).toBeVisible();
-    await expect(maxAttemptsInput).toBeVisible();
-    await expect(lockoutInput).toBeVisible();
-
-    // Read original value of refresh token days
-    const originalRefreshDays = await refreshDaysInput.inputValue();
-
-    // Change refresh token days
-    await refreshDaysInput.clear();
-    await refreshDaysInput.fill("14");
-
-    // Save
-    await authenticatedPage
-      .getByRole("button", { name: "Save Changes" })
-      .click();
-
-    await expect(
-      authenticatedPage
-        .locator("[data-sonner-toast]")
-        .filter({ hasText: "Authentication settings updated" })
-    ).toBeVisible({ timeout: 10_000 });
-
-    // Restore original value
-    await refreshDaysInput.clear();
-    await refreshDaysInput.fill(originalRefreshDays);
-    await authenticatedPage
-      .getByRole("button", { name: "Save Changes" })
-      .click();
-
-    await expect(
-      authenticatedPage
-        .locator("[data-sonner-toast]")
-        .filter({ hasText: "Authentication settings updated" })
-    ).toBeVisible({ timeout: 10_000 });
-  });
-
-  test("lockout settings — modify and restore", async ({
-    authenticatedPage,
-  }) => {
-    await authenticatedPage.goto("/settings");
-
-    // Navigate to Authentication tab
-    await authenticatedPage
-      .getByRole("tab", { name: "Authentication" })
-      .click();
-
-    // Wait for fields to load
-    const maxAttemptsInput = authenticatedPage.getByLabel(
-      "Max Failed Attempts"
-    );
-    await expect(maxAttemptsInput).toBeVisible({ timeout: 10_000 });
-
-    const lockoutInput = authenticatedPage.getByLabel(
-      "Lockout Duration (minutes)"
-    );
-
-    // Read originals
-    const originalMaxAttempts = await maxAttemptsInput.inputValue();
-    const originalLockout = await lockoutInput.inputValue();
-
-    // Modify both
-    await maxAttemptsInput.clear();
-    await maxAttemptsInput.fill("10");
-    await lockoutInput.clear();
-    await lockoutInput.fill("30");
-
-    // Save
-    await authenticatedPage
-      .getByRole("button", { name: "Save Changes" })
-      .click();
-
-    await expect(
-      authenticatedPage
-        .locator("[data-sonner-toast]")
-        .filter({ hasText: "Authentication settings updated" })
-    ).toBeVisible({ timeout: 10_000 });
-
-    // Verify the values are persisted by reloading
-    await authenticatedPage.reload();
-    await authenticatedPage
-      .getByRole("tab", { name: "Authentication" })
-      .click();
-    await expect(maxAttemptsInput).toBeVisible({ timeout: 10_000 });
-    await expect(maxAttemptsInput).toHaveValue("10");
-    await expect(lockoutInput).toHaveValue("30");
-
-    // Restore originals
-    await maxAttemptsInput.clear();
-    await maxAttemptsInput.fill(originalMaxAttempts);
-    await lockoutInput.clear();
-    await lockoutInput.fill(originalLockout);
-    await authenticatedPage
-      .getByRole("button", { name: "Save Changes" })
-      .click();
-
-    await expect(
-      authenticatedPage
-        .locator("[data-sonner-toast]")
-        .filter({ hasText: "Authentication settings updated" })
-    ).toBeVisible({ timeout: 10_000 });
   });
 });

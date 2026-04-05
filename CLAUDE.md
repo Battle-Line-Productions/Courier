@@ -91,11 +91,19 @@ Api / Worker  →  Features  →  Infrastructure  →  Domain (BCL-only, zero Nu
 ### Job Engine
 
 - `IJobStep` interface: `TypeKey` property + `ExecuteAsync(StepConfiguration, JobContext, CancellationToken)`.
-- Step type keys: `"file.copy"`, `"sftp.upload"`, `"pgp.encrypt"`, etc.
+- Step type keys: `"file.copy"`, `"sftp.upload"`, `"pgp.encrypt"`, `"azure_function.execute"`, etc.
 - `StepConfiguration` wraps `JsonElement` with typed accessors (`GetString`, `GetBool`, `GetStringArray`). Supports snake_case/camelCase fallback — `GetString("source_path")` finds `sourcePath` if exact key missing.
 - `JobContext` is a key-value bag passed through all steps; outputs keyed as `"{alias}.{outputKey}"` where alias is a slugified step name (e.g., `download-report.downloaded_file`).
 - `context:` prefix in config values references prior step outputs (e.g., `"context:download-report.downloaded_file"`). Steps can have custom aliases set via the UI.
 - `JobConnectionRegistry` pools transfer client connections within a single job execution.
+
+### Azure Function Callbacks
+
+- Azure Function connections use `function_key` auth method (host + function key only).
+- `POST /api/v1/callbacks/{callbackId}` — Public endpoint (no JWT auth) for Azure Functions to report completion. Auth: one-time `Authorization: Bearer {callbackKey}` header.
+- `Courier.Functions.Sdk` NuGet package provides `CourierCallback.FromBody(requestBody)` for Azure Function authors.
+- `Courier:BaseUrl` configuration (e.g., `https://courier.example.com`) is required for callback mode — the step handler uses it to construct the callback URL sent to the function.
+- Two modes: callback (default, waits for function to POST back) and fire-and-forget (`wait_for_callback: false`, succeeds on HTTP 2xx).
 
 ### Encryption
 

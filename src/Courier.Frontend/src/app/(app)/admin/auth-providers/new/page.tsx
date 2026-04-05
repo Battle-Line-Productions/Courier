@@ -106,7 +106,7 @@ export default function NewAuthProviderPage() {
           : { enabled: false, rules: [] },
       });
       toast.success("Auth provider created successfully.");
-      router.push("/settings/auth-providers");
+      router.push("/admin");
     } catch (err) {
       if (err instanceof ApiClientError) toast.error(err.message);
       else toast.error("Failed to create auth provider.");
@@ -437,7 +437,7 @@ export default function NewAuthProviderPage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.push("/settings/auth-providers")}
+            onClick={() => router.push("/admin")}
           >
             Cancel
           </Button>

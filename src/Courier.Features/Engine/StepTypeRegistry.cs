@@ -215,16 +215,19 @@ public class StepTypeRegistry
                 new("source", "Context reference to array to iterate over", Required: true, SupportsContextRef: true),
             ]),
         ["flow.end"] = new("flow.end", "End Block", "flow", "Marks the end of a control flow block"),
-        ["azure.function"] = new("azure.function", "Azure Function", "cloud", "Executes an Azure Function",
+        ["azure_function.execute"] = new("azure_function.execute", "Azure Function", "cloud", "Executes an Azure Function via HTTP trigger",
             Outputs: [
-                new("invocation_id", "Azure Function invocation ID", "string"),
                 new("function_success", "Whether the function succeeded", "boolean"),
-                new("function_duration_ms", "Function execution duration in milliseconds", "number"),
+                new("callback_result", "Output payload from the Azure Function callback", "object"),
+                new("http_status", "HTTP status code from the function trigger", "number"),
             ],
             Inputs: [
-                new("connectionId", "Azure Function connection to use", Required: true),
-                new("functionName", "Azure Function name to invoke", Required: true),
-                new("inputPayload", "JSON payload to send to the function", Required: false, SupportsContextRef: true),
+                new("connection_id", "Azure Function connection to use", Required: true),
+                new("function_name", "Azure Function name to invoke", Required: true),
+                new("input_payload", "JSON payload to send to the function", Required: false, SupportsContextRef: true),
+                new("wait_for_callback", "Whether to wait for the function to call back (default: true)", Required: false),
+                new("max_wait_sec", "Maximum seconds to wait for callback (default: 3600)", Required: false),
+                new("poll_interval_sec", "Seconds between DB polls for callback (default: 5)", Required: false),
             ]),
     };
 

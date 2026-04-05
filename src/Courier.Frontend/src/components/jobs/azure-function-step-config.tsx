@@ -3,6 +3,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -22,9 +23,9 @@ export interface AzureFunctionStepConfig {
   connectionId: string;
   functionName: string;
   inputPayload: string;
+  waitForCallback: boolean;
   pollIntervalSec: number;
   maxWaitSec: number;
-  initialDelaySec: number;
 }
 
 interface AzureFunctionStepConfigFormProps {
@@ -54,7 +55,7 @@ export function AzureFunctionStepConfigForm({ config, onChange }: AzureFunctionS
       <div className="grid gap-1.5">
         <div className="flex items-center gap-1.5">
           <Label className="text-xs">Connection</Label>
-          <FieldTooltip text="The Azure Function connection that defines the Function App URL and credentials." />
+          <FieldTooltip text="The Azure Function connection that defines the Function App URL and function key." />
         </div>
         <Select
           value={config.connectionId}
@@ -93,7 +94,7 @@ export function AzureFunctionStepConfigForm({ config, onChange }: AzureFunctionS
       <div className="grid gap-1.5">
         <div className="flex items-center gap-1.5">
           <Label className="text-xs">Input Payload</Label>
-          <FieldTooltip text="Optional JSON payload passed to the function's input binding. The function receives this as the request body." />
+          <FieldTooltip text="Optional JSON payload sent to the function. In callback mode, this is wrapped in a 'payload' property alongside the callback info." />
         </div>
         <Textarea
           placeholder='e.g., {"batchId": "2024-01"}'
@@ -103,41 +104,48 @@ export function AzureFunctionStepConfigForm({ config, onChange }: AzureFunctionS
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <div className="grid gap-1.5">
+      <div className="flex items-center justify-between">
+        <div className="space-y-0.5">
           <div className="flex items-center gap-1.5">
-            <Label className="text-xs">Poll Interval (sec)</Label>
-            <FieldTooltip text="How often (in seconds) to check Application Insights for function completion. Lower values detect completion faster but use more API quota." />
+            <Label className="text-xs">Wait for Callback</Label>
+            <FieldTooltip text="When enabled, the step waits for the function to report completion via the Courier SDK callback. When disabled, the step succeeds immediately after the HTTP trigger returns 2xx." />
           </div>
-          <Input
-            type="number"
-            value={config.pollIntervalSec}
-            onChange={(e) => onChange({ ...config, pollIntervalSec: Number(e.target.value) || 15 })}
-          />
+          <p className="text-xs text-muted-foreground">
+            Requires the function to use the Courier.Functions.Sdk NuGet package.
+          </p>
         </div>
-        <div className="grid gap-1.5">
-          <div className="flex items-center gap-1.5">
-            <Label className="text-xs">Max Wait (sec)</Label>
-            <FieldTooltip text="Maximum time (in seconds) to wait for the function to complete before the step fails. Set to match your function's expected maximum runtime." />
-          </div>
-          <Input
-            type="number"
-            value={config.maxWaitSec}
-            onChange={(e) => onChange({ ...config, maxWaitSec: Number(e.target.value) || 3600 })}
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <div className="flex items-center gap-1.5">
-            <Label className="text-xs">Initial Delay (sec)</Label>
-            <FieldTooltip text="Seconds to wait before the first completion check. Application Insights has a 1-5 minute ingestion delay, so the first poll should be delayed." />
-          </div>
-          <Input
-            type="number"
-            value={config.initialDelaySec}
-            onChange={(e) => onChange({ ...config, initialDelaySec: Number(e.target.value) || 30 })}
-          />
-        </div>
+        <Switch
+          checked={config.waitForCallback}
+          onCheckedChange={(checked) => onChange({ ...config, waitForCallback: checked })}
+        />
       </div>
+
+      {config.waitForCallback && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <Label className="text-xs">Poll Interval (sec)</Label>
+              <FieldTooltip text="How often (in seconds) to check the local database for the function's callback response." />
+            </div>
+            <Input
+              type="number"
+              value={config.pollIntervalSec}
+              onChange={(e) => onChange({ ...config, pollIntervalSec: Number(e.target.value) || 5 })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <Label className="text-xs">Max Wait (sec)</Label>
+              <FieldTooltip text="Maximum time (in seconds) to wait for the callback before the step fails. Set to match your function's expected maximum runtime." />
+            </div>
+            <Input
+              type="number"
+              value={config.maxWaitSec}
+              onChange={(e) => onChange({ ...config, maxWaitSec: Number(e.target.value) || 3600 })}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -149,18 +157,18 @@ export function parseAzureFunctionConfig(configJson: string): AzureFunctionStepC
       connectionId: parsed.connection_id || "",
       functionName: parsed.function_name || "",
       inputPayload: parsed.input_payload || "",
-      pollIntervalSec: parsed.poll_interval_sec ?? 15,
+      waitForCallback: parsed.wait_for_callback ?? true,
+      pollIntervalSec: parsed.poll_interval_sec ?? 5,
       maxWaitSec: parsed.max_wait_sec ?? 3600,
-      initialDelaySec: parsed.initial_delay_sec ?? 30,
     };
   } catch {
     return {
       connectionId: "",
       functionName: "",
       inputPayload: "",
-      pollIntervalSec: 15,
+      waitForCallback: true,
+      pollIntervalSec: 5,
       maxWaitSec: 3600,
-      initialDelaySec: 30,
     };
   }
 }
@@ -170,8 +178,8 @@ export function serializeAzureFunctionConfig(config: AzureFunctionStepConfig): s
     connection_id: config.connectionId || undefined,
     function_name: config.functionName || undefined,
     input_payload: config.inputPayload || undefined,
+    wait_for_callback: config.waitForCallback,
     poll_interval_sec: config.pollIntervalSec,
     max_wait_sec: config.maxWaitSec,
-    initial_delay_sec: config.initialDelaySec,
   });
 }

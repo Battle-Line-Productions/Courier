@@ -9,7 +9,6 @@ import {
   KeyRound,
   Eye,
   FileText,
-  Settings,
   ChevronLeft,
   ChevronRight,
   Package,
@@ -37,14 +36,11 @@ const navItems = [
   { label: "Feedback", href: "/feedback", icon: MessageSquare, active: true },
 ];
 
-const bottomItems = [
-  { label: "Settings", href: "/settings", icon: Settings, active: true },
-];
 
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const { can } = usePermissions();
+  const { canAny } = usePermissions();
 
   return (
     <aside
@@ -96,41 +92,18 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-sidebar-border p-2">
-        {bottomItems.map((item) => {
-          const isActive = item.active && pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.label}
-              href={item.active ? item.href : "#"}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-primary"
-                  : item.active
-                    ? "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
-                    : "cursor-not-allowed text-sidebar-foreground/30"
-              )}
-              title={!item.active ? "Coming Soon" : undefined}
-              onClick={!item.active ? (e) => e.preventDefault() : undefined}
-            >
-              <item.icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
-          );
-        })}
-
-        {can("AuthProvidersView") && (
+        {canAny("UsersView", "AuthProvidersView", "SettingsView") && (
           <Link
-            href="/settings/auth-providers"
+            href="/admin"
             className={cn(
               "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              pathname.startsWith("/settings/auth-providers")
+              pathname.startsWith("/admin")
                 ? "bg-sidebar-accent text-sidebar-primary"
                 : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
             )}
           >
             <ShieldCheck className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>Auth Providers</span>}
+            {!collapsed && <span>Admin</span>}
           </Link>
         )}
 

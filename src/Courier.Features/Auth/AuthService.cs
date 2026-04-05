@@ -286,7 +286,9 @@ public class AuthService
 
     public async Task<ApiResponse<UserProfileDto>> GetCurrentUserAsync(Guid userId, CancellationToken ct = default)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        var user = await _db.Users
+            .Include(u => u.SsoProvider)
+            .FirstOrDefaultAsync(u => u.Id == userId, ct);
 
         if (user is null)
         {
@@ -372,5 +374,9 @@ public class AuthService
         Email = user.Email,
         DisplayName = user.DisplayName,
         Role = user.Role,
+        IsSsoUser = user.IsSsoUser,
+        SsoProviderName = user.SsoProvider?.Name,
+        AllowLocalPassword = !user.IsSsoUser || (user.SsoProvider?.AllowLocalPassword ?? true),
+        LastLoginAt = user.LastLoginAt,
     };
 }

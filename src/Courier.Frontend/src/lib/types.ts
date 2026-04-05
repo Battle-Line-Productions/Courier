@@ -294,13 +294,6 @@ export interface TlsCertificateDto {
   thumbprint: string;
 }
 
-// Azure Function types
-export interface AzureFunctionTraceDto {
-  timestamp: string;
-  message: string;
-  severityLevel: number;
-}
-
 // Monitor types
 export interface MonitorDto {
   id: string;
@@ -727,6 +720,10 @@ export interface UserProfileDto {
   displayName: string;
   email?: string;
   role: string;
+  isSsoUser: boolean;
+  ssoProviderName?: string;
+  allowLocalPassword: boolean;
+  lastLoginAt?: string;
 }
 
 export interface ChangePasswordRequest {
@@ -799,6 +796,31 @@ export interface UpdateAuthSettingsRequest {
   passwordMinLength: number;
   maxLoginAttempts: number;
   lockoutDurationMinutes: number;
+}
+
+export interface SmtpSettingsDto {
+  host: string;
+  port: number;
+  useSsl: boolean;
+  username: string;
+  fromAddress: string;
+  fromName: string;
+  isConfigured: boolean;
+}
+
+export interface UpdateSmtpSettingsRequest {
+  host: string;
+  port: number;
+  useSsl: boolean;
+  username: string;
+  password?: string;
+  fromAddress: string;
+  fromName: string;
+}
+
+export interface SmtpTestResult {
+  success: boolean;
+  errorMessage?: string;
 }
 
 // Feedback types

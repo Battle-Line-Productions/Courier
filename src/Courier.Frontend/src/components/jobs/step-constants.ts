@@ -130,9 +130,9 @@ export const STEP_OUTPUT_META: Record<string, { key: string; description: string
     { key: "is_valid", description: "Whether signature is valid", valueType: "boolean" },
   ],
   "azure_function.execute": [
-    { key: "invocation_id", description: "Azure Function invocation ID", valueType: "string" },
     { key: "function_success", description: "Whether the function succeeded", valueType: "boolean" },
-    { key: "function_duration_ms", description: "Execution duration in milliseconds", valueType: "number" },
+    { key: "callback_result", description: "Output payload from the Azure Function callback", valueType: "object" },
+    { key: "http_status", description: "HTTP status code from the function trigger", valueType: "number" },
   ],
 };
 
