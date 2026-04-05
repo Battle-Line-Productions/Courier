@@ -12,10 +12,12 @@ concurrency:
 
 jobs:
   backend:
-    name: Backend Build & Test
+    name: Backend Build, Test & Analyze
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history required for SonarCloud blame data
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -29,23 +31,44 @@ jobs:
           key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props') }}
           restore-keys: nuget-${{ runner.os }}-
 
+      - name: Install SonarScanner
+        run: dotnet tool install --global dotnet-sonarscanner
+
       - name: Restore
         run: dotnet restore Courier.slnx
+
+      - name: SonarCloud Begin
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          dotnet sonarscanner begin \
+            /k:"Battle-Line-Productions_Courier" \
+            /o:"battle-line-productions" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.token="${SONAR_TOKEN}" \
+            /d:sonar.cs.opencover.reportsPaths="**/TestResults/coverage.opencover.xml" \
+            /d:sonar.exclusions="**/Migrations/**,**/obj/**,**/bin/**" \
+            /d:sonar.coverage.exclusions="**/Tests/**,**/Migrations/**,**/Program.cs"
 
       - name: Build
         run: dotnet build Courier.slnx --no-restore -c Release
 
       - name: Unit Tests
-        run: dotnet test tests/Courier.Tests.Unit --no-build -c Release --logger "trx;LogFileName=unit.trx"
+        run: dotnet test tests/Courier.Tests.Unit --no-build -c Release --logger "trx;LogFileName=unit.trx" --collect:"XPlat Code Coverage;Format=opencover"
 
       - name: Architecture Tests
         run: dotnet test tests/Courier.Tests.Architecture --no-build -c Release --logger "trx;LogFileName=architecture.trx"
 
       - name: Job Engine Tests
-        run: dotnet test tests/Courier.Tests.JobEngine --no-build -c Release --logger "trx;LogFileName=jobengine.trx"
+        run: dotnet test tests/Courier.Tests.JobEngine --no-build -c Release --logger "trx;LogFileName=jobengine.trx" --collect:"XPlat Code Coverage;Format=opencover"
 
       - name: Integration Tests
-        run: dotnet test tests/Courier.Tests.Integration --no-build -c Release --logger "trx;LogFileName=integration.trx"
+        run: dotnet test tests/Courier.Tests.Integration --no-build -c Release --logger "trx;LogFileName=integration.trx" --collect:"XPlat Code Coverage;Format=opencover"
+
+      - name: SonarCloud End
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
 
       - name: Upload test results
         if: always()
