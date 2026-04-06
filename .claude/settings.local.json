@@ -100,7 +100,9 @@
       "Bash(gh project:*)",
       "Bash(gh api graphql -f 'query=:*)",
       "Bash(dotnet list:*)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npx next:*)"
     ],
     "deny": [],
     "ask": []
