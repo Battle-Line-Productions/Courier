@@ -102,7 +102,9 @@
       "Bash(dotnet list:*)",
       "Bash(npx vitest:*)",
       "Bash(npx tsx:*)",
-      "Bash(npx next:*)"
+      "Bash(npx next:*)",
+      "Bash(chmod +x /tmp/analyze_website.sh)",
+      "Bash(bash /tmp/analyze_website.sh)"
     ],
     "deny": [],
     "ask": []
