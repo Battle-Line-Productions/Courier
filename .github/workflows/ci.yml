@@ -54,16 +54,16 @@ jobs:
         run: dotnet build Courier.slnx --no-restore -c Release
 
       - name: Unit Tests
-        run: dotnet test tests/Courier.Tests.Unit --no-build -c Release --logger "trx;LogFileName=unit.trx" --collect:"XPlat Code Coverage;Format=opencover"
+        run: dotnet test tests/Courier.Tests.Unit --no-build -c Release --logger "trx;LogFileName=unit.trx" --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
 
       - name: Architecture Tests
         run: dotnet test tests/Courier.Tests.Architecture --no-build -c Release --logger "trx;LogFileName=architecture.trx"
 
       - name: Job Engine Tests
-        run: dotnet test tests/Courier.Tests.JobEngine --no-build -c Release --logger "trx;LogFileName=jobengine.trx" --collect:"XPlat Code Coverage;Format=opencover"
+        run: dotnet test tests/Courier.Tests.JobEngine --no-build -c Release --logger "trx;LogFileName=jobengine.trx" --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
 
       - name: Integration Tests
-        run: dotnet test tests/Courier.Tests.Integration --no-build -c Release --logger "trx;LogFileName=integration.trx" --collect:"XPlat Code Coverage;Format=opencover"
+        run: dotnet test tests/Courier.Tests.Integration --no-build -c Release --logger "trx;LogFileName=integration.trx" --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
 
       - name: SonarCloud End
         env:
