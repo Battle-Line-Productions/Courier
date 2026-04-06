@@ -41,7 +41,7 @@ beforeEach(() => {
 
 describe("useCreateChain", () => {
   it("calls api.createChain and invalidates chains queries", async () => {
-    const mockChain = { data: { id: "new-1", name: "New Chain" } };
+    const mockChain = { data: { id: "new-1", name: "New Chain" }, timestamp: "2026-01-01T00:00:00Z", success: true } as any;
     vi.mocked(api.createChain).mockResolvedValue(mockChain);
     const wrapper = createWrapper();
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
@@ -64,7 +64,7 @@ describe("useCreateChain", () => {
 
 describe("useUpdateChain", () => {
   it("calls api.updateChain with id and data, then invalidates chains queries", async () => {
-    const mockChain = { data: { id: "chain-1", name: "Updated" } };
+    const mockChain = { data: { id: "chain-1", name: "Updated" }, timestamp: "2026-01-01T00:00:00Z", success: true } as any;
     vi.mocked(api.updateChain).mockResolvedValue(mockChain);
     const wrapper = createWrapper();
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
@@ -87,7 +87,7 @@ describe("useUpdateChain", () => {
 
 describe("useDeleteChain", () => {
   it("calls api.deleteChain and invalidates chains queries", async () => {
-    vi.mocked(api.deleteChain).mockResolvedValue({ data: undefined });
+    vi.mocked(api.deleteChain).mockResolvedValue({ data: undefined, timestamp: "2026-01-01T00:00:00Z", success: true } as any);
     const wrapper = createWrapper();
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
@@ -106,7 +106,7 @@ describe("useDeleteChain", () => {
 
 describe("useReplaceChainMembers", () => {
   it("calls api.replaceChainMembers and invalidates the specific chain query", async () => {
-    const mockResponse = { data: { id: "chain-1", name: "Chain" } };
+    const mockResponse = { data: { id: "chain-1", name: "Chain" }, timestamp: "2026-01-01T00:00:00Z", success: true } as any;
     vi.mocked(api.replaceChainMembers).mockResolvedValue(mockResponse);
     const wrapper = createWrapper();
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
@@ -116,8 +116,8 @@ describe("useReplaceChainMembers", () => {
     });
 
     const members = [
-      { jobId: "job-1", sequence: 1 },
-      { jobId: "job-2", sequence: 2, delaySeconds: 30 },
+      { jobId: "job-1", executionOrder: 1 },
+      { jobId: "job-2", executionOrder: 2, dependsOnMemberIndex: 0 },
     ];
 
     await act(async () => {
@@ -137,7 +137,7 @@ describe("useReplaceChainMembers", () => {
 
 describe("useTriggerChain", () => {
   it("calls api.triggerChain and invalidates chain executions", async () => {
-    const mockExecution = { data: { id: "exec-1", status: "queued" } };
+    const mockExecution = { data: { id: "exec-1", status: "queued" }, timestamp: "2026-01-01T00:00:00Z", success: true } as any;
     vi.mocked(api.triggerChain).mockResolvedValue(mockExecution);
     const wrapper = createWrapper();
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");

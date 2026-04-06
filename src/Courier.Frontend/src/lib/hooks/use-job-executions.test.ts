@@ -18,7 +18,7 @@ vi.mock("../api", () => ({
 import { api } from "../api";
 import { useJobExecutions, useExecution } from "./use-job-executions";
 
-const mockedApi = api as {
+const mockedApi = api as unknown as {
   listExecutions: ReturnType<typeof vi.fn>;
   getExecution: ReturnType<typeof vi.fn>;
 };

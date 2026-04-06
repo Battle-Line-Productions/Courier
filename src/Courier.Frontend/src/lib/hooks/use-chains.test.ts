@@ -31,7 +31,7 @@ beforeEach(() => {
 
 describe("useChains", () => {
   it("calls api.listChains with default page and pageSize", async () => {
-    const mockResponse = { data: [], totalCount: 0, page: 1, pageSize: 10 };
+    const mockResponse = { data: [], pagination: { page: 1, pageSize: 10, totalCount: 0, totalPages: 0 }, timestamp: "2026-01-01T00:00:00Z", success: true };
     vi.mocked(api.listChains).mockResolvedValue(mockResponse);
 
     const { result } = renderHook(() => useChains(), {
@@ -45,7 +45,7 @@ describe("useChains", () => {
   });
 
   it("calls api.listChains with custom page, pageSize, and filters", async () => {
-    const mockResponse = { data: [], totalCount: 0, page: 2, pageSize: 25 };
+    const mockResponse = { data: [], pagination: { page: 2, pageSize: 25, totalCount: 0, totalPages: 0 }, timestamp: "2026-01-01T00:00:00Z", success: true };
     const filters = { search: "deploy", tag: "prod" };
     vi.mocked(api.listChains).mockResolvedValue(mockResponse);
 
@@ -61,7 +61,7 @@ describe("useChains", () => {
 
 describe("useChain", () => {
   it("calls api.getChain when id is provided", async () => {
-    const mockChain = { data: { id: "abc-123", name: "Test Chain" } };
+    const mockChain = { data: { id: "abc-123", name: "Test Chain" }, timestamp: "2026-01-01T00:00:00Z", success: true } as any;
     vi.mocked(api.getChain).mockResolvedValue(mockChain);
 
     const { result } = renderHook(() => useChain("abc-123"), {
@@ -86,7 +86,7 @@ describe("useChain", () => {
 
 describe("useChainExecutions", () => {
   it("calls api.listChainExecutions when chainId is provided", async () => {
-    const mockResponse = { data: [], totalCount: 0, page: 1, pageSize: 10 };
+    const mockResponse = { data: [], pagination: { page: 1, pageSize: 10, totalCount: 0, totalPages: 0 }, timestamp: "2026-01-01T00:00:00Z", success: true };
     vi.mocked(api.listChainExecutions).mockResolvedValue(mockResponse);
 
     const { result } = renderHook(() => useChainExecutions("chain-1"), {
@@ -100,7 +100,7 @@ describe("useChainExecutions", () => {
   });
 
   it("calls api.listChainExecutions with custom page and pageSize", async () => {
-    const mockResponse = { data: [], totalCount: 0, page: 3, pageSize: 5 };
+    const mockResponse = { data: [], pagination: { page: 3, pageSize: 5, totalCount: 0, totalPages: 0 }, timestamp: "2026-01-01T00:00:00Z", success: true };
     vi.mocked(api.listChainExecutions).mockResolvedValue(mockResponse);
 
     const { result } = renderHook(() => useChainExecutions("chain-1", 3, 5), {

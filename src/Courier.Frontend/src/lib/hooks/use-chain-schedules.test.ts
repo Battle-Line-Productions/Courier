@@ -39,7 +39,7 @@ beforeEach(() => {
 
 describe("useChainSchedules", () => {
   it("calls api.listChainSchedules when chainId is provided", async () => {
-    const mockSchedules = { data: [{ id: "sched-1", scheduleType: "cron" }] };
+    const mockSchedules = { data: [{ id: "sched-1", scheduleType: "cron" }], timestamp: "2026-01-01T00:00:00Z", success: true } as any;
     vi.mocked(api.listChainSchedules).mockResolvedValue(mockSchedules);
 
     const { result } = renderHook(() => useChainSchedules("chain-1"), {
@@ -64,7 +64,7 @@ describe("useChainSchedules", () => {
 
 describe("useCreateChainSchedule", () => {
   it("calls api.createChainSchedule and invalidates schedules query", async () => {
-    const mockSchedule = { data: { id: "sched-new", scheduleType: "cron" } };
+    const mockSchedule = { data: { id: "sched-new", scheduleType: "cron" }, timestamp: "2026-01-01T00:00:00Z", success: true } as any;
     vi.mocked(api.createChainSchedule).mockResolvedValue(mockSchedule);
     const wrapper = createWrapper();
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
@@ -96,7 +96,7 @@ describe("useCreateChainSchedule", () => {
 
 describe("useUpdateChainSchedule", () => {
   it("calls api.updateChainSchedule with chainId, scheduleId, and data", async () => {
-    const mockSchedule = { data: { id: "sched-1", isEnabled: false } };
+    const mockSchedule = { data: { id: "sched-1", isEnabled: false }, timestamp: "2026-01-01T00:00:00Z", success: true } as any;
     vi.mocked(api.updateChainSchedule).mockResolvedValue(mockSchedule);
     const wrapper = createWrapper();
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
@@ -127,7 +127,7 @@ describe("useUpdateChainSchedule", () => {
 
 describe("useDeleteChainSchedule", () => {
   it("calls api.deleteChainSchedule and invalidates schedules query", async () => {
-    vi.mocked(api.deleteChainSchedule).mockResolvedValue({ data: undefined });
+    vi.mocked(api.deleteChainSchedule).mockResolvedValue({ data: undefined, timestamp: "2026-01-01T00:00:00Z", success: true } as any);
     const wrapper = createWrapper();
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 

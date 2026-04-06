@@ -13,7 +13,7 @@ vi.mock("../api", () => ({
 import { api } from "../api";
 import { useStepTypes } from "./use-step-types";
 
-const mockedApi = api as {
+const mockedApi = api as unknown as {
   listStepTypes: ReturnType<typeof vi.fn>;
 };
 

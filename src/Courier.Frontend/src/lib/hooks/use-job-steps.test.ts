@@ -13,7 +13,7 @@ vi.mock("../api", () => ({
 import { api } from "../api";
 import { useJobSteps } from "./use-job-steps";
 
-const mockedApi = api as {
+const mockedApi = api as unknown as {
   listSteps: ReturnType<typeof vi.fn>;
 };
 

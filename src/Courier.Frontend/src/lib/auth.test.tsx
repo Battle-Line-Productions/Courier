@@ -332,7 +332,7 @@ describe("AuthProvider", () => {
 
   it("logs out, clears auth state, calls api.logout, and redirects", async () => {
     vi.mocked(api.login).mockResolvedValue(mockLoginResponse);
-    vi.mocked(api.logout).mockResolvedValue(undefined);
+    vi.mocked(api.logout).mockResolvedValue({ timestamp: new Date().toISOString(), success: true });
 
     renderWithProvider(<TestConsumerWithActions />);
 
@@ -361,7 +361,7 @@ describe("AuthProvider", () => {
   });
 
   it("does not call api.logout when no stored token exists", async () => {
-    vi.mocked(api.logout).mockResolvedValue(undefined);
+    vi.mocked(api.logout).mockResolvedValue({ timestamp: new Date().toISOString(), success: true });
 
     renderWithProvider(<TestConsumerWithActions />);
 

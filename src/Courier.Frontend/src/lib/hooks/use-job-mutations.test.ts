@@ -37,7 +37,7 @@ import {
   useCancelExecution,
 } from "./use-job-mutations";
 
-const mockedApi = api as {
+const mockedApi = api as unknown as {
   createJob: ReturnType<typeof vi.fn>;
   updateJob: ReturnType<typeof vi.fn>;
   deleteJob: ReturnType<typeof vi.fn>;
