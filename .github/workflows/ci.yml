@@ -47,7 +47,7 @@ jobs:
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.token="${SONAR_TOKEN}" \
             /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" \
-            /d:sonar.exclusions="**/Migrations/**,**/obj/**,**/bin/**,src/Courier.Frontend/**" \
+            /d:sonar.exclusions="**/Migrations/**,**/obj/**,**/bin/**,src/Courier.Frontend/**,website/**" \
             /d:sonar.coverage.exclusions="**/Tests/**,**/Migrations/**,**/Program.cs"
 
       - name: Build
