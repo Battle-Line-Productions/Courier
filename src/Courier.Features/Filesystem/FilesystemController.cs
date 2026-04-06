@@ -24,7 +24,8 @@ public class FilesystemController : ControllerBase
         [FromQuery] string? path = null,
         CancellationToken ct = default)
     {
-        var result = await _filesystemService.BrowseAsync(path);
+        var sanitizedPath = SanitizePath(path);
+        var result = await _filesystemService.BrowseAsync(sanitizedPath);
 
         if (!result.Success)
         {
@@ -37,5 +38,13 @@ public class FilesystemController : ControllerBase
         }
 
         return Ok(result);
+    }
+
+    private static string? SanitizePath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return null;
+
+        return Path.GetFullPath(path);
     }
 }
