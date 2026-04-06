@@ -2,6 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![CI](https://github.com/Battle-Line-Productions/Courier/actions/workflows/ci.yml/badge.svg)](https://github.com/Battle-Line-Productions/Courier/actions/workflows/ci.yml)
+
 **Backend:**
 [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=Battle-Line-Productions_Courier&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Battle-Line-Productions_Courier)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Battle-Line-Productions_Courier&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Battle-Line-Productions_Courier)
